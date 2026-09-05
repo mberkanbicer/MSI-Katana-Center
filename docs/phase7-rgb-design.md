@@ -36,9 +36,18 @@ Local observations on the Katana 17 B13VGK:
 - Tools of the same family talk to the controller through `/dev/hidraw*`
   (hidapi) or raw USB with a udev rule granting the user access
   (`msi-perkeyrgb`, `msi-katana-rgb`).
+- **OpenRGB (local, 2026-09-05):** version 1.0rc3 installed and used by the
+  owner. The device family is registered in OpenRGB as
+  "MSI GL66 Mystic Light Keyboard (64 Byte)" (vendor 1462, several PIDs;
+  controller sources under `Controllers/MysticLightController/`), i.e. a
+  64-byte Mystic Light keyboard protocol family that includes the Katana
+  MS-1565 controller. Local check: a non-root OpenRGB server run detected
+  **0 controllers** (usbfs access requires root or a udev rule; no hidraw on
+  this system), so the owner runs it privileged. Exact device name/PID
+  match is confirmed at implementation time with `openrgb --list-devices`.
 - Packet format and report/interface identity must be re-derived from
-  `msi-katana-rgb` (project rule §24) and ideally captured from MSI Center on
-  Windows; no local capture exists yet.
+  `msi-katana-rgb` (project rule §24) and cross-checked against OpenRGB's
+  64-byte Mystic Light keyboard controller code; no local capture exists yet.
 
 ## 3. AGENTS §24 rule mapping (pre-write checklist)
 
@@ -66,6 +75,10 @@ Persistent/flash-save commands are treated as a separate, higher-risk feature.
 or switch to a kernel with `CONFIG_HIDRAW`), otherwise B from the daemon.
 Either way the daemon owns the HID device; the GUI stays unprivileged and
 talks to a future `org.msilinux.Center1.Rgb` interface over D-Bus.
+OpenRGB stays a **reference and validation tool**: its 64-byte Mystic Light
+keyboard controller code is cross-checked during protocol documentation
+(§24 rule 1–2), and its SDK/CLI can serve as a temporary side-by-side
+verifier during the first non-persistent writes.
 
 ## 5. Local blocker remediation paths (hidraw)
 
@@ -107,6 +120,10 @@ after physical validation, non-persistent first.
 - `msi-katana-rgb` (sarpowsky) — protocol reference (project rule)
 - `msi-perkeyrgb` (Askannz) — hidraw/hidapi technique + udev
 - OpenRGB README (MSI SMBus caveat; laptop USB path distinct)
+- OpenRGB Wiki: "MSI GL66 Mystic Light Keyboard (64 Byte)" (supported PID
+  family); controller sources `Controllers/MysticLightController/`
+- Local OpenRGB 1.0rc3 (2026-09-05): owner-used; non-root server run found
+  0 controllers (usbfs needs root/udev; no hidraw on this system)
 - linux-hardware.org `usb:1462-1601`
 - Local checks 2026-09-05: `lsusb`, `/sys/bus/hid/devices/0003:1462:1601.0001`,
   `/proc/misc`, `/lib/modules/.../.config`
