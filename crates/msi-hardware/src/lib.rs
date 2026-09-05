@@ -1,5 +1,6 @@
 use msi_core::{
-    BackendAvailability, BatteryStatus, DeviceIdentity, EcStatus, FanModeState, FanReading,
+    BackendAvailability, BatteryStatus, CoolerBoostState, DeviceIdentity, EcStatus, FanModeState,
+    FanReading,
 };
 use std::fmt;
 use std::fs;
@@ -127,6 +128,56 @@ impl std::error::Error for FanModeError {
 }
 
 impl From<io::Error> for FanModeError {
+    fn from(error: io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+#[derive(Debug)]
+pub enum CoolerBoostError {
+    Unavailable,
+    Io(io::Error),
+    Verification {
+        applied: Option<bool>,
+        expected: bool,
+    },
+    Rollback {
+        operation: String,
+        rollback: io::Error,
+    },
+}
+
+impl fmt::Display for CoolerBoostError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable => f.write_str("writable msi-ec cooler-boost interface unavailable"),
+            Self::Io(error) => write!(f, "cooler-boost I/O error: {error}"),
+            Self::Verification { applied, expected } => write!(
+                f,
+                "cooler-boost verification failed: driver reported {applied:?}, expected {expected:?}"
+            ),
+            Self::Rollback {
+                operation,
+                rollback,
+            } => write!(
+                f,
+                "cooler-boost operation failed ({operation}); rollback also failed: {rollback}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CoolerBoostError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Rollback { rollback, .. } => Some(rollback),
+            _ => None,
+        }
+    }
+}
+
+impl From<io::Error> for CoolerBoostError {
     fn from(error: io::Error) -> Self {
         Self::Io(error)
     }
@@ -348,6 +399,41 @@ impl HardwarePaths {
         })
     }
 
+    pub fn set_cooler_boost(&self, enabled: bool) -> Result<CoolerBoostState, CoolerBoostError> {
+        let base = "/sys/devices/platform/msi-ec";
+        let dir = self.rooted(base);
+        let boost_path = dir.join("cooler_boost");
+        if !boost_path.is_file() {
+            return Err(CoolerBoostError::Unavailable);
+        }
+        let previous = self.read_on_off(format!("{base}/cooler_boost"));
+        let value = if enabled { "on" } else { "off" };
+
+        if let Err(operation) = fs::write(&boost_path, format!("{value}\n")) {
+            return Err(cooler_boost_rollback_error(
+                &dir,
+                previous,
+                CoolerBoostError::Io(operation),
+            ));
+        }
+
+        let applied = self.read_on_off(format!("{base}/cooler_boost"));
+        if applied != Some(enabled) {
+            return Err(cooler_boost_rollback_error(
+                &dir,
+                previous,
+                CoolerBoostError::Verification {
+                    applied,
+                    expected: enabled,
+                },
+            ));
+        }
+
+        Ok(CoolerBoostState {
+            cooler_boost: applied,
+        })
+    }
+
     pub fn discover_backends(&self) -> io::Result<BackendAvailability> {
         Ok(BackendAvailability {
             msi_ec: self.rooted("/sys/devices/platform/msi-ec").is_dir(),
@@ -523,6 +609,30 @@ fn fan_mode_rollback_error(
     }
 }
 
+fn restore_cooler_boost(dir: &Path, previous: Option<bool>) -> io::Result<()> {
+    match previous {
+        Some(previous) => {
+            let value = if previous { "on" } else { "off" };
+            fs::write(dir.join("cooler_boost"), format!("{value}\n"))
+        }
+        None => Ok(()),
+    }
+}
+
+fn cooler_boost_rollback_error(
+    dir: &Path,
+    previous: Option<bool>,
+    operation: CoolerBoostError,
+) -> CoolerBoostError {
+    match restore_cooler_boost(dir, previous) {
+        Ok(()) => operation,
+        Err(rollback) => CoolerBoostError::Rollback {
+            operation: operation.to_string(),
+            rollback,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -598,6 +708,37 @@ mod tests {
             fs::read_to_string(msi_ec.join("fan_mode")).unwrap().trim(),
             "silent"
         );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn writes_and_validates_cooler_boost() {
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-coolerboost-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let msi_ec = root.join("sys/devices/platform/msi-ec");
+        fs::create_dir_all(&msi_ec).unwrap();
+        fs::write(msi_ec.join("cooler_boost"), "off\n").unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        let applied = hardware.set_cooler_boost(true).unwrap();
+        assert_eq!(applied.cooler_boost, Some(true));
+        assert_eq!(
+            fs::read_to_string(msi_ec.join("cooler_boost"))
+                .unwrap()
+                .trim(),
+            "on"
+        );
+        assert!(matches!(
+            hardware.set_cooler_boost(false).unwrap().cooler_boost,
+            Some(false)
+        ));
 
         fs::remove_dir_all(root).unwrap();
     }

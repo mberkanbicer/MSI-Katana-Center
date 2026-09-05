@@ -29,6 +29,7 @@ Methods:
 - `Refresh()` refreshes read-only state.
 - `SetBatteryThresholds(start, end)` validates percentages, requires exact verified firmware and the `power_supply` backend, obtains Polkit authorization, writes in constraint-safe order, reads back the driver-applied values, and rolls back invalid or partial results.
 - `SetFanMode(mode)` requires exact verified firmware and the `msi-ec` backend, restricts `mode` to the driver's `available_fan_modes`, obtains Polkit authorization, writes, reads back the applied value, and restores the previous mode on write or verification failure.
+- `SetCoolerBoost(enabled)` requires exact verified firmware and the `msi-ec` backend, obtains Polkit authorization, writes `on`/`off`, reads back the applied value, and restores the previous state on write or verification failure.
 
 Signals:
 
@@ -45,6 +46,8 @@ Write methods require Polkit authorization in the daemon. The GUI and CLI remain
 Battery writes are disabled unless the daemon starts with `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=1`. This opt-in is for controlled local validation; provenance records `writes_tested: true` since the physical test on 2026-09-05. Authorization uses the Polkit action `org.msilinux.Center.set-battery-thresholds`.
 
 Fan-mode writes follow the same pattern with `MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=1` and the Polkit action `org.msilinux.Center.set-fan-mode`. The requested mode must be one of the driver's `available_fan_modes`; the daemon restores the previous mode on write or verification failure. Physically verified on 2026-09-05.
+
+Cooler Boost follows the same pattern with `MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1` and the Polkit action `org.msilinux.Center.set-cooler-boost`. The daemon restores the previous state on write or verification failure. Physical verification is pending.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 

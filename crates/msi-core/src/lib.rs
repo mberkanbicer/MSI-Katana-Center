@@ -71,6 +71,11 @@ pub struct FanModeState {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CoolerBoostState {
+    pub cooler_boost: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CapabilitySet {
     pub ec_firmware: bool,
     pub ec_temperatures: bool,

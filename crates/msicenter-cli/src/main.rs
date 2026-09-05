@@ -1,5 +1,7 @@
 use msi_core::SystemStatus;
-use msi_dbus::{collect_status, request_battery_thresholds, request_fan_mode};
+use msi_dbus::{
+    collect_status, request_battery_thresholds, request_cooler_boost, request_fan_mode,
+};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -41,6 +43,17 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             }
             println!("{}", request_fan_mode(&args[1])?);
         }
+        "cooler-boost" => {
+            if args.len() != 2 {
+                return Err("usage: msicenter cooler-boost on|off".into());
+            }
+            let enabled = match args[1].as_str() {
+                "on" | "1" | "true" => true,
+                "off" | "0" | "false" => false,
+                other => return Err(format!("invalid cooler-boost value: {other}").into()),
+            };
+            println!("{}", request_cooler_boost(enabled)?);
+        }
         "help" | "--help" | "-h" => print_help(),
         other => return Err(format!("unknown command: {other}").into()),
     }
@@ -56,6 +69,7 @@ fn print_help() {
     println!("  msicenter capabilities");
     println!("  msicenter battery-thresholds START END");
     println!("  msicenter fan-mode MODE");
+    println!("  msicenter cooler-boost on|off");
     println!();
     println!("Testing:");
     println!("  MSI_LINUX_CENTER_SYSROOT=/path/to/fixture msicenter status");

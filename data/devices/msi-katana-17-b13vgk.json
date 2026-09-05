@@ -61,6 +61,18 @@
       "notes": "Physically verified on 2026-09-05 on the reference laptop: SetFanMode(silent) applied through msi-ec, read-back confirmed silent, restored to auto; write rejected with NotSupported while the opt-in was disabled."
     },
     {
+      "feature": "cooler_boost",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local msi-ec cooler_boost readings",
+        "BeardOverflow/msi-ec driver sysfs ABI"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Semantic msi-ec cooler-boost write path implemented (on/off); physical write validation pending."
+    },
+    {
       "feature": "rgb_controller",
       "model_firmware_scope": "Katana 17 B13VGK USB controller 1462:1601",
       "sources": [
