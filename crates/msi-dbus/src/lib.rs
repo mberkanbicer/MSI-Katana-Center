@@ -3,7 +3,7 @@ use msi_core::{
     RuntimeCapability, SupportTier, SystemStatus,
 };
 use msi_device_db::DatabaseError;
-use msi_hardware::{validate_battery_thresholds, HardwarePaths};
+use msi_hardware::{validate_battery_thresholds, FanModeError, HardwarePaths};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
@@ -18,6 +18,7 @@ use zbus::zvariant::Value;
 pub const BUS_NAME: &str = "org.msilinux.Center";
 pub const ROOT_PATH: &str = "/org/msilinux/Center";
 pub const SET_BATTERY_THRESHOLDS_ACTION: &str = "org.msilinux.Center.set-battery-thresholds";
+pub const SET_FAN_MODE_ACTION: &str = "org.msilinux.Center.set-fan-mode";
 
 #[derive(Debug)]
 pub enum ServiceError {
@@ -83,6 +84,17 @@ pub fn request_battery_thresholds(start: u8, end: u8) -> Result<String, ServiceE
     proxy
         .call("SetBatteryThresholds", &(start, end))
         .map_err(Into::into)
+}
+
+pub fn request_fan_mode(mode: &str) -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy.call("SetFanMode", &(mode,)).map_err(Into::into)
 }
 
 fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError> {
@@ -262,7 +274,12 @@ impl DeviceInterface {
         let sender = header
             .sender()
             .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
-        authorize(&self.connection, sender.as_str()).await?;
+        authorize(
+            &self.connection,
+            sender.as_str(),
+            SET_BATTERY_THRESHOLDS_ACTION,
+        )
+        .await?;
 
         let applied = self
             .hardware
@@ -274,6 +291,49 @@ impl DeviceInterface {
                 .write()
                 .map_err(|_| zbus::fdo::Error::Failed("status lock poisoned".into()))?;
             status.battery = applied.clone();
+            status.runtime_capabilities = runtime_capabilities(
+                status.matched_profile.as_ref(),
+                &status.backends,
+                &status.ec,
+                &status.fans,
+                &status.battery,
+            );
+        }
+        Self::state_changed(&context)
+            .await
+            .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        to_json(&applied)
+    }
+
+    async fn set_fan_mode(
+        &self,
+        mode: String,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(signal_context)] context: SignalContext<'_>,
+    ) -> zbus::fdo::Result<String> {
+        let current = snapshot(&self.status)?;
+        require_fan_mode_write_support(&current, fan_mode_writes_enabled())?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_FAN_MODE_ACTION).await?;
+
+        let applied = self
+            .hardware
+            .set_fan_mode(&mode)
+            .map_err(|error| match error {
+                FanModeError::InvalidMode { .. } => {
+                    zbus::fdo::Error::InvalidArgs(error.to_string())
+                }
+                other => zbus::fdo::Error::Failed(other.to_string()),
+            })?;
+        {
+            let mut status = self
+                .status
+                .write()
+                .map_err(|_| zbus::fdo::Error::Failed("status lock poisoned".into()))?;
+            status.ec.fan_mode = applied.fan_mode.clone();
+            status.ec.available_fan_modes = applied.available_fan_modes.clone();
             status.runtime_capabilities = runtime_capabilities(
                 status.matched_profile.as_ref(),
                 &status.backends,
@@ -341,6 +401,10 @@ fn battery_writes_enabled() -> bool {
     std::env::var("MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES").as_deref() == Ok("1")
 }
 
+fn fan_mode_writes_enabled() -> bool {
+    std::env::var("MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES").as_deref() == Ok("1")
+}
+
 fn require_battery_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
     if !enabled {
         return Err(zbus::fdo::Error::NotSupported(
@@ -371,7 +435,41 @@ fn require_battery_write_support(status: &SystemStatus, enabled: bool) -> zbus::
     Ok(())
 }
 
-async fn authorize(connection: &zbus::Connection, sender: &str) -> zbus::fdo::Result<()> {
+fn require_fan_mode_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
+    if !enabled {
+        return Err(zbus::fdo::Error::NotSupported(
+            "fan-mode writes disabled; set MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=1 for local validation"
+                .into(),
+        ));
+    }
+    let profile = status
+        .matched_profile
+        .as_ref()
+        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
+    let firmware = status
+        .ec
+        .firmware
+        .as_ref()
+        .ok_or_else(|| zbus::fdo::Error::NotSupported("EC firmware unavailable".into()))?;
+    if !profile.capabilities.fan_mode
+        || !profile
+            .exact_verified_firmware
+            .iter()
+            .any(|verified| verified == firmware)
+        || !status.backends.msi_ec
+    {
+        return Err(zbus::fdo::Error::NotSupported(
+            "fan-mode writes require exact verified firmware and the msi-ec backend".into(),
+        ));
+    }
+    Ok(())
+}
+
+async fn authorize(
+    connection: &zbus::Connection,
+    sender: &str,
+    action: &str,
+) -> zbus::fdo::Result<()> {
     let proxy = zbus::Proxy::new(
         connection,
         "org.freedesktop.PolicyKit1",
@@ -386,10 +484,7 @@ async fn authorize(connection: &zbus::Connection, sender: &str) -> zbus::fdo::Re
     );
     let details = HashMap::<&str, &str>::new();
     let (authorized, _, _): (bool, bool, HashMap<String, String>) = proxy
-        .call(
-            "CheckAuthorization",
-            &(subject, SET_BATTERY_THRESHOLDS_ACTION, details, 1u32, ""),
-        )
+        .call("CheckAuthorization", &(subject, action, details, 1u32, ""))
         .await
         .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
     if authorized {
@@ -432,5 +527,18 @@ mod tests {
 
         status.ec.firmware = Some("17L5EMS1.999".into());
         assert!(require_battery_write_support(&status, true).is_err());
+    }
+
+    #[test]
+    fn fan_mode_write_gate_requires_opt_in_and_exact_firmware() {
+        let mut status = collect_status_at(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/katana17-b13vgk"),
+        )
+        .unwrap();
+        assert!(require_fan_mode_write_support(&status, false).is_err());
+        assert!(require_fan_mode_write_support(&status, true).is_ok());
+
+        status.ec.firmware = Some("17L5EMS1.999".into());
+        assert!(require_fan_mode_write_support(&status, true).is_err());
     }
 }

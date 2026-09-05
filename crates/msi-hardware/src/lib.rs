@@ -1,4 +1,6 @@
-use msi_core::{BackendAvailability, BatteryStatus, DeviceIdentity, EcStatus, FanReading};
+use msi_core::{
+    BackendAvailability, BatteryStatus, DeviceIdentity, EcStatus, FanModeState, FanReading,
+};
 use std::fmt;
 use std::fs;
 use std::io;
@@ -66,6 +68,65 @@ impl std::error::Error for BatteryThresholdError {
 }
 
 impl From<io::Error> for BatteryThresholdError {
+    fn from(error: io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+#[derive(Debug)]
+pub enum FanModeError {
+    Unavailable,
+    InvalidMode {
+        mode: String,
+        available: Vec<String>,
+    },
+    Io(io::Error),
+    Verification {
+        applied: Option<String>,
+        expected: String,
+    },
+    Rollback {
+        operation: String,
+        rollback: io::Error,
+    },
+}
+
+impl fmt::Display for FanModeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable => f.write_str("writable msi-ec fan-mode interface unavailable"),
+            Self::InvalidMode { mode, available } => write!(
+                f,
+                "invalid fan mode {mode:?}; available modes: {}",
+                available.join(", ")
+            ),
+            Self::Io(error) => write!(f, "fan-mode I/O error: {error}"),
+            Self::Verification { applied, expected } => write!(
+                f,
+                "fan-mode verification failed: driver reported {applied:?}, expected {expected:?}"
+            ),
+            Self::Rollback {
+                operation,
+                rollback,
+            } => write!(
+                f,
+                "fan-mode operation failed ({operation}); rollback also failed: {rollback}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FanModeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Rollback { rollback, .. } => Some(rollback),
+            _ => None,
+        }
+    }
+}
+
+impl From<io::Error> for FanModeError {
     fn from(error: io::Error) -> Self {
         Self::Io(error)
     }
@@ -245,6 +306,48 @@ impl HardwarePaths {
         self.read_laptop_battery().map_err(Into::into)
     }
 
+    pub fn set_fan_mode(&self, mode: &str) -> Result<FanModeState, FanModeError> {
+        let base = "/sys/devices/platform/msi-ec";
+        let dir = self.rooted(base);
+        let mode_path = dir.join("fan_mode");
+        let available = self.read_words(format!("{base}/available_fan_modes"));
+        if !mode_path.is_file() || available.is_empty() {
+            return Err(FanModeError::Unavailable);
+        }
+        if !available.iter().any(|candidate| candidate == mode) {
+            return Err(FanModeError::InvalidMode {
+                mode: mode.to_owned(),
+                available,
+            });
+        }
+        let previous = self.read_trimmed(format!("{base}/fan_mode"));
+
+        if let Err(operation) = fs::write(&mode_path, format!("{mode}\n")) {
+            return Err(fan_mode_rollback_error(
+                &dir,
+                previous,
+                FanModeError::Io(operation),
+            ));
+        }
+
+        let applied = self.read_trimmed(format!("{base}/fan_mode"));
+        if applied.as_deref() != Some(mode) {
+            return Err(fan_mode_rollback_error(
+                &dir,
+                previous,
+                FanModeError::Verification {
+                    applied,
+                    expected: mode.to_owned(),
+                },
+            ));
+        }
+
+        Ok(FanModeState {
+            fan_mode: applied,
+            available_fan_modes: available,
+        })
+    }
+
     pub fn discover_backends(&self) -> io::Result<BackendAvailability> {
         Ok(BackendAvailability {
             msi_ec: self.rooted("/sys/devices/platform/msi-ec").is_dir(),
@@ -399,6 +502,27 @@ fn rollback_error(
     }
 }
 
+fn restore_fan_mode(dir: &Path, previous: Option<String>) -> io::Result<()> {
+    match previous {
+        Some(previous) => fs::write(dir.join("fan_mode"), format!("{previous}\n")),
+        None => Ok(()),
+    }
+}
+
+fn fan_mode_rollback_error(
+    dir: &Path,
+    previous: Option<String>,
+    operation: FanModeError,
+) -> FanModeError {
+    match restore_fan_mode(dir, previous) {
+        Ok(()) => operation,
+        Err(rollback) => FanModeError::Rollback {
+            operation: operation.to_string(),
+            rollback,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -435,6 +559,44 @@ mod tests {
         assert_eq!(
             read_threshold(&battery.join("charge_control_end_threshold")).unwrap(),
             80
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn writes_and_validates_fan_mode() {
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-fanmode-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let msi_ec = root.join("sys/devices/platform/msi-ec");
+        fs::create_dir_all(&msi_ec).unwrap();
+        fs::write(
+            msi_ec.join("available_fan_modes"),
+            "auto\nsilent\nadvanced\n",
+        )
+        .unwrap();
+        fs::write(msi_ec.join("fan_mode"), "auto\n").unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        let applied = hardware.set_fan_mode("silent").unwrap();
+        assert_eq!(applied.fan_mode.as_deref(), Some("silent"));
+        assert_eq!(
+            applied.available_fan_modes,
+            vec!["auto", "silent", "advanced"]
+        );
+        assert!(matches!(
+            hardware.set_fan_mode("turbo"),
+            Err(FanModeError::InvalidMode { .. })
+        ));
+        assert_eq!(
+            fs::read_to_string(msi_ec.join("fan_mode")).unwrap().trim(),
+            "silent"
         );
 
         fs::remove_dir_all(root).unwrap();

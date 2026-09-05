@@ -17,8 +17,9 @@ Linux-native MSI laptop hardware management project. This snapshot implements th
 - Rust D-Bus daemon with `Device` and `Sensors` interfaces
 - hardened systemd service and system-bus policy
 - Polkit-protected battery threshold writes with validation, read-back, and rollback
+- gated `msi-ec` fan-mode write with validation, read-back, and rollback (pending physical verification)
 
-Battery writes are disabled by default and require an explicit daemon opt-in. No EC, fan, RGB, or MUX write exists.
+Battery-threshold and fan-mode writes are disabled by default and require explicit per-feature daemon opt-ins. No RGB, MUX, or fan-curve write exists.
 
 ## Reference device
 

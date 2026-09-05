@@ -49,6 +49,18 @@
       "notes": "Channels are intentionally kept physically unmapped."
     },
     {
+      "feature": "fan_mode",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local msi-ec fan_mode and available_fan_modes readings",
+        "BeardOverflow/msi-ec driver sysfs ABI"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Semantic msi-ec fan-mode write path implemented (driver modes: auto, silent, advanced); physical write validation pending."
+    },
+    {
       "feature": "rgb_controller",
       "model_firmware_scope": "Katana 17 B13VGK USB controller 1462:1601",
       "sources": [

@@ -65,6 +65,12 @@ pub struct BatteryStatus {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FanModeState {
+    pub fan_mode: Option<String>,
+    pub available_fan_modes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CapabilitySet {
     pub ec_firmware: bool,
     pub ec_temperatures: bool,

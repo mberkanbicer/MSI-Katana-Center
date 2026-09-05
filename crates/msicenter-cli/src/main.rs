@@ -1,5 +1,5 @@
 use msi_core::SystemStatus;
-use msi_dbus::{collect_status, request_battery_thresholds};
+use msi_dbus::{collect_status, request_battery_thresholds, request_fan_mode};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -35,6 +35,12 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             let end = args[2].parse::<u8>()?;
             println!("{}", request_battery_thresholds(start, end)?);
         }
+        "fan-mode" => {
+            if args.len() != 2 {
+                return Err("usage: msicenter fan-mode MODE".into());
+            }
+            println!("{}", request_fan_mode(&args[1])?);
+        }
         "help" | "--help" | "-h" => print_help(),
         other => return Err(format!("unknown command: {other}").into()),
     }
@@ -49,6 +55,7 @@ fn print_help() {
     println!("  msicenter status [--json]");
     println!("  msicenter capabilities");
     println!("  msicenter battery-thresholds START END");
+    println!("  msicenter fan-mode MODE");
     println!();
     println!("Testing:");
     println!("  MSI_LINUX_CENTER_SYSROOT=/path/to/fixture msicenter status");

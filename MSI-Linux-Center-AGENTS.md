@@ -84,7 +84,7 @@ Firmware-family compatibility may be useful for read-only detection, but write c
 
 # 3. Current project phase
 
-The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: a gated, Polkit-protected battery charge-threshold write path through Linux `power_supply`, physically verified on the reference laptop on 2026-09-05.
+The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: a gated, Polkit-protected battery charge-threshold write path through Linux `power_supply`, physically verified on the reference laptop on 2026-09-05, plus a second gated write path, `SetFanMode` through `msi-ec`, implemented and pending physical verification.
 
 It implements:
 
@@ -98,8 +98,9 @@ It implements:
 - a fake sysroot fixture for tests and hardware-free development
 - a Rust D-Bus daemon with `Device` and `Sensors` interfaces, systemd unit, D-Bus policy, and Polkit action
 - the gated `SetBatteryThresholds` write method through Linux `power_supply`
+- the gated `SetFanMode` write method through `msi-ec`
 
-The only hardware write path is `SetBatteryThresholds`: disabled by default (`MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`), restricted to the exact verified firmware, Polkit-authorized, and physically verified on the reference hardware on 2026-09-05 (`80/90` applied, restored to `90/100`).
+Two gated hardware write paths exist: `SetBatteryThresholds` (physically verified on 2026-09-05) and `SetFanMode` through `msi-ec` (implemented; physical verification pending). Each is disabled by default (per-feature `MSI_LINUX_CENTER_ENABLE_*_WRITES=0` opt-ins), restricted to the exact verified firmware, and Polkit-authorized.
 
 Do not add EC, fan, RGB, or MUX writes ahead of the phase sequence in §34; each new write path must satisfy the acceptance criteria in §35 first.
 
@@ -1170,7 +1171,7 @@ Status:
 - battery threshold — implemented and physically verified (2026-09-05; gated through `power_supply`)
 - Cooler Boost — not started
 - performance mode — not started
-- fan mode — not started
+- fan mode — implemented (gated through `msi-ec`; physical write verification pending)
 - Super Battery — not started
 
 Each feature must be introduced separately and locally validated.
