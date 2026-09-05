@@ -1194,6 +1194,8 @@ Design study (no code): `docs/phase5-fan-curve-design.md`.
 
 Qt 6 / QML UI.
 
+Architecture plan (no code): `docs/phase6-ui-design.md`.
+
 ## Phase 7
 
 RGB HID control.
