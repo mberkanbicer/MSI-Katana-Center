@@ -1198,7 +1198,11 @@ Architecture plan (no code): `docs/phase6-ui-design.md`.
 
 Milestone 1 (read-only dashboard skeleton) implemented in
 `crates/msicenter-ui/` (C++17 + QtDBus client, QML views); runs against the
-live daemon, verified on 2026-09-05. Write controls come in milestone 2.
+live daemon, verified on 2026-09-05. Milestone 2 adds write controls for the
+four verified features (fan mode, Cooler Boost, Super Battery, battery
+thresholds); all calls go through the daemon's Polkit-gated methods and the
+UI reports daemon replies/refusals verbatim. Write controls were verified
+via CLI; UI-side interaction needs a desktop visual test.
 
 ## Phase 7
 

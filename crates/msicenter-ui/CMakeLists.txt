@@ -16,7 +16,7 @@ qt_add_executable(msicenter-ui
 
 qt_add_resources(msicenter-ui "qml"
     PREFIX "/"
-    FILES qml/Main.qml qml/SectionLabel.qml qml/KV.qml
+    FILES qml/Main.qml qml/SectionLabel.qml qml/KV.qml qml/ActionButton.qml
 )
 
 target_link_libraries(msicenter-ui PRIVATE

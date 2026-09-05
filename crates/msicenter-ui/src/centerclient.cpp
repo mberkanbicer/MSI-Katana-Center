@@ -135,10 +135,70 @@ void CenterClient::handleJson(const QString &property, const QString &json) {
     emit changed();
 }
 
+void CenterClient::setFanMode(const QString &mode) {
+    callMethod(QStringLiteral("SetFanMode"), {QVariant(mode)});
+}
+
+void CenterClient::setCoolerBoost(bool enabled) {
+    callMethod(QStringLiteral("SetCoolerBoost"), {QVariant(enabled)});
+}
+
+void CenterClient::setSuperBattery(bool enabled) {
+    callMethod(QStringLiteral("SetSuperBattery"), {QVariant(enabled)});
+}
+
+void CenterClient::setBatteryThresholds(int start, int end) {
+    // The daemon signature is (yy); marshal as bytes, not ints.
+    callMethod(QStringLiteral("SetBatteryThresholds"),
+               {QVariant::fromValue<quint8>(quint8(start)),
+                QVariant::fromValue<quint8>(quint8(end))});
+}
+
+void CenterClient::callMethod(const QString &method, const QVariantList &args) {
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        kService, kPath, kDeviceIface, method);
+    for (const QVariant &arg : args)
+        msg << arg;
+    QDBusPendingCall call = QDBusConnection::systemBus().asyncCall(msg);
+    auto *watcher = new QDBusPendingCallWatcher(call, this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, method](QDBusPendingCallWatcher *w) {
+                w->deleteLater();
+                handleAction(method, w->reply());
+            });
+}
+
+void CenterClient::handleAction(const QString &method,
+                                const QDBusMessage &reply) {
+    if (reply.type() == QDBusMessage::ReplyMessage) {
+        m_actionError = false;
+        m_actionMessage = QStringLiteral("%1: applied").arg(method);
+        qInfo().noquote() << "center:" << method << "applied";
+    } else {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("%1: %2").arg(method, reply.errorMessage());
+        qWarning().noquote() << "center:" << method
+                             << "rejected:" << reply.errorMessage();
+    }
+    emit changed();
+    // Refresh cached state after any write attempt (success or gate refusal).
+    refreshNow();
+}
+
 void CenterClient::parseEc(const QJsonObject &ec) {
     m_ecFirmware = ec.value("firmware").toString();
     m_ecShift = ec.value("shift_mode").toString();
     m_ecFanMode = ec.value("fan_mode").toString();
+    QStringList modes;
+    for (const QJsonValue &value : ec.value("available_fan_modes").toArray())
+        modes << value.toString();
+    m_fanModes = modes;
+    const QJsonValue cooler = ec.value("cooler_boost");
+    m_hasCoolerBoost = cooler.isBool();
+    m_coolerBoost = cooler.toBool(false);
+    const QJsonValue superBattery = ec.value("super_battery");
+    m_hasSuperBattery = superBattery.isBool();
+    m_superBattery = superBattery.toBool(false);
     const int cpu = ec.value("cpu_temperature_c").toInt(-1);
     const int gpu = ec.value("gpu_temperature_c").toInt(-1);
     m_ecTemps = QStringLiteral("%1 °C / %2 °C (cpu/gpu)")
