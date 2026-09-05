@@ -18,11 +18,13 @@ Local observations on the Katana 17 B13VGK:
 - HID device registered: `/sys/bus/hid/devices/0003:1462:1601.0001`,
   `HID_NAME=MSI MysticLight MS-1565`, bound to `hid-generic`,
   `HID_PHYS=usb-0000:00:14.0-7/input0`, `HID_UNIQ=4062C8A28000`.
-- **Local blocker:** no `/dev/hidraw*` nodes exist and no `hidraw` entry in
-  `/proc/misc` anywhere on this system, even though
-  `/lib/modules/$(uname -r)/build/.config` reports `CONFIG_HIDRAW=y`
-  (config/build tree may not match the running kernel). Other HID devices
-  (Logitech hidpp, touchpad) also lack hidraw nodes.
+- **No hidraw in this kernel:** no `/dev/hidraw*` nodes, no `hidraw` in
+  `/proc/misc`, no `hidraw` driver under `/sys/bus/hid/drivers/` on
+  `linux-lts 6.18.49-2` (the `/lib/modules/.../build/.config` value
+  `CONFIG_HIDRAW=y` belongs to a different kernel tree — mismatch).
+- **hidraw is not needed:** `libusb 1.0.30` and `hidapi 0.15.0` are
+  installed; OpenRGB reaches the same device over usbfs via libusb when run
+  as root (confirmed working by the owner), and the daemon runs as root.
 - The profile declares `rgb: true` with `rgb_usb_vid/pid`; the daemon already
   detects the backend via USB VID/PID (`has_usb_device`, `rgb_hid` flag).
 
@@ -69,8 +71,8 @@ Persistent/flash-save commands are treated as a separate, higher-risk feature.
 
 | Option | Path | Fit | Notes |
 |---|---|---|---|
-| A. `/dev/hidraw` via hidapi | standard kernel HID raw node | best ("kernel interface first") | **blocked locally**: no hidraw nodes on this kernel; needs kernel/module fix or a different kernel line first |
-| B. libusb over usbfs (`/dev/bus/usb`) | raw USB control/interrupt transfers | works without hidraw; daemon runs as root anyway | more raw than hidraw; still the official USB transport; needs the interface to be detached/claimed carefully |
+| A. hidapi with **libusb backend** from the root daemon | usbfs via libusb (same path OpenRGB uses) | best available: no hidraw required, vendor HID API, proven working on this device via OpenRGB | needs the `hidapi` Rust crate (libusb feature) or `rusb`; system `libusb 1.0.30` + `hidapi 0.15.0` present; daemon runs as root |
+| B. `/dev/hidraw` via hidapi (hidraw backend) | kernel hidraw nodes | cleanest long term ("kernel interface first") | **not available on this kernel** (no CONFIG_HIDRAW build); revisit if the kernel changes |
 | C. OpenRGB as a subprocess/backend | external controller | fastest demo, no protocol work | outsources the safety-critical layer; conflicts with the project's "self-contained verified platform" goal; still an option for UI prototyping |
 
 **Recommended direction:** A if the hidraw blocker is lifted (kernel rebuild
@@ -82,14 +84,18 @@ keyboard controller code is cross-checked during protocol documentation
 (§24 rule 1–2), and its SDK/CLI can serve as a temporary side-by-side
 verifier during the first non-persistent writes.
 
-## 5. Local blocker remediation paths (hidraw)
+## 5. Transport decision (2026-09-06)
 
-- Check whether the running kernel actually ships hidraw (`/proc/misc`,
-  `/dev/hidraw*`); if the build config mismatches, rebuild/replace the LTS
-  kernel or use the fallback kernel line.
-- If hidraw becomes available: add a udev rule granting the daemon (root) —
-  and only optionally the desktop user — access to the device node.
-- Re-verify with `ls /dev/hidraw*` + `hidapi` enumeration before any write.
+- The running `linux-lts 6.18.49-2` kernel ships **no hidraw**; the earlier
+  `CONFIG_HIDRAW=y` value came from a mismatched build tree. Confirmed:
+  no `/proc/misc` entry, no `/sys/bus/hid/drivers/hidraw`.
+- **Decision: option A — hidapi with its libusb backend, called from the
+  root daemon.** This is exactly how OpenRGB reaches the same device
+  (usbfs), and it requires no kernel changes. System `libusb 1.0.30` and
+  `hidapi 0.15.0` are installed.
+- Revisit hidraw only if the kernel is replaced with one that builds
+  `CONFIG_HIDRAW`; no udev rule is needed while only the root daemon talks
+  to the device.
 
 ## 6. Architecture sketch (future, no code)
 
