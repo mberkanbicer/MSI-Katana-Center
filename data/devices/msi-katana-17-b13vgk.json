@@ -1,0 +1,87 @@
+{
+  "id": "msi-katana-17-b13vgk-ms17l5",
+  "marketing_name": "MSI Katana 17 B13VGK",
+  "product_names": ["Katana 17 B13VGK"],
+  "board_names": ["MS-17L5"],
+  "ec_firmware_prefixes": ["17L5EMS1"],
+  "exact_verified_firmware": ["17L5EMS1.115"],
+  "support_tier": "verified",
+  "rgb_usb_vid": "1462",
+  "rgb_usb_pid": "1601",
+  "capabilities": {
+    "ec_firmware": true,
+    "ec_temperatures": true,
+    "fan_rpm": true,
+    "fan_level": true,
+    "fan_mode": true,
+    "cooler_boost": true,
+    "performance_mode": true,
+    "super_battery": true,
+    "battery_threshold": true,
+    "rgb": true,
+    "custom_fan_curve": false,
+    "mux": false
+  },
+  "provenance": [
+    {
+      "feature": "device_and_ec_identity",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local Phase 0 report: Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+        "GhostDeck device database",
+        "BeardOverflow/msi-ec model support reports"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Identity and firmware were verified locally through read-only interfaces."
+    },
+    {
+      "feature": "fan_rpm",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5",
+      "sources": [
+        "local msi_wmi_platform hwmon readings",
+        "Linux msi-wmi-platform driver"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Channels are intentionally kept physically unmapped."
+    },
+    {
+      "feature": "rgb_controller",
+      "model_firmware_scope": "Katana 17 B13VGK USB controller 1462:1601",
+      "sources": [
+        "local USB/HID detection: 1462:1601 MSI MysticLight MS-1565",
+        "sarpowsky/msi-katana-rgb"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "documented",
+      "notes": "Controller identity is verified; protocol writes are not tested."
+    },
+    {
+      "feature": "battery_threshold",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local power_supply threshold readings",
+        "Linux power supply class sysfs ABI"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Semantic power_supply write path implemented; physical write validation pending."
+    },
+    {
+      "feature": "custom_fan_curve",
+      "model_firmware_scope": "17L5EMS1 firmware family",
+      "sources": [
+        "GhostDeck 17L5EMS1 reverse-engineering data"
+      ],
+      "local_verification": "documented",
+      "writes_tested": false,
+      "confidence": "experimental",
+      "notes": "Production writes remain disabled pending local validation."
+    }
+  ]
+}

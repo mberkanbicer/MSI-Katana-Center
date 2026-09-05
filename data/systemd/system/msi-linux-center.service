@@ -1,0 +1,23 @@
+[Unit]
+Description=MSI Linux Center read-only hardware service
+Requires=dbus.service
+After=dbus.service
+
+[Service]
+Type=dbus
+BusName=org.msilinux.Center
+ExecStart=/usr/bin/msi-daemon
+User=root
+Environment=MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

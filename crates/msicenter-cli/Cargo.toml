@@ -1,0 +1,15 @@
+[package]
+name = "msicenter-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "msicenter"
+path = "src/main.rs"
+
+[dependencies]
+msi-core = { path = "../msi-core" }
+msi-dbus = { path = "../msi-dbus" }
+serde_json.workspace = true

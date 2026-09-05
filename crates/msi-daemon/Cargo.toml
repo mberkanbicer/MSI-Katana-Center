@@ -1,0 +1,13 @@
+[package]
+name = "msi-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "msi-daemon"
+path = "src/main.rs"
+
+[dependencies]
+msi-dbus = { path = "../msi-dbus" }
