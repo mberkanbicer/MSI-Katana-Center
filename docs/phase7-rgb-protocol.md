@@ -45,17 +45,24 @@ Effect types: 0 off, 1 steady, 2 breath, 3 color cycle, 4 color wave.
 first; any implementation must expose the flash save only as a separate,
 explicitly gated action.
 
-## 2. OpenRGB cross-check (2026-09-05)
+## 2. OpenRGB cross-check
 
+- OpenRGB 1.0rc3 (owner's installed version; source tarball
+  `release_candidate_1.0rc3`, 2026-09-06): the matching controller is
+  **`Controllers/MSIKeyboardController/MSIMysticLightKBController/`**, with
+  `REGISTER_HID_DETECTOR_PU("MSI Keyboard MS_1565", DetectMSIKeyboardController,
+  MSI_USB_VID 0x1462, 0x1601, 0x00FF, 0x01)` — PID **0x1601 is confirmed**.
+  The name shown by the owner in OpenRGB ("MSI MysticLight MS-1565") is the
+  USB product string; the detector name is "MSI Keyboard MS_1565".
+- The owner confirmed (2026-09-06) that OpenRGB can actually **change the
+  keyboard color**, so this controller path is a working reference.
 - `Controllers/MSI3ZoneController` (8-byte feature reports, VID
-  `0x1770:0xFF00`) — SteelSeries/MSI 3-zone keyboard; **not this device**.
-- `Controllers/MSIMysticLightController` registers USB detectors for VID
-  `0x1462` with motherboard-style PIDs (0x3EA4, 0x4459, 0x7B10…0x7C42);
-  **0x1601 is not among the detectors seen in master**.
-- The owner reports OpenRGB (1.0rc3) lists the device as
-  "MSI MysticLight MS-1565" (equals the USB/HID product string).
-  Whether OpenRGB can actually drive it (detector match, not just listing)
-  is **unconfirmed** — see open questions.
+  `0x1770:0xFF00`) is a different device.
+- The `MSIMysticLightController` SMBus/motherboard family
+  (0x3EA4…0x7C42 detectors) does not include 0x1601, and the "brick"
+  caveat applies to that SMBus path, not to the keyboard controller.
+- Note: a master-branch clone (mullcom mirror, 2026-09-05) predates the
+  RC3 keyboard controller; RC3 is the correct reference revision.
 
 ## 3. Cross-source comparison
 
@@ -68,12 +75,12 @@ PID 0x1601) is required before protocol documentation is complete.
 
 ## 4. Open questions
 
-1. Which OpenRGB controller (if any) matches PID 0x1601, and does it use
-   the same 64-byte layout? (Search outside `Controllers/` — e.g.
-   detectors/registration tables — or confirm via a fresh `git grep` with
-   full blobs.)
-2. Can the owner actually change colors in OpenRGB for this device, or is
-   it only listed?
+1. **RESOLVED (2026-09-06):** the matching OpenRGB controller is
+   `MSIMysticLightKBController` (RC3), PID 0x1601 confirmed; the owner can
+   change colors with it.
+2. Byte-level comparison of `MSIMysticLightKBController.cpp` packet layout
+   against the msi-katana-rgb scheme (report 2 / packet ids / effect payload)
+   is the next documentation step; any divergence must be recorded here.
 3. Baseline: what effect/color is currently active (Windows-set) before
    any first write?
 
