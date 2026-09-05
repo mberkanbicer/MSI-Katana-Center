@@ -36,6 +36,16 @@ Do not automate these steps. Record the original fan mode first.
 
 Only after successful physical verification should the device provenance set `writes_tested` to `true`.
 
-## Verification record
+## Verification record (2026-09-05)
 
-Pending physical validation on the reference laptop.
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original fan mode recorded: `auto`; driver modes: `auto`, `silent`, `advanced`
+- updated daemon, systemd unit, D-Bus policy, and Polkit action installed; opt-in override `Environment=MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=1`
+- `msicenter fan-mode silent` executed as the desktop user through the Polkit prompt (`auth_admin_keep`)
+- returned JSON reported `silent`; daemon `status` and the `fan_mode` sysfs attribute both read back `silent`
+- restored with `msicenter fan-mode auto`; sysfs read back `auto`
+- opt-in override removed; daemon restarted with `MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=0`
+- negative check: `msicenter fan-mode silent` rejected with `org.freedesktop.DBus.Error.NotSupported` while disabled; the mode stayed `auto`
+
+Outcome: physical fan-mode write verification passed.

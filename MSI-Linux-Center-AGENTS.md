@@ -84,7 +84,7 @@ Firmware-family compatibility may be useful for read-only detection, but write c
 
 # 3. Current project phase
 
-The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: a gated, Polkit-protected battery charge-threshold write path through Linux `power_supply`, physically verified on the reference laptop on 2026-09-05, plus a second gated write path, `SetFanMode` through `msi-ec`, implemented and pending physical verification.
+The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: two gated, Polkit-protected write paths, both physically verified on the reference laptop on 2026-09-05 — battery charge thresholds through Linux `power_supply` and fan mode through `msi-ec`.
 
 It implements:
 
@@ -100,7 +100,7 @@ It implements:
 - the gated `SetBatteryThresholds` write method through Linux `power_supply`
 - the gated `SetFanMode` write method through `msi-ec`
 
-Two gated hardware write paths exist: `SetBatteryThresholds` (physically verified on 2026-09-05) and `SetFanMode` through `msi-ec` (implemented; physical verification pending). Each is disabled by default (per-feature `MSI_LINUX_CENTER_ENABLE_*_WRITES=0` opt-ins), restricted to the exact verified firmware, and Polkit-authorized.
+Two gated hardware write paths exist, both physically verified on 2026-09-05: `SetBatteryThresholds` and `SetFanMode` through `msi-ec`. Each is disabled by default (per-feature `MSI_LINUX_CENTER_ENABLE_*_WRITES=0` opt-ins), restricted to the exact verified firmware, and Polkit-authorized.
 
 Do not add EC, fan, RGB, or MUX writes ahead of the phase sequence in §34; each new write path must satisfy the acceptance criteria in §35 first.
 
@@ -1171,7 +1171,7 @@ Status:
 - battery threshold — implemented and physically verified (2026-09-05; gated through `power_supply`)
 - Cooler Boost — not started
 - performance mode — not started
-- fan mode — implemented (gated through `msi-ec`; physical write verification pending)
+- fan mode — implemented and physically verified (2026-09-05; gated through `msi-ec`)
 - Super Battery — not started
 
 Each feature must be introduced separately and locally validated.
