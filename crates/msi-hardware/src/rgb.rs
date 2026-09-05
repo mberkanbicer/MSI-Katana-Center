@@ -1,0 +1,247 @@
+//! MysticLight MS-1565 (1462:1601) keyboard RGB packet building.
+//!
+//! Pure, Linux-independent protocol layer — no device I/O here. The wire
+//! format is documented in `docs/phase7-rgb-protocol.md` and was
+//! cross-verified field-for-field against `msi-katana-rgb` and OpenRGB RC3
+//! (`MSIMysticLightKBController`, `FeaturePacket_MS1565`).
+//!
+//! Only temporary (non-persistent) packets are built here. Flash-save
+//! (0xA0) is intentionally absent: AGENTS §24 requires non-persistent
+//! testing first, and flash writes stay a separate gated action.
+
+/// HID feature-report write id.
+pub const REPORT_ID_WRITE: u8 = 2;
+/// Feature report size in bytes.
+pub const PACKET_SIZE: usize = 64;
+/// Packet id: select zones.
+pub const PACKET_SELECT_ZONES: u8 = 1;
+/// Packet id: set effect.
+pub const PACKET_SET_EFFECT: u8 = 2;
+
+/// Zone bitmask values (bits 0-3, left to right).
+pub const ZONE_1: u8 = 0b0001;
+pub const ZONE_2: u8 = 0b0010;
+pub const ZONE_3: u8 = 0b0100;
+pub const ZONE_4: u8 = 0b1000;
+pub const ZONE_ALL: u8 = 0b1111;
+
+/// Effect types (matches `MS_1565_MODE` / msi-katana-rgb `EFFECT_*`).
+pub const EFFECT_OFF: u8 = 0;
+pub const EFFECT_STEADY: u8 = 1;
+pub const EFFECT_BREATHING: u8 = 2;
+pub const EFFECT_COLOR_CYCLE: u8 = 3;
+pub const EFFECT_COLOR_WAVE: u8 = 4;
+
+/// Wave directions.
+pub const WAVE_RIGHT_TO_LEFT: u8 = 0;
+pub const WAVE_LEFT_TO_RIGHT: u8 = 1;
+
+/// Maximum keyframes (matches OpenRGB `MAX_MS_1565_KEYFRAMES`).
+pub const MAX_KEYFRAMES: usize = 10;
+
+/// One animation keyframe: time (0-100) plus an RGB color.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RgbKeyframe {
+    pub time: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum RgbPacketError {
+    InvalidZones(u8),
+    InvalidMode(u8),
+    InvalidWaveDirection(u8),
+    KeyframeTimeOutOfRange { index: usize, time: u8 },
+    TooManyKeyframes(usize),
+}
+
+impl std::fmt::Display for RgbPacketError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidZones(zones) => {
+                write!(
+                    f,
+                    "invalid RGB zone mask {zones:#04x}; only bits 0-3 are valid"
+                )
+            }
+            Self::InvalidMode(mode) => write!(f, "invalid RGB effect mode {mode}; expected 0-4"),
+            Self::InvalidWaveDirection(direction) => {
+                write!(f, "invalid RGB wave direction {direction}; expected 0 or 1")
+            }
+            Self::KeyframeTimeOutOfRange { index, time } => {
+                write!(f, "RGB keyframe {index} has time {time}; expected 0-100")
+            }
+            Self::TooManyKeyframes(count) => write!(
+                f,
+                "too many RGB keyframes ({count}); maximum is {MAX_KEYFRAMES}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for RgbPacketError {}
+
+/// Builds a zone-select packet: `[report 2][packet 1][zone mask]` padded to 64.
+pub fn zone_select_packet(zones: u8) -> Result<[u8; PACKET_SIZE], RgbPacketError> {
+    if zones & !ZONE_ALL != 0 {
+        return Err(RgbPacketError::InvalidZones(zones));
+    }
+    let mut packet = [0u8; PACKET_SIZE];
+    packet[0] = REPORT_ID_WRITE;
+    packet[1] = PACKET_SELECT_ZONES;
+    packet[2] = zones;
+    Ok(packet)
+}
+
+/// Builds a set-effect packet matching `FeaturePacket_MS1565`:
+/// `[2][2][mode][speed LE][00 00 0F 01][wave dir][time,r,g,b xN]` padded to 64.
+pub fn effect_packet(
+    mode: u8,
+    speed_centiseconds: u16,
+    wave_direction: u8,
+    keyframes: &[RgbKeyframe],
+) -> Result<[u8; PACKET_SIZE], RgbPacketError> {
+    if mode > EFFECT_COLOR_WAVE {
+        return Err(RgbPacketError::InvalidMode(mode));
+    }
+    if wave_direction > WAVE_LEFT_TO_RIGHT {
+        return Err(RgbPacketError::InvalidWaveDirection(wave_direction));
+    }
+    if keyframes.len() > MAX_KEYFRAMES {
+        return Err(RgbPacketError::TooManyKeyframes(keyframes.len()));
+    }
+    for (index, keyframe) in keyframes.iter().enumerate() {
+        if keyframe.time > 100 {
+            return Err(RgbPacketError::KeyframeTimeOutOfRange {
+                index,
+                time: keyframe.time,
+            });
+        }
+    }
+
+    let mut packet = [0u8; PACKET_SIZE];
+    packet[0] = REPORT_ID_WRITE;
+    packet[1] = PACKET_SET_EFFECT;
+    packet[2] = mode;
+    packet[3] = speed_centiseconds as u8;
+    packet[4] = (speed_centiseconds >> 8) as u8;
+    packet[5] = 0x00;
+    packet[6] = 0x00;
+    packet[7] = 0x0f;
+    packet[8] = 0x01;
+    packet[9] = wave_direction;
+
+    for (index, keyframe) in keyframes.iter().enumerate() {
+        let offset = 10 + index * 4;
+        packet[offset] = keyframe.time;
+        packet[offset + 1] = keyframe.r;
+        packet[offset + 2] = keyframe.g;
+        packet[offset + 3] = keyframe.b;
+    }
+    Ok(packet)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_steady_color_packets() {
+        // Zone select for zones 1+3.
+        let select = zone_select_packet(ZONE_1 | ZONE_3).unwrap();
+        assert_eq!(&select[..3], &[2, 1, 0b0101]);
+        assert!(select[3..].iter().all(|byte| *byte == 0));
+
+        // Steady red, 3.00 s cycle, full keyboard.
+        let effect = effect_packet(
+            EFFECT_STEADY,
+            300,
+            WAVE_LEFT_TO_RIGHT,
+            &[RgbKeyframe {
+                time: 0,
+                r: 255,
+                g: 0,
+                b: 0,
+            }],
+        )
+        .unwrap();
+        assert_eq!(
+            &effect[..10],
+            &[2, 2, 1, 0x2c, 0x01, 0x00, 0x00, 0x0f, 0x01, 0x01]
+        );
+        assert_eq!(&effect[10..14], &[0, 255, 0, 0]);
+        assert!(effect[14..].iter().all(|byte| *byte == 0));
+
+        // Multiple keyframes are laid out back to back.
+        let wave = effect_packet(
+            EFFECT_COLOR_WAVE,
+            100,
+            WAVE_RIGHT_TO_LEFT,
+            &[
+                RgbKeyframe {
+                    time: 0,
+                    r: 255,
+                    g: 0,
+                    b: 0,
+                },
+                RgbKeyframe {
+                    time: 100,
+                    r: 0,
+                    g: 0,
+                    b: 255,
+                },
+            ],
+        )
+        .unwrap();
+        assert_eq!(wave[2], EFFECT_COLOR_WAVE);
+        assert_eq!(&wave[10..18], &[0, 255, 0, 0, 100, 0, 0, 255]);
+    }
+
+    #[test]
+    fn rejects_invalid_inputs() {
+        assert_eq!(
+            zone_select_packet(0b1_0000),
+            Err(RgbPacketError::InvalidZones(0b1_0000))
+        );
+        assert_eq!(
+            effect_packet(9, 300, 0, &[]),
+            Err(RgbPacketError::InvalidMode(9))
+        );
+        assert_eq!(
+            effect_packet(EFFECT_STEADY, 300, 2, &[]),
+            Err(RgbPacketError::InvalidWaveDirection(2))
+        );
+        assert_eq!(
+            effect_packet(
+                EFFECT_STEADY,
+                300,
+                0,
+                &[RgbKeyframe {
+                    time: 101,
+                    r: 1,
+                    g: 2,
+                    b: 3,
+                }],
+            ),
+            Err(RgbPacketError::KeyframeTimeOutOfRange {
+                index: 0,
+                time: 101,
+            })
+        );
+        let too_many = vec![
+            RgbKeyframe {
+                time: 0,
+                r: 1,
+                g: 2,
+                b: 3,
+            };
+            MAX_KEYFRAMES + 1
+        ];
+        assert_eq!(
+            effect_packet(EFFECT_COLOR_WAVE, 300, 0, &too_many),
+            Err(RgbPacketError::TooManyKeyframes(MAX_KEYFRAMES + 1))
+        );
+    }
+}

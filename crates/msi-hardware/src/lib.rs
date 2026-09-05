@@ -7,6 +7,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+pub mod rgb;
+
 #[derive(Debug)]
 pub enum BatteryThresholdError {
     InvalidRange {

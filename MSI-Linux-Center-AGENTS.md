@@ -1209,9 +1209,12 @@ via CLI; UI-side interaction needs a desktop visual test.
 RGB HID control.
 
 Design study (no code): `docs/phase7-rgb-design.md`. Protocol notes from
-cross-referenced sources: `docs/phase7-rgb-protocol.md`. Local blocker: the
-running kernel exposes no `/dev/hidraw*` nodes despite `CONFIG_HIDRAW=y`
-in its build config; RGB work starts with lifting that blocker.
+cross-referenced sources: `docs/phase7-rgb-protocol.md`. Packet builder
+implemented and unit-tested (no device writes): `msi-hardware::rgb`
+(zone-select + set-effect packets, validation, keyframe cap 10). Local
+blocker: the running kernel exposes no `/dev/hidraw*` nodes despite
+`CONFIG_HIDRAW=y` in its build config; RGB device work starts with lifting
+that blocker.
 
 ## Phase 8
 

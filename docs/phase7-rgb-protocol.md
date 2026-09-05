@@ -90,7 +90,8 @@ Differences that matter for implementation:
 - **Speed mapping:** OpenRGB UI maps cycle duration 12 s ↔ 3 s across its
   0–100 speed slider; the wire value stays seconds×100.
 - **Keyframe count:** OpenRGB caps at `MAX_MS_1565_KEYFRAMES` (10); the
-  64-byte budget allows up to 12.
+  64-byte budget allows up to 13. The packet builder in `msi-hardware::rgb`
+  follows the cross-verified cap of 10.
 - OpenRGB brightness is applied by pre-scaling RGB values
   (`Mode.brightness / 100`) — no separate brightness field on the wire.
 
