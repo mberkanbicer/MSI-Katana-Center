@@ -73,6 +73,18 @@
       "notes": "Physically verified on 2026-09-05 on the reference laptop: SetCoolerBoost(true) applied through msi-ec, read-back confirmed on, restored to off; write rejected with NotSupported while the opt-in was disabled."
     },
     {
+      "feature": "super_battery",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local msi-ec super_battery readings",
+        "BeardOverflow/msi-ec driver sysfs ABI"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Semantic msi-ec super-battery write path implemented (on/off); physical write validation pending."
+    },
+    {
       "feature": "rgb_controller",
       "model_firmware_scope": "Katana 17 B13VGK USB controller 1462:1601",
       "sources": [

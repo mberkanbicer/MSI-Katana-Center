@@ -1,6 +1,6 @@
 use msi_core::{
     BackendAvailability, BatteryStatus, CoolerBoostState, DeviceIdentity, EcStatus, FanModeState,
-    FanReading,
+    FanReading, SuperBatteryState,
 };
 use std::fmt;
 use std::fs;
@@ -178,6 +178,56 @@ impl std::error::Error for CoolerBoostError {
 }
 
 impl From<io::Error> for CoolerBoostError {
+    fn from(error: io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+#[derive(Debug)]
+pub enum SuperBatteryError {
+    Unavailable,
+    Io(io::Error),
+    Verification {
+        applied: Option<bool>,
+        expected: bool,
+    },
+    Rollback {
+        operation: String,
+        rollback: io::Error,
+    },
+}
+
+impl fmt::Display for SuperBatteryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable => f.write_str("writable msi-ec super-battery interface unavailable"),
+            Self::Io(error) => write!(f, "super-battery I/O error: {error}"),
+            Self::Verification { applied, expected } => write!(
+                f,
+                "super-battery verification failed: driver reported {applied:?}, expected {expected:?}"
+            ),
+            Self::Rollback {
+                operation,
+                rollback,
+            } => write!(
+                f,
+                "super-battery operation failed ({operation}); rollback also failed: {rollback}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SuperBatteryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Rollback { rollback, .. } => Some(rollback),
+            _ => None,
+        }
+    }
+}
+
+impl From<io::Error> for SuperBatteryError {
     fn from(error: io::Error) -> Self {
         Self::Io(error)
     }
@@ -434,6 +484,41 @@ impl HardwarePaths {
         })
     }
 
+    pub fn set_super_battery(&self, enabled: bool) -> Result<SuperBatteryState, SuperBatteryError> {
+        let base = "/sys/devices/platform/msi-ec";
+        let dir = self.rooted(base);
+        let battery_path = dir.join("super_battery");
+        if !battery_path.is_file() {
+            return Err(SuperBatteryError::Unavailable);
+        }
+        let previous = self.read_on_off(format!("{base}/super_battery"));
+        let value = if enabled { "on" } else { "off" };
+
+        if let Err(operation) = fs::write(&battery_path, format!("{value}\n")) {
+            return Err(super_battery_rollback_error(
+                &dir,
+                previous,
+                SuperBatteryError::Io(operation),
+            ));
+        }
+
+        let applied = self.read_on_off(format!("{base}/super_battery"));
+        if applied != Some(enabled) {
+            return Err(super_battery_rollback_error(
+                &dir,
+                previous,
+                SuperBatteryError::Verification {
+                    applied,
+                    expected: enabled,
+                },
+            ));
+        }
+
+        Ok(SuperBatteryState {
+            super_battery: applied,
+        })
+    }
+
     pub fn discover_backends(&self) -> io::Result<BackendAvailability> {
         Ok(BackendAvailability {
             msi_ec: self.rooted("/sys/devices/platform/msi-ec").is_dir(),
@@ -633,6 +718,30 @@ fn cooler_boost_rollback_error(
     }
 }
 
+fn restore_super_battery(dir: &Path, previous: Option<bool>) -> io::Result<()> {
+    match previous {
+        Some(previous) => {
+            let value = if previous { "on" } else { "off" };
+            fs::write(dir.join("super_battery"), format!("{value}\n"))
+        }
+        None => Ok(()),
+    }
+}
+
+fn super_battery_rollback_error(
+    dir: &Path,
+    previous: Option<bool>,
+    operation: SuperBatteryError,
+) -> SuperBatteryError {
+    match restore_super_battery(dir, previous) {
+        Ok(()) => operation,
+        Err(rollback) => SuperBatteryError::Rollback {
+            operation: operation.to_string(),
+            rollback,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -737,6 +846,37 @@ mod tests {
         );
         assert!(matches!(
             hardware.set_cooler_boost(false).unwrap().cooler_boost,
+            Some(false)
+        ));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn writes_and_validates_super_battery() {
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-superbattery-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let msi_ec = root.join("sys/devices/platform/msi-ec");
+        fs::create_dir_all(&msi_ec).unwrap();
+        fs::write(msi_ec.join("super_battery"), "off\n").unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        let applied = hardware.set_super_battery(true).unwrap();
+        assert_eq!(applied.super_battery, Some(true));
+        assert_eq!(
+            fs::read_to_string(msi_ec.join("super_battery"))
+                .unwrap()
+                .trim(),
+            "on"
+        );
+        assert!(matches!(
+            hardware.set_super_battery(false).unwrap().super_battery,
             Some(false)
         ));
 

@@ -76,6 +76,11 @@ pub struct CoolerBoostState {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SuperBatteryState {
+    pub super_battery: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CapabilitySet {
     pub ec_firmware: bool,
     pub ec_temperatures: bool,
