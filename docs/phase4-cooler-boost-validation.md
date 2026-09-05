@@ -34,6 +34,16 @@ Do not automate these steps. Record the original state first.
 
 Only after successful physical verification should the device provenance set `writes_tested` to `true`.
 
-## Verification record
+## Verification record (2026-09-05)
 
-Pending physical validation on the reference laptop.
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original Cooler Boost state recorded: `off`
+- updated daemon, systemd unit, D-Bus policy, and Polkit action installed; opt-in override `Environment=MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1`
+- `msicenter cooler-boost on` executed as the desktop user through the Polkit prompt (`auth_admin_keep`); the fans ramped to maximum as expected
+- returned JSON reported `true`; daemon `status` and the `cooler_boost` sysfs attribute both read back `on`
+- restored with `msicenter cooler-boost off`; sysfs read back `off` and the fans returned to normal behavior
+- opt-in override removed; daemon restarted with `MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=0`
+- negative check: `msicenter cooler-boost on` rejected with `org.freedesktop.DBus.Error.NotSupported` while disabled
+
+Outcome: physical Cooler Boost write verification passed.

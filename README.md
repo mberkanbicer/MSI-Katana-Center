@@ -18,7 +18,7 @@ Linux-native MSI laptop hardware management project. This snapshot implements th
 - hardened systemd service and system-bus policy
 - Polkit-protected battery threshold writes with validation, read-back, and rollback
 - gated `msi-ec` fan-mode write with validation, read-back, and rollback
-- gated `msi-ec` Cooler Boost write with validation, read-back, and rollback (pending physical verification)
+- gated `msi-ec` Cooler Boost write with validation, read-back, and rollback
 
 Battery-threshold, fan-mode, and Cooler Boost writes are disabled by default and require explicit per-feature daemon opt-ins. No RGB, MUX, or fan-curve write exists.
 

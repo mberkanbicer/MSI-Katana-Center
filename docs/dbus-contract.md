@@ -47,7 +47,7 @@ Battery writes are disabled unless the daemon starts with `MSI_LINUX_CENTER_ENAB
 
 Fan-mode writes follow the same pattern with `MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=1` and the Polkit action `org.msilinux.Center.set-fan-mode`. The requested mode must be one of the driver's `available_fan_modes`; the daemon restores the previous mode on write or verification failure. Physically verified on 2026-09-05.
 
-Cooler Boost follows the same pattern with `MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1` and the Polkit action `org.msilinux.Center.set-cooler-boost`. The daemon restores the previous state on write or verification failure. Physical verification is pending.
+Cooler Boost follows the same pattern with `MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1` and the Polkit action `org.msilinux.Center.set-cooler-boost`. The daemon restores the previous state on write or verification failure. Physically verified on 2026-09-05.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 
