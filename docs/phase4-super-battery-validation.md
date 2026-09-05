@@ -34,6 +34,16 @@ Do not automate these steps. Record the original state first.
 
 Only after successful physical verification should the device provenance set `writes_tested` to `true`.
 
-## Verification record
+## Verification record (2026-09-05)
 
-Pending physical validation on the reference laptop.
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original Super Battery state recorded: `off`
+- updated daemon, systemd unit, D-Bus policy, and Polkit action installed; opt-in override `Environment=MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES=1`
+- `msicenter super-battery on` executed as the desktop user through the Polkit prompt (`auth_admin_keep`)
+- returned JSON reported `true`; daemon `status` and the `super_battery` sysfs attribute both read back `on`
+- restored with `msicenter super-battery off`; the sysfs attribute read back `off`
+- opt-in override removed; daemon restarted with `MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES=0`
+- negative check: `msicenter super-battery on` rejected with `org.freedesktop.DBus.Error.NotSupported` while disabled
+
+Outcome: physical Super Battery write verification passed.

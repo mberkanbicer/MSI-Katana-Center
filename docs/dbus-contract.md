@@ -50,7 +50,7 @@ Fan-mode writes follow the same pattern with `MSI_LINUX_CENTER_ENABLE_FAN_MODE_W
 
 Cooler Boost follows the same pattern with `MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1` and the Polkit action `org.msilinux.Center.set-cooler-boost`. The daemon restores the previous state on write or verification failure. Physically verified on 2026-09-05.
 
-Super Battery follows the same pattern with `MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES=1` and the Polkit action `org.msilinux.Center.set-super-battery`. The daemon restores the previous state on write or verification failure. Physical verification is pending.
+Super Battery follows the same pattern with `MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES=1` and the Polkit action `org.msilinux.Center.set-super-battery`. The daemon restores the previous state on write or verification failure. Physically verified on 2026-09-05.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 
