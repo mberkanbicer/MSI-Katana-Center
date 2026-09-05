@@ -1208,6 +1208,10 @@ via CLI; UI-side interaction needs a desktop visual test.
 
 RGB HID control.
 
+Design study (no code): `docs/phase7-rgb-design.md`. Local blocker: the
+running kernel exposes no `/dev/hidraw*` nodes despite `CONFIG_HIDRAW=y`
+in its build config; RGB work starts with lifting that blocker.
+
 ## Phase 8
 
 Scenes/profiles.
