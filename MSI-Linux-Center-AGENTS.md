@@ -1196,6 +1196,10 @@ Qt 6 / QML UI.
 
 Architecture plan (no code): `docs/phase6-ui-design.md`.
 
+Milestone 1 (read-only dashboard skeleton) implemented in
+`crates/msicenter-ui/` (C++17 + QtDBus client, QML views); runs against the
+live daemon, verified on 2026-09-05. Write controls come in milestone 2.
+
 ## Phase 7
 
 RGB HID control.

@@ -5,3 +5,6 @@
 .vscode/
 
 .reasonix/
+
+# Phase 6 UI (C++/QML) build
+crates/msicenter-ui/build/
