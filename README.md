@@ -1,6 +1,6 @@
-# MSI Linux Center — Phase 4 (battery validation)
+# MSI Linux Center — Phase 4 (battery thresholds verified)
 
-Linux-native MSI laptop hardware management project. This snapshot implements the read-only core, runtime capability discovery, D-Bus service, and the first gated semantic battery-threshold write path for the MSI Katana 17 B13VGK reference device.
+Linux-native MSI laptop hardware management project. This snapshot implements the read-only core, runtime capability discovery, the D-Bus service, and the gated, physically verified semantic battery-threshold write path for the MSI Katana 17 B13VGK reference device.
 
 ## Current scope
 
@@ -68,8 +68,6 @@ All Linux paths can be redirected for tests:
 
 ## D-Bus API
 
-Phase 4 implements the gated battery method in [`docs/dbus-contract.md`](docs/dbus-contract.md). Physical write verification is still pending; the supplied service keeps `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`.
+Phase 4 implements the gated battery method in [`docs/dbus-contract.md`](docs/dbus-contract.md). The write path was physically verified on the reference laptop on 2026-09-05 (`SetBatteryThresholds(80, 90)` applied, read back from the driver, and restored to `90/100`; see [`docs/phase4-battery-validation.md`](docs/phase4-battery-validation.md)). The supplied service still keeps `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`; writes require an explicit daemon opt-in.
 
-The exact support scope, rollback behavior, and manual verification procedure are in [`docs/phase4-battery-validation.md`](docs/phase4-battery-validation.md).
-
-Write operations remain deferred until the safety, firmware, authorization, rollback, and local-verification gates in `MSI-Linux-Center-AGENTS.md` are satisfied.
+Other write operations remain deferred until the safety, firmware, authorization, rollback, and local-verification gates in `MSI-Linux-Center-AGENTS.md` are satisfied.

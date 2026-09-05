@@ -41,7 +41,7 @@ Future write methods must be semantic and feature-specific. Raw EC addresses, ar
 
 Write methods require Polkit authorization in the daemon. The GUI and CLI remain unprivileged. Firmware gates, bounds validation, read-back, and rollback checks live in the daemon trust boundary rather than the UI.
 
-Battery writes are disabled unless the daemon starts with `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=1`. This opt-in is for controlled local validation; provenance remains `writes_tested: false` until a physical test succeeds. Authorization uses the Polkit action `org.msilinux.Center.set-battery-thresholds`.
+Battery writes are disabled unless the daemon starts with `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=1`. This opt-in is for controlled local validation; provenance records `writes_tested: true` since the physical test on 2026-09-05. Authorization uses the Polkit action `org.msilinux.Center.set-battery-thresholds`.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 

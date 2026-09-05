@@ -33,4 +33,18 @@ Do not automate these steps. Record the original thresholds first.
 8. Restore the original pair through the same command if validation fails or the behavior is unexpected.
 9. Disable the opt-in after testing.
 
-Only after successful physical verification should the device provenance set `writes_tested` to `true`.
+Only after successful physical verification should the device provenance set `writes_tested` to `true`. This happened on 2026-09-05; the profile in `data/devices/msi-katana-17-b13vgk.json` now records `writes_tested: true` / `verified_write`.
+
+## Verification record (2026-09-05)
+
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original thresholds recorded: `90` / `100`
+- daemon installed with the systemd unit, D-Bus policy, and Polkit action; opt-in override `Environment=MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=1`
+- `msicenter battery-thresholds 80 90` executed as the desktop user through the Polkit prompt (`auth_admin_keep`)
+- returned JSON reported 80/90; `charge_control_start_threshold` / `charge_control_end_threshold` read back 80/90 from sysfs
+- restored with `msicenter battery-thresholds 90 100`; sysfs read back 90/100
+- opt-in override removed; daemon restarted with `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`
+- negative check: `msicenter battery-thresholds 80 90` rejected with `org.freedesktop.DBus.Error.NotSupported` while disabled
+
+Outcome: physical battery-threshold write verification passed.

@@ -84,7 +84,7 @@ Firmware-family compatibility may be useful for read-only detection, but write c
 
 # 3. Current project phase
 
-The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: a gated, Polkit-protected battery charge-threshold write path through Linux `power_supply`, pending physical write verification on the reference laptop.
+The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: a gated, Polkit-protected battery charge-threshold write path through Linux `power_supply`, physically verified on the reference laptop on 2026-09-05.
 
 It implements:
 
@@ -99,7 +99,7 @@ It implements:
 - a Rust D-Bus daemon with `Device` and `Sensors` interfaces, systemd unit, D-Bus policy, and Polkit action
 - the gated `SetBatteryThresholds` write method through Linux `power_supply`
 
-The only hardware write path is `SetBatteryThresholds`: disabled by default (`MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`), restricted to the exact verified firmware, Polkit-authorized, and not yet physically verified on hardware.
+The only hardware write path is `SetBatteryThresholds`: disabled by default (`MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`), restricted to the exact verified firmware, Polkit-authorized, and physically verified on the reference hardware on 2026-09-05 (`80/90` applied, restored to `90/100`).
 
 Do not add EC, fan, RGB, or MUX writes ahead of the phase sequence in §34; each new write path must satisfy the acceptance criteria in §35 first.
 
@@ -1167,7 +1167,7 @@ First safe semantic writes, preferably through existing Linux interfaces.
 
 Status:
 
-- battery threshold — implemented (gated through `power_supply`; physical write verification still pending on the reference laptop)
+- battery threshold — implemented and physically verified (2026-09-05; gated through `power_supply`)
 - Cooler Boost — not started
 - performance mode — not started
 - fan mode — not started
@@ -1201,9 +1201,11 @@ MUX research and, only if verified, controlled support.
 
 ---
 
-# 35. Required acceptance criteria before first hardware write
+# 35. Required acceptance criteria before a hardware write
 
-Do not add the first production hardware write until:
+**Status:** satisfied and physically verified for the battery-threshold write path (2026-09-05). The gates below remain mandatory for every future hardware write.
+
+Do not add a new production hardware write until:
 
 - Phase 1 tests are stable
 - Phase 2 runtime capability model is stable enough

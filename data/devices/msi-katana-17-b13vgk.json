@@ -67,10 +67,10 @@
         "local power_supply threshold readings",
         "Linux power supply class sysfs ABI"
       ],
-      "local_verification": "verified_read_only",
-      "writes_tested": false,
+      "local_verification": "verified_write",
+      "writes_tested": true,
       "confidence": "verified",
-      "notes": "Semantic power_supply write path implemented; physical write validation pending."
+      "notes": "Physically verified on 2026-09-05 on the reference laptop: SetBatteryThresholds(80, 90) applied through power_supply, driver read-back confirmed 80/90, restored to original 90/100."
     },
     {
       "feature": "custom_fan_curve",
