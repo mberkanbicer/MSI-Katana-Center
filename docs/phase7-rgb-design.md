@@ -43,8 +43,10 @@ Local observations on the Katana 17 B13VGK:
   64-byte Mystic Light keyboard protocol family that includes the Katana
   MS-1565 controller. Local check: a non-root OpenRGB server run detected
   **0 controllers** (usbfs access requires root or a udev rule; no hidraw on
-  this system), so the owner runs it privileged. Exact device name/PID
-  match is confirmed at implementation time with `openrgb --list-devices`.
+  this system), so the owner runs it privileged. **Owner-confirmed on
+  2026-09-05:** OpenRGB lists the device as "MSI MysticLight MS-1565"
+  (identical to the kernel `HID_NAME`), so PID `1601` is matched inside
+  OpenRGB's supported 64-byte family.
 - Packet format and report/interface identity must be re-derived from
   `msi-katana-rgb` (project rule §24) and cross-checked against OpenRGB's
   64-byte Mystic Light keyboard controller code; no local capture exists yet.
