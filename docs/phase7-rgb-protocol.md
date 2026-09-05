@@ -64,23 +64,44 @@ explicitly gated action.
 - Note: a master-branch clone (mullcom mirror, 2026-09-05) predates the
   RC3 keyboard controller; RC3 is the correct reference revision.
 
-## 3. Cross-source comparison
+## 3. Cross-source comparison (byte-level, 2026-09-06)
 
-The 64-byte feature-report scheme (report 2 / packet id / payload, flash
-save at 0xA0) is consistent with the "MSI GL66 Mystic Light Keyboard
-(64 Byte)" family naming used by OpenRGB's wiki. The OpenRGB 64-byte
-keyboard controller source could not be located in master under the
-`Controllers/` paths inspected; locating it (or the detector that matches
-PID 0x1601) is required before protocol documentation is complete.
+OpenRGB RC3 `MSIMysticLightKBController` (`FeaturePacket_MS1565`, 64 bytes)
+vs `msi-katana-rgb` — **the two schemes match field-for-field**:
+
+| Field | msi-katana-rgb | OpenRGB RC3 | Match |
+|---|---|---|---|
+| zone select packet | `[0x02, 0x01, mask]` → 64 B | `buf[0]=0x02, buf[1]=0x01, buf[2]=zone_map[zone]` → 64 B | ✓ |
+| zone values | 1, 2, 4, 8, 0b1111=15 | 1, 2, 4, 8, 15 (`MS_1565_ZONE_1..4`, `_DEVICE`) | ✓ |
+| effect packet head | report 2, packet id 2 | `report_id=0x02, packet_id=0x02` | ✓ |
+| effect type | `EFFECT_*` 0–4 | `MS_1565_MODE` OFF/STEADY/BREATHING/CYCLE/WAVE 0–4 | ✓ |
+| speed | u16 LE, seconds×100 | `speed2` (low) + `speed1` (high), seconds×100 | ✓ |
+| constant bytes | `00 00 0F 01` | `unused=0, unused2=0, unused3=0x0F, unused4=0x01` | ✓ |
+| wave direction | 0 R→L, 1 L→R | `MS_1565_WAVE_DIRECTION_RIGHT_TO_LEFT=0, LEFT_TO_RIGHT=1` | ✓ |
+| keyframe | `time(0..100), r, g, b` | `ColorKeyFrame { time_frame, R, G, B }`, max 10 | ✓ |
+| flash save | packet id 0xA0, default in convenience methods | **not used** — OpenRGB sends only the temporary effect | ⚠️ divergence |
+
+Differences that matter for implementation:
+
+- **Persistence:** `msi-katana-rgb` saves to flash by default (`set_color`),
+  OpenRGB never sends 0xA0. AGENTS §24 mandates the non-persistent-first
+  path, so OpenRGB's behavior is the implementation model; flash save stays a
+  separate, explicitly gated action.
+- **Speed mapping:** OpenRGB UI maps cycle duration 12 s ↔ 3 s across its
+  0–100 speed slider; the wire value stays seconds×100.
+- **Keyframe count:** OpenRGB caps at `MAX_MS_1565_KEYFRAMES` (10); the
+  64-byte budget allows up to 12.
+- OpenRGB brightness is applied by pre-scaling RGB values
+  (`Mode.brightness / 100`) — no separate brightness field on the wire.
 
 ## 4. Open questions
 
 1. **RESOLVED (2026-09-06):** the matching OpenRGB controller is
    `MSIMysticLightKBController` (RC3), PID 0x1601 confirmed; the owner can
    change colors with it.
-2. Byte-level comparison of `MSIMysticLightKBController.cpp` packet layout
-   against the msi-katana-rgb scheme (report 2 / packet ids / effect payload)
-   is the next documentation step; any divergence must be recorded here.
+2. **RESOLVED (2026-09-06):** byte-level comparison shows the two sources
+   match field-for-field; only persistence behavior differs (OpenRGB never
+   sends flash save 0xA0 — the model for §24 non-persistent-first).
 3. Baseline: what effect/color is currently active (Windows-set) before
    any first write?
 
