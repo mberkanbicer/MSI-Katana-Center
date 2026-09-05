@@ -84,25 +84,24 @@ Firmware-family compatibility may be useful for read-only detection, but write c
 
 # 3. Current project phase
 
-The current repository is a Phase 1 read-only prototype.
+The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: a gated, Polkit-protected battery charge-threshold write path through Linux `power_supply`, pending physical write verification on the reference laptop.
 
-It currently implements or is intended to implement:
+It implements:
 
 - DMI identity reading
 - MSI EC semantic-state reading through `msi-ec`
 - fan RPM reading through `msi_wmi_platform` / hwmon
 - laptop battery charge-threshold reading through Linux `power_supply`
-- an external JSON device profile
-- human-readable CLI status
-- JSON CLI status
-- capability output
+- an external JSON device profile with provenance validation
+- human-readable and JSON CLI status
+- runtime capability output (model-declared vs backend-detected vs readable)
 - a fake sysroot fixture for tests and hardware-free development
+- a Rust D-Bus daemon with `Device` and `Sensors` interfaces, systemd unit, D-Bus policy, and Polkit action
+- the gated `SetBatteryThresholds` write method through Linux `power_supply`
 
-There must be **no hardware write operations in Phase 1**.
+The only hardware write path is `SetBatteryThresholds`: disabled by default (`MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`), restricted to the exact verified firmware, Polkit-authorized, and not yet physically verified on hardware.
 
-The next development step is Phase 2, which should strengthen read-only architecture, tests, backend discovery, provenance representation, and the future D-Bus contract.
-
-Do not skip directly to fan writes, RGB writes, profile writes, EC writes, battery writes, or MUX switching.
+Do not add EC, fan, RGB, or MUX writes ahead of the phase sequence in §34; each new write path must satisfy the acceptance criteria in §35 first.
 
 ---
 
@@ -116,8 +115,13 @@ Expected structure:
 - `crates/msi-core/`
 - `crates/msi-device-db/`
 - `crates/msi-hardware/`
+- `crates/msi-dbus/`
+- `crates/msi-daemon/`
 - `crates/msicenter-cli/`
 - `data/devices/`
+- `data/dbus-1/`
+- `data/polkit-1/`
+- `data/systemd/`
 - `docs/`
 - `scripts/`
 - `tests/fixtures/`
@@ -156,11 +160,23 @@ Contains Linux hardware-reading backends and filesystem abstraction.
 
 All paths must remain redirectable through the fake sysroot mechanism.
 
+## `msi-dbus`
+
+D-Bus service layer shared by the daemon and the CLI.
+
+Implements status collection, the `org.msilinux.Center1.Device` and `.Sensors` interfaces, JSON-encoded properties, Polkit authorization, and the gated `SetBatteryThresholds` method.
+
+## `msi-daemon`
+
+System-bus daemon binary; installs as `msi-linux-center.service`.
+
+Thin entry point around `msi-dbus::run_system_daemon`.
+
 ## `msicenter-cli`
 
-User-facing read-only CLI.
+User-facing CLI.
 
-It must consume semantic domain objects rather than directly reading hardware paths.
+It must consume semantic domain objects rather than directly reading hardware paths. `status`/`capabilities` are read-only; `battery-thresholds` requests the daemon write over D-Bus, where firmware, Polkit, and opt-in gates are enforced.
 
 ---
 
@@ -612,7 +628,7 @@ Never run future hardware-write commands automatically.
 
 # 17. Phase 1 completion criteria
 
-Phase 1 is complete when all of the following are true:
+**Status: complete.** The criteria below were satisfied by the Phase 1 snapshot and remain the regression baseline for the read-only core:
 
 - workspace builds cleanly
 - formatting passes
@@ -634,11 +650,11 @@ Prefer root-cause fixes over compatibility wrappers.
 
 ---
 
-# 18. Immediate Phase 2 goals
+# 18. Phase 2 goals
 
-Do not overengineer Phase 2.
+**Status: complete.** Sections 18.1–18.6 were implemented in the Phase 2 snapshot (backend discovery, runtime capability report, tests, provenance/error model, D-Bus contract design) and are kept as the architecture rationale.
 
-The minimum useful Phase 2 should contain the following.
+The minimum useful Phase 2 contained the following.
 
 ## 18.1 Stronger backend discovery
 
@@ -1123,11 +1139,11 @@ Follow this sequence unless the user explicitly changes priorities.
 
 Read-only hardware reconnaissance.
 
-## Phase 1 — current
+## Phase 1 — complete
 
 Read-only Rust core + device database + hardware readers + CLI + fixture.
 
-## Phase 2 — next
+## Phase 2 — complete
 
 - compile/test stabilization
 - stronger runtime capabilities
@@ -1138,26 +1154,28 @@ Read-only Rust core + device database + hardware readers + CLI + fixture.
 
 Still read-only.
 
-## Phase 3
+## Phase 3 — complete
 
 - Rust daemon skeleton
 - D-Bus implementation
 - systemd service
 - no hardware writes initially
 
-## Phase 4
+## Phase 4 — current
 
-First safe semantic writes, preferably through existing Linux interfaces:
+First safe semantic writes, preferably through existing Linux interfaces.
 
-- battery threshold
-- Cooler Boost
-- performance mode
-- fan mode
-- Super Battery
+Status:
 
-Each feature introduced separately and locally validated.
+- battery threshold — implemented (gated through `power_supply`; physical write verification still pending on the reference laptop)
+- Cooler Boost — not started
+- performance mode — not started
+- fan mode — not started
+- Super Battery — not started
 
-## Phase 5
+Each feature must be introduced separately and locally validated.
+
+## Phase 5 — next
 
 Custom fan curves with explicit EC safety controls.
 
@@ -1208,6 +1226,8 @@ The first write should be a low-risk, semantically bounded feature already expos
 Read-only features require the correct backend, graceful missing-backend handling, parsing tests, fixture coverage and provenance. Write features additionally require exact support scope, safety validation, authorization, read-back/rollback where applicable, local physical verification and safe unknown-firmware behavior.
 
 # 37. Recommended initial Codex task
+
+> Historical guidance for the Phase 1 starting point. The repository has since completed Phases 1–3 and reached the Phase 4 snapshot described in §34; follow the §34 phase sequence instead of starting over.
 
 If starting from the current Phase 1 snapshot, the recommended first Codex task is:
 

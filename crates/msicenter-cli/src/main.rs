@@ -43,7 +43,7 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn print_help() {
-    println!("MSI Linux Center Phase 3 (read-only)");
+    println!("MSI Linux Center Phase 4");
     println!();
     println!("Usage:");
     println!("  msicenter status [--json]");
@@ -58,7 +58,7 @@ fn print_status(status: &SystemStatus) {
     let identity = &status.identity;
     let profile = status.matched_profile.as_ref();
 
-    println!("MSI Linux Center — Phase 3 / READ ONLY");
+    println!("MSI Linux Center — Phase 4");
     println!();
     println!("Device");
     println!("  Model       : {}", show(identity.product_name.as_deref()));

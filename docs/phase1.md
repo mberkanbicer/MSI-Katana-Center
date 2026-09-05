@@ -1,5 +1,7 @@
 # Phase 1 — Read-only Core
 
+> Historical Phase 1 specification. Superseded: the repository now contains the Phase 4 snapshot described in `MSI-Linux-Center-AGENTS.md` §3/§34 (D-Bus daemon, gated battery-threshold write path). This file documents only the Phase 1 scope.
+
 Phase 1 intentionally performs no hardware writes.
 
 ## Backends
