@@ -1188,6 +1188,8 @@ Each feature must be introduced separately and locally validated.
 
 Custom fan curves with explicit EC safety controls.
 
+Design study (no code): `docs/phase5-fan-curve-design.md`.
+
 ## Phase 6
 
 Qt 6 / QML UI.
