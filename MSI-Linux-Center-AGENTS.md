@@ -321,6 +321,12 @@ A suitable future domain representation is conceptually:
 
 Do not lose the raw value when the semantic mapping is unknown.
 
+### Shift-mode write status (2026-09-05)
+
+`unknown (192)` equals `0xc0`. The `msi-ec` 0.13 driver table for this model family (address `0xd2`) maps `eco`/`comfort`/`turbo` to `0xc2`/`0xc1`/`0xc4`, with a source comment that turbo is "sometimes `0xc0`". Because the driver cannot write `0xc0`, reverting to the current register value after any shift-mode write is impossible through `msi-ec`; a failed or unwanted write would be irreversible without an EC reset.
+
+Performance-mode writes are therefore deferred indefinitely: no safe rollback exists. Do not implement `SetShiftMode` until the driver (or an independently verified mapping) can write and restore every mode value this EC actually uses.
+
 Observed fan modes:
 
 - `auto`
@@ -1172,7 +1178,7 @@ Status:
 
 - battery threshold — implemented and physically verified (2026-09-05; gated through `power_supply`)
 - cooler_boost — implemented and physically verified (2026-09-05; gated through `msi-ec`)
-- performance mode — not started
+- performance mode — deferred (see §6.1: current state `0xc0` is not writable by `msi-ec`, so no safe rollback exists)
 - fan mode — implemented and physically verified (2026-09-05; gated through `msi-ec`)
 - Super Battery — implemented and physically verified (2026-09-05; gated through `msi-ec`)
 
