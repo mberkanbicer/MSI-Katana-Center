@@ -680,7 +680,8 @@ fn snapshot(status: &SharedStatus) -> zbus::fdo::Result<SystemStatus> {
 }
 
 fn to_json(value: &impl Serialize) -> zbus::fdo::Result<String> {
-    // ponytail: JSON keeps the current phase small; use typed D-Bus records when client compatibility demands it.
+    // JSON keeps the surface small while the CLI is the only client; switch
+    // to typed D-Bus records when additional clients (GUI, SDK) need them.
     serde_json::to_string(value).map_err(|error| zbus::fdo::Error::Failed(error.to_string()))
 }
 

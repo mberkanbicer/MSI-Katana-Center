@@ -6,7 +6,7 @@ Window {
     height: 860
     minimumWidth: 520
     minimumHeight: 600
-    title: "MSI Linux Center — Phase 6"
+    title: "MSI Linux Center"
     color: "#181825"
 
     Flickable {
@@ -29,7 +29,7 @@ Window {
                 font.bold: true
             }
             Text {
-                text: "Phase 6 — read-only dashboard + gated write controls (2 s refresh)"
+                text: "Hardware status and gated write controls — 2 s refresh"
                 color: "#a6adc8"
                 font.pointSize: 9
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -123,7 +123,8 @@ Window {
                         color: "#cdd6f4"
                         font.pointSize: 10
                         inputMethodHints: Qt.ImhDigitsOnly
-                        text: "80"
+                        text: center.chargeStartPercent >= 0
+                                  ? center.chargeStartPercent : ""
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
@@ -146,7 +147,8 @@ Window {
                         color: "#cdd6f4"
                         font.pointSize: 10
                         inputMethodHints: Qt.ImhDigitsOnly
-                        text: "90"
+                        text: center.chargeEndPercent >= 0
+                                  ? center.chargeEndPercent : ""
                         verticalAlignment: Text.AlignVCenter
                     }
                 }

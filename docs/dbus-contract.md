@@ -1,6 +1,9 @@
 # Future D-Bus contract
 
-Phase 4 adds one gated semantic write for local validation: battery charge thresholds through Linux `power_supply`. All other interfaces remain read-only.
+Phase 4 added the gated semantic writes for local validation — battery charge
+thresholds through Linux `power_supply`, and fan mode, Cooler Boost, and
+Super Battery through `msi-ec` (all physically verified on 2026-09-05).
+All other interfaces remain read-only.
 
 ## Identity and versioning
 

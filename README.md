@@ -1,67 +1,85 @@
-# MSI Linux Center — Phase 4 (battery thresholds verified)
+# MSI Linux Center
 
-Linux-native MSI laptop hardware management project. This snapshot implements the read-only core, runtime capability discovery, the D-Bus service, and the gated, physically verified semantic battery-threshold write path for the MSI Katana 17 B13VGK reference device.
+Linux-native, open-source hardware management for MSI laptops, developed
+against the MSI Katana 17 B13VGK (board MS-17L5, EC `17L5EMS1.115`) as the
+reference device. Rust core + D-Bus daemon + Qt/QML desktop client.
+
+Safety-first: every hardware write is firmware-gated, Polkit-authorized,
+opt-in per feature, read-back-verified, and only enabled after physical
+verification on the reference laptop. See
+[`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) for the rules.
+
+## Phase status
+
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | read-only hardware reconnaissance | complete |
+| 1–2 | read-only core, device database, runtime capabilities, fixture | complete |
+| 3 | D-Bus daemon, systemd unit, D-Bus policy, Polkit actions | complete |
+| 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — all physically verified 2026-09-05 |
+| 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) |
+| 6 | Qt/QML desktop UI | milestone 2 in `crates/msicenter-ui/`; plan: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
+| 7 | RGB (MysticLight MS-1565) | protocol documented + packet builder tested; design: [`docs/phase7-rgb-design.md`](docs/phase7-rgb-design.md), protocol: [`docs/phase7-rgb-protocol.md`](docs/phase7-rgb-protocol.md) |
 
 ## Current scope
 
-- DMI device detection
-- EC firmware/state reading through `msi-ec`
-- real fan RPM reading through `msi_wmi_platform`/hwmon
-- battery charge-threshold reading through Linux `power_supply`
-- external JSON device profile database
-- human-readable and JSON CLI output
-- fake sysroot fixture for hardware-free development
-- model-declared versus runtime-available capability reporting
-- structured, validated hardware provenance
-- documented future D-Bus contract
-- Rust D-Bus daemon with `Device` and `Sensors` interfaces
-- hardened systemd service and system-bus policy
-- Polkit-protected battery threshold writes with validation, read-back, and rollback
-- gated `msi-ec` fan-mode write with validation, read-back, and rollback
-- gated `msi-ec` Cooler Boost write with validation, read-back, and rollback
-- gated `msi-ec` Super Battery write with validation, read-back, and rollback
+- DMI device detection and profile matching with provenance validation
+- EC semantic state through `msi-ec` (shift/fan modes, temps, fan levels)
+- real fan RPM through `msi_wmi_platform`/hwmon (channels kept unmapped)
+- battery status and charge thresholds through Linux `power_supply`
+- runtime capability reporting (model vs backend vs readable)
+- fake-sysroot fixture for hardware-free development
+- gated, verified writes: `SetBatteryThresholds`, `SetFanMode`,
+  `SetCoolerBoost`, `SetSuperBattery` — disabled by default (per-feature
+  daemon opt-ins), exact verified firmware + Polkit required
+- D-Bus daemon (`org.msilinux.Center`) and Qt/QML desktop client
+- all paths redirectable via `MSI_LINUX_CENTER_SYSROOT`
 
-Battery-threshold, fan-mode, Cooler Boost, and Super Battery writes are disabled by default and require explicit per-feature daemon opt-ins. No RGB, MUX, or fan-curve write exists.
-
-## Reference device
-
-- MSI Katana 17 B13VGK
-- board: MS-17L5 REV:1.0
-- observed BIOS: E17L5IMS.11C
-- observed EC: 17L5EMS1.115
-- RGB controller identified separately: MSI MysticLight MS-1565, 1462:1601
-
-The GitHub projects GhostDeck, `msi-ec`, MControlCenter, OpenFreezeCenter and `msi-katana-rgb` are treated as formal technical/reverse-engineering references. External findings are cross-checked and locally validated before production write support is enabled.
+No RGB, MUX, or fan-curve write exists yet. Performance-mode writes are
+deferred (current EC state `0xc0` is not writable by `msi-ec`; see
+`MSI-Linux-Center-AGENTS.md` §6.1).
 
 ## Requirements
 
-Install Rust with `rustup` or your distribution package. On Arch/EndeavourOS, the standard `rustup` package is recommended for development.
+Rust toolchain for the core/daemon/CLI; Qt 6 (Core, QML, Quick, DBus) +
+cmake for the desktop client (`crates/msicenter-ui/`).
 
 ## Run against the included fixture first
 
     ./scripts/run-fixture.sh
-
-JSON output:
-
     ./scripts/run-fixture.sh --json
 
 ## Run read-only on the real laptop
 
     ./scripts/run-local-readonly.sh
-
-or:
-
-    cargo run -p msicenter-cli -- status
-
-JSON:
-
-    cargo run -p msicenter-cli -- status --json
-
-Capabilities:
-
+    cargo run -p msicenter-cli -- status [--json]
     cargo run -p msicenter-cli -- capabilities
 
-Do **not** run the CLI with sudo. Privileged writes are performed only by the daemon after Polkit authorization.
+Do **not** run the CLI with sudo. Privileged writes are performed only by
+the daemon after Polkit authorization.
+
+## Write commands (gated)
+
+Each command requires the daemon to run with the matching opt-in
+(`MSI_LINUX_CENTER_ENABLE_*_WRITES=1`) and completes a Polkit prompt:
+
+    msicenter battery-thresholds START END      # e.g. 80 90
+    msicenter fan-mode auto|silent|advanced
+    msicenter cooler-boost on|off
+    msicenter super-battery on|off
+
+With the opt-in disabled the daemon refuses with `NotSupported`. The exact
+support scope, gates, and physical verification records live in
+[`docs/dbus-contract.md`](docs/dbus-contract.md) and the
+`docs/phase4-*-validation.md` files.
+
+## Desktop client
+
+    cd crates/msicenter-ui && cmake -S . -B build && cmake --build build -j
+    ./build/msicenter-ui
+
+Pure D-Bus client: never root, no direct `/sys` access; write controls go
+through the daemon's Polkit-gated methods.
 
 ## Sysroot override
 
@@ -71,6 +89,7 @@ All Linux paths can be redirected for tests:
 
 ## D-Bus API
 
-Phase 4 implements the gated battery method in [`docs/dbus-contract.md`](docs/dbus-contract.md). The write path was physically verified on the reference laptop on 2026-09-05 (`SetBatteryThresholds(80, 90)` applied, read back from the driver, and restored to `90/100`; see [`docs/phase4-battery-validation.md`](docs/phase4-battery-validation.md)). The supplied service still keeps `MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=0`; writes require an explicit daemon opt-in.
-
-Other write operations remain deferred until the safety, firmware, authorization, rollback, and local-verification gates in `MSI-Linux-Center-AGENTS.md` are satisfied.
+Bus `org.msilinux.Center` (system bus), interfaces
+`org.msilinux.Center1.Device` and `.Sensors`, plus the four gated write
+methods. JSON-encoded properties today; typed records are planned once the
+UI/SDK needs them. See [`docs/dbus-contract.md`](docs/dbus-contract.md).

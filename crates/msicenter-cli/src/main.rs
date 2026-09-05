@@ -66,6 +66,9 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             };
             println!("{}", request_super_battery(enabled)?);
         }
+        "version" | "--version" | "-V" => {
+            println!("msicenter {}", env!("CARGO_PKG_VERSION"));
+        }
         "help" | "--help" | "-h" => print_help(),
         other => return Err(format!("unknown command: {other}").into()),
     }
@@ -74,7 +77,7 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn print_help() {
-    println!("MSI Linux Center Phase 4");
+    println!("MSI Linux Center");
     println!();
     println!("Usage:");
     println!("  msicenter status [--json]");
@@ -83,6 +86,7 @@ fn print_help() {
     println!("  msicenter fan-mode MODE");
     println!("  msicenter cooler-boost on|off");
     println!("  msicenter super-battery on|off");
+    println!("  msicenter --version");
     println!();
     println!("Testing:");
     println!("  MSI_LINUX_CENTER_SYSROOT=/path/to/fixture msicenter status");
@@ -92,7 +96,7 @@ fn print_status(status: &SystemStatus) {
     let identity = &status.identity;
     let profile = status.matched_profile.as_ref();
 
-    println!("MSI Linux Center — Phase 4");
+    println!("MSI Linux Center");
     println!();
     println!("Device");
     println!("  Model       : {}", show(identity.product_name.as_deref()));

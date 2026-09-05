@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
     app.setApplicationDisplayName(QStringLiteral("MSI Linux Center"));
 
     CenterClient client;
-    qInfo().noquote() << "msicenter-ui starting (read-only dashboard)";
+    qInfo().noquote() << "msicenter-ui starting";
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("center"), &client);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
