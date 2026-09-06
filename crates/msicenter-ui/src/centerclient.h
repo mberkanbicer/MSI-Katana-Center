@@ -1,10 +1,13 @@
 #pragma once
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
 #include <QVariantList>
+#include <functional>
+#include <QVector>
 
 class QDBusMessage;
 
@@ -35,6 +38,9 @@ class CenterClient : public QObject {
     Q_PROPERTY(QString lastError READ lastError NOTIFY changed)
     Q_PROPERTY(QString actionMessage READ actionMessage NOTIFY changed)
     Q_PROPERTY(bool actionError READ actionError NOTIFY changed)
+    Q_PROPERTY(QStringList sceneNames READ sceneNames NOTIFY changed)
+    Q_PROPERTY(QString sceneResultText READ sceneResultText NOTIFY changed)
+    Q_PROPERTY(bool sceneApplying READ sceneApplying NOTIFY changed)
 
 public:
     explicit CenterClient(QObject *parent = nullptr);
@@ -59,6 +65,9 @@ public:
     QString lastError() const { return m_error; }
     QString actionMessage() const { return m_actionMessage; }
     bool actionError() const { return m_actionError; }
+    QStringList sceneNames() const { return m_sceneNames; }
+    QString sceneResultText() const { return m_sceneResultText; }
+    bool sceneApplying() const { return m_sceneApplying; }
 
     // First full refresh summary for console/CI use ("connected: ...").
     QString summary() const {
@@ -75,11 +84,19 @@ public slots:
     void setSuperBattery(bool enabled);
     void setBatteryThresholds(int start, int end);
     void setRgbColorFromHex(int zones, const QString &hex);
+    void reloadScenes();
+    void applyScene(const QString &name);
 
 signals:
     void changed();
 
 private:
+    struct SceneStep {
+        QString label;
+        QString method;
+        QVariantList args;
+    };
+
     void start();
     void fetchProperty(const QString &iface, const QString &property);
     void handleJson(const QString &property, const QString &json);
@@ -89,6 +106,8 @@ private:
     void parseFans(const QJsonArray &fans);
     void parseBattery(const QJsonObject &battery);
     void parseCaps(const QJsonArray &caps);
+    QVector<SceneStep> sceneSteps(const QJsonObject &settings) const;
+    void runNextSceneStep();
 
     QString m_profile;
     QString m_support;
@@ -113,4 +132,12 @@ private:
     QTimer m_timer;
     int m_inFlight = 0;
     bool m_loggedFirstSummary = false;
+    QJsonArray m_scenes;
+    QStringList m_sceneNames;
+    QVector<SceneStep> m_sceneSteps;
+    QStringList m_sceneResults;
+    QString m_sceneResultText;
+    int m_sceneStepIndex = 0;
+    bool m_sceneApplying = false;
+    std::function<void(bool, const QString &)> m_actionCallback;
 };

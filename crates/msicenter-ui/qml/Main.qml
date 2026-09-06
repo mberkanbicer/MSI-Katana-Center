@@ -232,6 +232,38 @@ Window {
                 width: parent.width
             }
 
+            // ---- Scenes (Phase 8) ----
+            SectionLabel { text: "Scenes" }
+            Text {
+                text: "From ~/.config/msi-linux-center/scenes.json — sequential gated writes"
+                color: "#a6adc8"
+                font.pointSize: 8
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                width: parent.width
+            }
+            Row {
+                spacing: 6
+                Repeater {
+                    model: center.sceneNames
+                    ActionButton {
+                        label: modelData
+                        onClicked: center.applyScene(modelData)
+                    }
+                }
+                ActionButton {
+                    label: "Reload"
+                    onClicked: center.reloadScenes()
+                }
+            }
+            Text {
+                visible: center.sceneResultText !== ""
+                text: center.sceneResultText
+                color: "#a6e3a1"
+                font.pointSize: 9
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                width: parent.width
+            }
+
             // ---- Action result ----
             Text {
                 visible: center.actionMessage !== ""

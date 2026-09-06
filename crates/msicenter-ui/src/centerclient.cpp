@@ -6,9 +6,12 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusVariant>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <algorithm>
 
 namespace {
 constexpr auto kService = "org.msilinux.Center";
@@ -48,6 +51,7 @@ void CenterClient::start() {
     bus.connect(kService, kPath, kDeviceIface, "StateChanged", this,
                 SLOT(fetchAll()));
     m_timer.start();
+    reloadScenes();
     refreshNow();
 }
 
@@ -205,7 +209,9 @@ void CenterClient::callMethod(const QString &method, const QVariantList &args) {
 
 void CenterClient::handleAction(const QString &method,
                                 const QDBusMessage &reply) {
+    bool ok = false;
     if (reply.type() == QDBusMessage::ReplyMessage) {
+        ok = true;
         m_actionError = false;
         m_actionMessage = QStringLiteral("%1: applied").arg(method);
         qInfo().noquote() << "center:" << method << "applied";
@@ -216,8 +222,143 @@ void CenterClient::handleAction(const QString &method,
                              << "rejected:" << reply.errorMessage();
     }
     emit changed();
-    // Refresh cached state after any write attempt (success or gate refusal).
-    refreshNow();
+    if (m_actionCallback) {
+        std::function<void(bool, const QString &)> callback =
+            std::move(m_actionCallback);
+        callback(ok, m_actionMessage);
+    } else {
+        // Refresh cached state after any write attempt (success or gate
+        // refusal) when nobody is chaining steps.
+        refreshNow();
+    }
+}
+
+void CenterClient::reloadScenes() {
+    m_sceneNames.clear();
+    m_scenes = QJsonArray();
+    const QString path = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
+    const QString base = path.isEmpty()
+                             ? QDir::homePath() + QStringLiteral("/.config")
+                             : path;
+    QFile file(base + QStringLiteral("/msi-linux-center/scenes.json"));
+    if (!file.open(QIODevice::ReadOnly)) {
+        emit changed();
+        return;
+    }
+    const QJsonDocument doc =
+        QJsonDocument::fromJson(file.readAll());
+    file.close();
+    const QJsonArray scenes = doc.object().value("scenes").toArray();
+    for (const QJsonValue &value : scenes) {
+        const QString name = value.toObject().value("name").toString();
+        if (!name.isEmpty()) {
+            m_sceneNames << name;
+            m_scenes.append(value);
+        }
+    }
+    emit changed();
+}
+
+void CenterClient::applyScene(const QString &name) {
+    if (m_sceneApplying)
+        return;
+    for (const QJsonValue &value : m_scenes) {
+        const QJsonObject scene = value.toObject();
+        if (scene.value("name").toString() != name)
+            continue;
+        m_sceneSteps = sceneSteps(scene.value("settings").toObject());
+        m_sceneResults.clear();
+        m_sceneResultText.clear();
+        m_sceneStepIndex = 0;
+        m_sceneApplying = true;
+        emit changed();
+        runNextSceneStep();
+        return;
+    }
+    m_actionError = true;
+    m_actionMessage = QStringLiteral("scene not found: %1").arg(name);
+    emit changed();
+}
+
+QVector<CenterClient::SceneStep> CenterClient::sceneSteps(
+    const QJsonObject &settings) const {
+    QVector<SceneStep> steps;
+    auto byte = [](int value) {
+        return QVariant::fromValue<quint8>(quint8(value));
+    };
+    const QString fanMode = settings.value("fan_mode").toString();
+    if (!fanMode.isEmpty()) {
+        steps.push_back({QStringLiteral("fan_mode"),
+                         QStringLiteral("SetFanMode"), {QVariant(fanMode)}});
+    }
+    if (settings.value("cooler_boost").isBool()) {
+        steps.push_back(
+            {QStringLiteral("cooler_boost"), QStringLiteral("SetCoolerBoost"),
+             {QVariant(settings.value("cooler_boost").toBool())}});
+    }
+    if (settings.value("super_battery").isBool()) {
+        steps.push_back(
+            {QStringLiteral("super_battery"), QStringLiteral("SetSuperBattery"),
+             {QVariant(settings.value("super_battery").toBool())}});
+    }
+    const int start = settings.value("battery_start").toInt(-1);
+    const int end = settings.value("battery_end").toInt(-1);
+    if (start >= 0 && end >= 0 && start < end && end <= 100) {
+        steps.push_back({QStringLiteral("battery_thresholds"),
+                         QStringLiteral("SetBatteryThresholds"),
+                         {byte(start), byte(end)}});
+    }
+    const QJsonObject rgb = settings.value("rgb").toObject();
+    if (!rgb.isEmpty()) {
+        const int zones = rgb.value("zones").toInt(-1);
+        const QString color = rgb.value("color").toString();
+        if (zones >= 0 && zones <= 15 && color.size() == 6) {
+            bool ok = false;
+            const int value = color.toInt(&ok, 16);
+            if (ok) {
+                steps.push_back(
+                    {QStringLiteral("rgb"), QStringLiteral("SetRgbColor"),
+                     {byte(zones), byte((value >> 16) & 0xff),
+                      byte((value >> 8) & 0xff), byte(value & 0xff)}});
+            }
+        }
+    }
+    return steps;
+}
+
+void CenterClient::runNextSceneStep() {
+    if (m_sceneStepIndex >= m_sceneSteps.size()) {
+        m_sceneApplying = false;
+        const int failed = std::count_if(
+            m_sceneResults.constBegin(), m_sceneResults.constEnd(),
+            [](const QString &line) { return line.startsWith(QStringLiteral("FAIL")); });
+        m_sceneResultText = QStringLiteral("scene: %1 ok, %2 failed")
+                                .arg(m_sceneResults.size() - failed)
+                                .arg(failed);
+        for (const QString &line : m_sceneResults)
+            m_sceneResultText += QStringLiteral("\n") + line;
+        emit changed();
+        refreshNow();
+        return;
+    }
+    const SceneStep &step = m_sceneSteps.at(m_sceneStepIndex);
+    const int index = m_sceneStepIndex;
+    callMethod(step.method, step.args);
+    // The reply arrives asynchronously; handle it through handleAction,
+    // which invokes m_actionCallback below.
+    m_actionCallback = [this, index, step](bool ok, const QString &message) {
+        QString line = QStringLiteral("%1 %2: ").arg(ok ? QStringLiteral("ok")
+                                                        : QStringLiteral("FAIL"),
+                                                     step.label);
+        if (ok) {
+            line += QStringLiteral("applied");
+        } else {
+            line += message.section(QStringLiteral(": "), 1).trimmed();
+        }
+        m_sceneResults.append(line);
+        m_sceneStepIndex = index + 1;
+        runNextSceneStep();
+    };
 }
 
 void CenterClient::parseEc(const QJsonObject &ec) {
