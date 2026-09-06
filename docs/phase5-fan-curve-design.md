@@ -410,9 +410,50 @@ GhostDeck `Devices.cs` for the G2 family (exact byte set MSI Center
 writes for a curve, including any trailing/checksum bytes) and the msi-ec
 issue #80 comments (maintainer's row annotations). Only after that and an
 explicit user go-ahead does a minimal one-point write test (§35 gates)
-become eligible.
+## 11. Consent-gated single-point write experiment (design only)
 
-## 10.10 GhostDeck per-model spec (same laptop) — speed tables only
+Goal: learn whether (a) the table region is writable at all on this EC,
+(b) a changed speed node is honored under load, (c) `0x9E` reacts to a
+write (checksum/validation?). Design constraints from §35: minimal change,
+cooling-only direction, read-back, immediate revert, reboot-safe, run by
+the local user in their own terminal after explicit go-ahead.
+
+Target byte: CPU speed node `0x77` (currently `0x4B` = 75 %), paired with
+temperature node `0x6E` (82 °C) under the GhostDeck 6-point layout
+(`cpuSpeedBase 0x72` + 5, `cpuTempBase 0x69` + 5). Raising 75 % → 100 %
+only ever increases cooling above ~82 °C.
+
+Procedure (each step prints read-back evidence):
+
+1. Enable the fan-mode opt-in override (§10.6) so the verified fan-mode
+   write is available, then `msicenter fan-mode advanced` (curve
+   semantics per GhostDeck apply with `0xd4 = 0x8d`).
+2. Baseline dump (two dd reads of §9) + `msicenter status --json`.
+3. Write-capability no-op probe on a byte we are NOT changing: write the
+   byte's current value back (`0x70` currently `0x64`), then read it
+   back. If the write fails with EACCES/EPERM the debugfs `io` file is
+   read-only and the experiment stops here (do NOT load `ec_sys
+   write_support=1` without a separate review — §5.3).
+4. Load soak with the stock table (~60 s CPU load, sample fan level and
+   `0x77`).
+5. Write the experiment byte: `0x77: 0x4B -> 0x64`, read back
+   immediately and again after ~2 s (if the EC reverts it, the region is
+   validated/checksummed — that is itself the answer about `0x9E`).
+6. Load soak again; if honored, CPU fan level reaches ~100 while CPU
+   temperature is above ~82 °C.
+7. Revert `0x77` to `0x4B`, read back, final dump, `msicenter
+   fan-mode auto`, remove the override and restart the daemon (§10.6).
+8. Record whether `0x9E` changed after the write and whether it changed
+   back after the revert.
+
+Write form (one byte at address A with value V):
+
+    printf '\\x%02x' V | sudo dd of=/sys/kernel/debug/ec/ec0/io bs=1 seek=$((A)) count=1 status=none
+    sudo dd if=/sys/kernel/debug/ec/ec0/io bs=1 skip=$((A)) count=1 status=none | xxd -g1   # read-back
+
+Everything is volatile EC RAM: a reboot restores firmware defaults, which
+is the ultimate rollback for this experiment.
+
 
 GhostDeck `data/models.json` model 12 covers this laptop (Pulse/Katana 17
 B13V/GK, prefix `17L5EMS1`, tier Tested, credit eaglent1, issue #38):

@@ -323,11 +323,13 @@ A suitable future domain representation is conceptually:
 
 Do not lose the raw value when the semantic mapping is unknown.
 
-### Shift-mode write status (2026-09-05)
+### Shift-mode write status (2026-09-05, research updated 2026-09-06)
 
 `unknown (192)` equals `0xc0`. The `msi-ec` 0.13 driver table for this model family (address `0xd2`) maps `eco`/`comfort`/`turbo` to `0xc2`/`0xc1`/`0xc4`, with a source comment that turbo is "sometimes `0xc0`". Because the driver cannot write `0xc0`, reverting to the current register value after any shift-mode write is impossible through `msi-ec`; a failed or unwanted write would be irreversible without an EC reset.
 
-Performance-mode writes are therefore deferred indefinitely: no safe rollback exists. Do not implement `SetShiftMode` until the driver (or an independently verified mapping) can write and restore every mode value this EC actually uses.
+2026-09-06 cross-check (msi-ec issues #288/#291/#24, GhostDeck `models.json`): the `0xcx` space encodes level in the low 3 bits with bit 6 set — `0xc0` (000) is the legacy **sport/"balanced"** value, `0xc1` (001) comfort/silent, `0xc2` (010) eco/super-battery, `0xc4` (100) turbo/extreme. GhostDeck's entry for this laptop (Pulse/Katana 17 B13V/GK) writes `0xc1` for Balanced and Silent, `0xc4` for Extreme, `0xc2`+`0xeb=0x0f` for Super Battery, and knows no `0xc0` — so `0xc0` on this EC is a shipped-default balanced value that newer MSI Center versions do not write. It is a *known name* now, not a writable one.
+
+Performance-mode writes are therefore still deferred: no rollback path through `msi-ec` exists for `0xc0`. Do not implement `SetShiftMode` until the driver (or an independently verified mapping) can write and restore every mode value this EC actually uses — e.g. a local DKMS/upstream addition of a `sport 0xc0` mode, after which a consent-gated write test with read-back becomes eligible.
 
 Observed fan modes:
 
