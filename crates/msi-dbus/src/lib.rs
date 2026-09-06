@@ -22,6 +22,7 @@ pub const SET_FAN_MODE_ACTION: &str = "org.msilinux.Center.set-fan-mode";
 pub const SET_COOLER_BOOST_ACTION: &str = "org.msilinux.Center.set-cooler-boost";
 pub const SET_SUPER_BATTERY_ACTION: &str = "org.msilinux.Center.set-super-battery";
 pub const SET_RGB_COLOR_ACTION: &str = "org.msilinux.Center.set-rgb-color";
+pub const SET_RGB_SAVE_ACTION: &str = "org.msilinux.Center.set-rgb-save";
 
 #[derive(Debug)]
 pub enum ServiceError {
@@ -137,6 +138,39 @@ pub fn request_rgb_color(zones: u8, r: u8, g: u8, b: u8) -> Result<String, Servi
     proxy
         .call("SetRgbColor", &(zones, r, g, b))
         .map_err(Into::into)
+}
+
+pub fn request_rgb_effect(
+    zones: u8,
+    mode: u8,
+    speed_centiseconds: u16,
+    wave_direction: u8,
+    colors: Vec<(u8, u8, u8)>,
+) -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy
+        .call(
+            "SetRgbEffect",
+            &(zones, mode, speed_centiseconds, wave_direction, colors),
+        )
+        .map_err(Into::into)
+}
+
+pub fn request_rgb_save() -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy.call("SaveRgbState", &()).map_err(Into::into)
 }
 
 fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError> {
@@ -505,41 +539,79 @@ impl DeviceInterface {
             .sender()
             .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
         authorize(&self.connection, sender.as_str(), SET_RGB_COLOR_ACTION).await?;
+        let (vendor, product) = rgb_vid_pid(&current)?;
 
-        let profile = current
-            .matched_profile
-            .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
-        let vendor = u16::from_str_radix(
-            profile
-                .rgb_usb_vid
-                .as_deref()
-                .ok_or_else(|| zbus::fdo::Error::NotSupported("no RGB VID declared".into()))?,
-            16,
-        )
-        .map_err(|_| zbus::fdo::Error::NotSupported("invalid RGB VID".into()))?;
-        let product = u16::from_str_radix(
-            profile
-                .rgb_usb_pid
-                .as_deref()
-                .ok_or_else(|| zbus::fdo::Error::NotSupported("no RGB PID declared".into()))?,
-            16,
-        )
-        .map_err(|_| zbus::fdo::Error::NotSupported("invalid RGB PID".into()))?;
-
-        msi_hardware::rgb::send_steady_color(vendor, product, zones, r, g, b).map_err(|error| {
-            match error {
-                msi_hardware::rgb::RgbSendError::InvalidZones(_) => {
-                    zbus::fdo::Error::InvalidArgs(error.to_string())
-                }
-                other => zbus::fdo::Error::Failed(other.to_string()),
-            }
-        })?;
+        msi_hardware::rgb::send_steady_color(vendor, product, zones, r, g, b)
+            .map_err(rgb_fdo_error)?;
 
         let applied = serde_json::json!({
             "zone_mask": format!("{zones:#04x}"),
             "color": [r, g, b],
             "persistent": false,
         });
+        Ok(applied.to_string())
+    }
+
+    async fn set_rgb_effect(
+        &self,
+        zones: u8,
+        mode: u8,
+        speed_centiseconds: u16,
+        wave_direction: u8,
+        colors: Vec<(u8, u8, u8)>,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<String> {
+        if colors.is_empty() {
+            return Err(zbus::fdo::Error::InvalidArgs(
+                "RGB effect needs at least one color".into(),
+            ));
+        }
+        let current = snapshot(&self.status)?;
+        require_rgb_write_support(&current, rgb_writes_enabled())?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_RGB_COLOR_ACTION).await?;
+        let (vendor, product) = rgb_vid_pid(&current)?;
+
+        let keyframes = msi_hardware::rgb::keyframes_from_colors(&colors);
+        msi_hardware::rgb::send_effect(
+            vendor,
+            product,
+            zones,
+            mode,
+            speed_centiseconds,
+            wave_direction,
+            &keyframes,
+        )
+        .map_err(rgb_fdo_error)?;
+
+        let applied = serde_json::json!({
+            "zone_mask": format!("{zones:#04x}"),
+            "mode": mode,
+            "speed_centiseconds": speed_centiseconds,
+            "wave_direction": wave_direction,
+            "colors": colors,
+            "persistent": false,
+        });
+        Ok(applied.to_string())
+    }
+
+    async fn save_rgb_state(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<String> {
+        let current = snapshot(&self.status)?;
+        require_rgb_save_support(&current, rgb_flash_writes_enabled())?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_RGB_SAVE_ACTION).await?;
+        let (vendor, product) = rgb_vid_pid(&current)?;
+
+        msi_hardware::rgb::save_to_flash(vendor, product).map_err(rgb_fdo_error)?;
+
+        let applied = serde_json::json!({ "saved_to_flash": true });
         Ok(applied.to_string())
     }
 
@@ -610,6 +682,10 @@ fn super_battery_writes_enabled() -> bool {
 
 fn rgb_writes_enabled() -> bool {
     std::env::var("MSI_LINUX_CENTER_ENABLE_RGB_WRITES").as_deref() == Ok("1")
+}
+
+fn rgb_flash_writes_enabled() -> bool {
+    std::env::var("MSI_LINUX_CENTER_ENABLE_RGB_FLASH_WRITES").as_deref() == Ok("1")
 }
 
 fn require_battery_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
@@ -762,6 +838,47 @@ fn require_rgb_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo:
     Ok(())
 }
 
+/// Resolves the RGB VID/PID pair from the matched profile.
+fn rgb_vid_pid(status: &SystemStatus) -> zbus::fdo::Result<(u16, u16)> {
+    let profile = status
+        .matched_profile
+        .as_ref()
+        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
+    let parse = |value: Option<&String>, what: &str| -> zbus::fdo::Result<u16> {
+        let value = value
+            .ok_or_else(|| zbus::fdo::Error::NotSupported(format!("no RGB {what} declared")))?;
+        u16::from_str_radix(value, 16)
+            .map_err(|_| zbus::fdo::Error::NotSupported(format!("invalid RGB {what}")))
+    };
+    Ok((
+        parse(profile.rgb_usb_vid.as_ref(), "VID")?,
+        parse(profile.rgb_usb_pid.as_ref(), "PID")?,
+    ))
+}
+
+/// Maps a hardware RGB send error to a D-Bus error: argument problems are
+/// InvalidArgs, everything else Failed.
+fn rgb_fdo_error(error: msi_hardware::rgb::RgbSendError) -> zbus::fdo::Error {
+    match error {
+        msi_hardware::rgb::RgbSendError::InvalidZones(_)
+        | msi_hardware::rgb::RgbSendError::InvalidPacket(_) => {
+            zbus::fdo::Error::InvalidArgs(error.to_string())
+        }
+        other => zbus::fdo::Error::Failed(other.to_string()),
+    }
+}
+
+fn require_rgb_save_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
+    if !enabled {
+        return Err(zbus::fdo::Error::NotSupported(
+            "RGB flash-save disabled; set MSI_LINUX_CENTER_ENABLE_RGB_FLASH_WRITES=1 for local validation"
+                .into(),
+        ));
+    }
+    require_rgb_write_support(status, true)?;
+    Ok(())
+}
+
 async fn authorize(
     connection: &zbus::Connection,
     sender: &str,
@@ -879,5 +996,17 @@ mod tests {
         assert!(require_rgb_write_support(&status, true).is_ok());
         status.matched_profile.as_mut().unwrap().rgb_usb_vid = None;
         assert!(require_rgb_write_support(&status, true).is_err());
+    }
+
+    #[test]
+    fn rgb_save_gate_requires_flash_opt_in() {
+        let mut status = collect_status_at(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/katana17-b13vgk"),
+        )
+        .unwrap();
+        // Flash-save needs its own opt-in even when the RGB backend exists.
+        assert!(require_rgb_save_support(&status, false).is_err());
+        status.backends.rgb_hid = true;
+        assert!(require_rgb_save_support(&status, false).is_err());
     }
 }

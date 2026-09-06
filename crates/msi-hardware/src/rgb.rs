@@ -100,6 +100,7 @@ pub struct RgbControllerInfo {
 #[derive(Debug)]
 pub enum RgbSendError {
     InvalidZones(u8),
+    InvalidPacket(String),
     NotFound,
     Open(hidapi::HidError),
     Send(hidapi::HidError),
@@ -114,6 +115,7 @@ impl std::fmt::Display for RgbSendError {
                     "invalid RGB zone mask {zones:#04x}; only bits 0-3 are valid"
                 )
             }
+            Self::InvalidPacket(reason) => write!(f, "invalid RGB packet: {reason}"),
             Self::NotFound => write!(f, "RGB controller not found"),
             Self::Open(error) => write!(f, "RGB controller open error: {error}"),
             Self::Send(error) => write!(f, "RGB feature report send error: {error}"),
@@ -156,17 +158,55 @@ pub fn send_steady_color(
     g: u8,
     b: u8,
 ) -> Result<(), RgbSendError> {
-    let select = zone_select_packet(zones).map_err(|error| match error {
-        RgbPacketError::InvalidZones(zones) => RgbSendError::InvalidZones(zones),
-        _ => unreachable!("zone_select_packet only fails on invalid zones"),
-    })?;
-    let effect = effect_packet(
+    send_effect(
+        vendor_id,
+        product_id,
+        zones,
         EFFECT_STEADY,
         300,
         WAVE_LEFT_TO_RIGHT,
         &[RgbKeyframe { time: 0, r, g, b }],
     )
-    .expect("steady single-keyframe packet is always valid");
+}
+
+/// Distributes colors into evenly spaced keyframes: first at time 0, last
+/// at time 100 (matches msi-katana-rgb and OpenRGB behavior).
+pub fn keyframes_from_colors(colors: &[(u8, u8, u8)]) -> Vec<RgbKeyframe> {
+    let count = colors.len();
+    colors
+        .iter()
+        .enumerate()
+        .map(|(index, &(r, g, b))| {
+            let time = if count == 1 {
+                0
+            } else if index == count - 1 {
+                100
+            } else {
+                ((index * 100) / (count - 1)) as u8
+            };
+            RgbKeyframe { time, r, g, b }
+        })
+        .collect()
+}
+
+/// Sends a **non-persistent** effect to the selected zones: zone select
+/// plus one set-effect feature report. Never sends flash-save; see
+/// [`save_to_flash`] for the separate persistent path.
+pub fn send_effect(
+    vendor_id: u16,
+    product_id: u16,
+    zones: u8,
+    mode: u8,
+    speed_centiseconds: u16,
+    wave_direction: u8,
+    keyframes: &[RgbKeyframe],
+) -> Result<(), RgbSendError> {
+    let select = zone_select_packet(zones).map_err(|error| match error {
+        RgbPacketError::InvalidZones(zones) => RgbSendError::InvalidZones(zones),
+        _ => unreachable!("zone_select_packet only fails on invalid zones"),
+    })?;
+    let effect = effect_packet(mode, speed_centiseconds, wave_direction, keyframes)
+        .map_err(|error| RgbSendError::InvalidPacket(error.to_string()))?;
 
     let device = open_rgb_controller(vendor_id, product_id)?;
     device
@@ -174,6 +214,18 @@ pub fn send_steady_color(
         .map_err(RgbSendError::Send)?;
     device
         .send_feature_report(&effect)
+        .map_err(RgbSendError::Send)
+}
+
+/// Saves the current (last sent) effect to flash — **persistent** across
+/// reboots, kept separate from the non-persistent path (AGENTS §24).
+pub fn save_to_flash(vendor_id: u16, product_id: u16) -> Result<(), RgbSendError> {
+    let mut packet = [0u8; PACKET_SIZE];
+    packet[0] = REPORT_ID_WRITE;
+    packet[1] = 0xa0; // flash-save
+    let device = open_rgb_controller(vendor_id, product_id)?;
+    device
+        .send_feature_report(&packet)
         .map_err(RgbSendError::Send)
 }
 
@@ -369,5 +421,24 @@ mod tests {
             effect_packet(EFFECT_COLOR_WAVE, 300, 0, &too_many),
             Err(RgbPacketError::TooManyKeyframes(MAX_KEYFRAMES + 1))
         );
+    }
+
+    #[test]
+    fn distributes_colors_into_keyframes() {
+        // Single color -> time 0.
+        let one = keyframes_from_colors(&[(255, 0, 0)]);
+        assert_eq!(one.len(), 1);
+        assert_eq!(one[0].time, 0);
+
+        // Two colors -> 0 and 100.
+        let two = keyframes_from_colors(&[(255, 0, 0), (0, 0, 255)]);
+        assert_eq!(two[0].time, 0);
+        assert_eq!(two[1].time, 100);
+
+        // Three colors -> 0, 50, 100.
+        let three = keyframes_from_colors(&[(255, 0, 0), (0, 255, 0), (0, 0, 255)]);
+        assert_eq!(three[0].time, 0);
+        assert_eq!(three[1].time, 50);
+        assert_eq!(three[2].time, 100);
     }
 }

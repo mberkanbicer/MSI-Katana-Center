@@ -40,8 +40,17 @@
     </defaults>
   </action>
   <action id="org.msilinux.Center.set-rgb-color">
-    <description>Set the keyboard RGB color (non-persistent)</description>
+    <description>Set the keyboard RGB color or effect (non-persistent)</description>
     <message>Authentication is required to change the keyboard RGB color</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+  <action id="org.msilinux.Center.set-rgb-save">
+    <description>Save the keyboard RGB state to flash (persistent)</description>
+    <message>Authentication is required to save the keyboard RGB state permanently</message>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>

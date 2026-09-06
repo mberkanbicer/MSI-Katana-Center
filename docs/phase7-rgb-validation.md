@@ -22,22 +22,34 @@ the daemon — verification is visual, and nothing is written to flash.
 
 ## Controlled local validation
 
-Do not automate these steps. Record the current lighting state first.
+Non-persistent effects (do not automate; low risk — nothing is written to
+flash):
 
 1. Confirm `msicenter status` shows the RGB controller (name + serial).
 2. Install the updated daemon, systemd unit, D-Bus policy, and Polkit action.
 3. Set a systemd override with `Environment=MSI_LINUX_CENTER_ENABLE_RGB_WRITES=1`,
    then restart the daemon.
-4. Run `msicenter rgb-color f ff0000` as the desktop user and complete the
-   Polkit prompt: the whole keyboard should turn solid red (non-persistent).
-5. Cross-check with OpenRGB: set the same color in OpenRGB and confirm it
-   matches; then set a second color through the CLI (`00ff00`) and confirm
-   the keyboard follows without any flash/reboot side effects.
-6. Test one zone at a time (`1`, `2`, `4`, `8`) with a distinct color each.
-7. Turn the keyboard off with `msicenter rgb-color f 000000`.
-8. Disable the opt-in and confirm `SetRgbColor` is rejected while disabled.
-9. Reboot and confirm the pre-existing (Windows/MSI Center) effect is back —
-   proving nothing was persisted.
+4. `msicenter rgb-color f ff0000` → whole keyboard solid red.
+5. `msicenter rgb-effect f breath 3 ff0000,0000ff` → red/blue breathing.
+6. `msicenter rgb-effect f wave 5 ff0000,00ff00,0000ff` → color wave.
+7. `msicenter rgb-effect f cycle 4 ff0000,00ff00` → color cycle.
+8. Test a single zone: `msicenter rgb-effect 1 steady 1 00ff00`.
+9. Clear: `msicenter rgb-color f 000000`.
+10. Disable the opt-in and confirm all `SetRgb*` calls are rejected.
+
+### Flash-save validation (separate, higher-risk)
+
+Flash-save overwrites the controller's persistent state — including any
+effect set from Windows/MSI Center. Do this only if you intend to keep the
+state permanently. Record the current (Windows) effect first, because there
+is **no restore path** other than re-flashing from MSI Center later.
+
+1. Set the desired state with non-persistent calls first and confirm it.
+2. Add a systemd override with
+   `Environment=MSI_LINUX_CENTER_ENABLE_RGB_FLASH_WRITES=1` and restart.
+3. Run `msicenter rgb-save` and complete the Polkit prompt.
+4. Reboot and confirm the saved state survived.
+5. Remove the override; confirm `SaveRgbState` is rejected while disabled.
 
 Only after successful physical verification should the device provenance
 set `writes_tested` to `true`.

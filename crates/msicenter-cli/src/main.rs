@@ -1,7 +1,7 @@
 use msi_core::SystemStatus;
 use msi_dbus::{
     collect_status, request_battery_thresholds, request_cooler_boost, request_fan_mode,
-    request_rgb_color, request_super_battery,
+    request_rgb_color, request_rgb_effect, request_rgb_save, request_super_battery,
 };
 use std::process::ExitCode;
 
@@ -84,6 +84,54 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 request_rgb_color(zones, channel(0..2), channel(2..4), channel(4..6))?
             );
         }
+        "rgb-effect" => {
+            if args.len() != 5 {
+                return Err(
+                    "usage: msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS (non-persistent)\n       MODE: off|steady|breath|cycle|wave, COLORS: RRGGBB[,RRGGBB...]"
+                        .into(),
+                );
+            }
+            let zones = u8::from_str_radix(&args[1], 16)
+                .map_err(|_| format!("invalid zone mask: {}", args[1]))?;
+            let mode = match args[2].as_str() {
+                "off" => 0u8,
+                "steady" => 1,
+                "breath" | "breathing" => 2,
+                "cycle" => 3,
+                "wave" => 4,
+                other => return Err(format!("invalid mode: {other}").into()),
+            };
+            let speed_seconds: u16 = args[3]
+                .parse()
+                .map_err(|_| format!("invalid speed: {}", args[3]))?;
+            if speed_seconds > 600 {
+                return Err("speed too large (max 600 s)".into());
+            }
+            let mut colors = Vec::new();
+            for part in args[4].split(',') {
+                let bytes = part.as_bytes();
+                if bytes.len() != 6 || !bytes.iter().all(u8::is_ascii_hexdigit) {
+                    return Err(format!("invalid color: {part} (expected RRGGBB)").into());
+                }
+                let channel = |range: std::ops::Range<usize>| {
+                    u8::from_str_radix(&part[range], 16).expect("validated hex")
+                };
+                colors.push((channel(0..2), channel(2..4), channel(4..6)));
+            }
+            if colors.len() > 10 {
+                return Err("too many colors (max 10)".into());
+            }
+            println!(
+                "{}",
+                request_rgb_effect(zones, mode, speed_seconds * 100, 1, colors)?
+            );
+        }
+        "rgb-save" => {
+            if args.len() != 1 {
+                return Err("usage: msicenter rgb-save (persistent flash save)".into());
+            }
+            println!("{}", request_rgb_save()?);
+        }
         "version" | "--version" | "-V" => {
             println!("msicenter {}", env!("CARGO_PKG_VERSION"));
         }
@@ -105,6 +153,8 @@ fn print_help() {
     println!("  msicenter cooler-boost on|off");
     println!("  msicenter super-battery on|off");
     println!("  msicenter rgb-color ZONE_MASK RRGGBB  (non-persistent)");
+    println!("  msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS  (non-persistent)");
+    println!("  msicenter rgb-save  (persistent flash save)");
     println!("  msicenter --version");
     println!();
     println!("Testing:");
