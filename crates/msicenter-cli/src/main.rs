@@ -5,6 +5,7 @@ use msi_dbus::{
 };
 use std::process::ExitCode;
 
+mod report;
 mod scene;
 
 fn main() -> ExitCode {
@@ -32,6 +33,17 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         "capabilities" => print_capabilities(&collect_status()?),
+        "report" => {
+            let status = collect_status()?;
+            if args.iter().any(|arg| arg == "--json") {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&report::report_json(&status))?
+                );
+            } else {
+                report::print_report(&status);
+            }
+        }
         "battery-thresholds" => {
             if args.len() != 3 {
                 return Err("usage: msicenter battery-thresholds START END".into());
@@ -232,6 +244,7 @@ fn print_help() {
     println!();
     println!("Usage:");
     println!("  msicenter status [--json]");
+    println!("  msicenter report [--json]");
     println!("  msicenter capabilities");
     println!("  msicenter battery-thresholds START END");
     println!("  msicenter fan-mode MODE");
