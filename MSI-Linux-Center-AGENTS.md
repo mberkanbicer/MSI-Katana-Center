@@ -1215,8 +1215,9 @@ system libusb/hidapi present; same path OpenRGB uses). Protocol notes:
 (no device writes): `msi-hardware::rgb` (zone-select + set-effect packets,
 validation, keyframe cap 10). Daemon usbfs probe verified on hardware
 2026-09-06 (serial 4062C8A28000). Gated non-persistent `SetRgbColor` write
-path implemented; physical validation pending
-(`docs/phase7-rgb-validation.md`).
+path implemented and physically verified 2026-09-06
+(`docs/phase7-rgb-validation.md`). Flash-save and effect modes remain
+future work.
 
 ## Phase 8
 

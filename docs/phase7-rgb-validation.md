@@ -42,6 +42,21 @@ Do not automate these steps. Record the current lighting state first.
 Only after successful physical verification should the device provenance
 set `writes_tested` to `true`.
 
-## Verification record
+## Verification record (2026-09-06)
 
-Pending physical validation on the reference laptop.
+Performed on the reference laptop (Katana 17 B13VGK, controller serial
+`4062C8A28000`):
+
+- `msicenter status` reported the controller (name + serial).
+- Opt-in override `Environment=MSI_LINUX_CENTER_ENABLE_RGB_WRITES=1`; unit
+  updated to allow `AF_NETLINK` (libusb udev monitor) — without it the
+  daemon's hidapi init fails.
+- `msicenter rgb-color f ff0000` → solid red across all zones
+- `msicenter rgb-color 1 00ff00` → zone 1 green
+- `msicenter rgb-color f 0000ff` → blue; `msicenter rgb-color f 000000` →
+  LEDs off
+- opt-in override removed; `SetRgbColor` rejected with
+  `org.freedesktop.DBus.Error.NotSupported` while disabled
+- no flash-save was ever sent; effect is non-persistent
+
+Outcome: non-persistent RGB color write verification passed.

@@ -59,7 +59,7 @@ Super Battery follows the same pattern with `MSI_LINUX_CENTER_ENABLE_SUPER_BATTE
 RGB color follows the Phase 7 pattern with `MSI_LINUX_CENTER_ENABLE_RGB_WRITES=1`
 and the Polkit action `org.msilinux.Center.set-rgb-color`. It sends a
 non-persistent steady color to the declared MysticLight controller over
-usbfs; flash-save (0xA0) is never sent. Physical verification is pending.
+usbfs; flash-save (0xA0) is never sent. Physically verified on 2026-09-06.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 

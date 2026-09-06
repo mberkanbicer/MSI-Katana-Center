@@ -19,7 +19,7 @@ verification on the reference laptop. See
 | 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — all physically verified 2026-09-05 |
 | 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) |
 | 6 | Qt/QML desktop UI | milestone 2 in `crates/msicenter-ui/`; plan: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
-| 7 | RGB (MysticLight MS-1565) | protocol documented + packet builder tested; design: [`docs/phase7-rgb-design.md`](docs/phase7-rgb-design.md), protocol: [`docs/phase7-rgb-protocol.md`](docs/phase7-rgb-protocol.md) |
+| 7 | RGB (MysticLight MS-1565) | non-persistent `SetRgbColor` physically verified 2026-09-06; flash-save/effect modes future |
 
 ## Current scope
 
@@ -35,8 +35,9 @@ verification on the reference laptop. See
 - D-Bus daemon (`org.msilinux.Center`) and Qt/QML desktop client
 - all paths redirectable via `MSI_LINUX_CENTER_SYSROOT`
 
-No RGB, MUX, or fan-curve write exists yet. Performance-mode writes are
-deferred (current EC state `0xc0` is not writable by `msi-ec`; see
+No MUX or fan-curve write exists yet. RGB steady colors are writable
+(non-persistent only; flash-save not implemented). Performance-mode writes
+are deferred (current EC state `0xc0` is not writable by `msi-ec`; see
 `MSI-Linux-Center-AGENTS.md` §6.1).
 
 ## Requirements
