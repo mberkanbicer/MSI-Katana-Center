@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MSI Linux Center
+Comment=Start MSI Linux Center in the system tray
+Exec=msicenter-ui
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

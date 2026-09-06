@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MSI Linux Center
+GenericName=MSI laptop hardware management
+Comment=Status and gated hardware controls for MSI laptops
+Exec=msicenter-ui
+Terminal=false
+Categories=Utility;Settings;System;
+Keywords=MSI;laptop;fan;RGB;battery;hardware;
+StartupNotify=false

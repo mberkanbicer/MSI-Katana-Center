@@ -4,7 +4,7 @@ project(msicenter-ui VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick DBus QuickControls2)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick DBus QuickControls2 Widgets)
 
 qt_standard_project_setup()
 
@@ -34,4 +34,5 @@ target_link_libraries(msicenter-ui PRIVATE
     Qt6::Quick
     Qt6::DBus
     Qt6::QuickControls2
+    Qt6::Widgets
 )

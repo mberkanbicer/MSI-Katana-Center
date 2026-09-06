@@ -11,6 +11,15 @@ ApplicationWindow {
     minimumWidth: 860
     minimumHeight: 580
     title: "MSI Linux Center"
+
+    // Closing hides to the system tray when one is available; Quit lives
+    // in the tray menu.
+    onClosing: (close) => {
+        if (trayAvailable) {
+            close.accepted = false
+            root.hide()
+        }
+    }
     Material.theme: Material.Dark
     Material.primary: "#E2A35B"
     Material.accent: "#E2A35B"
