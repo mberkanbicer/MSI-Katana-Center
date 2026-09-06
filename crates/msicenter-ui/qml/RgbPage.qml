@@ -11,6 +11,7 @@ ScrollView {
     property string colorHex: "ff0000"
     property int modeIndex: 1          // 1 steady, 2 breathing, 3 cycle, 4 wave
     property int speedSeconds: 3
+    property int waveDirection: 1      // 1 left-to-right, 0 right-to-left
 
     function hslToHex(h, s, l) {
         const c = Qt.hsla(h, s, l, 1)
@@ -192,8 +193,8 @@ ScrollView {
                     }
                     Slider {
                         id: speedSlider
-                        from: 1
-                        to: 10
+                        from: 3
+                        to: 12
                         stepSize: 1
                         value: page.speedSeconds
                         width: parent.width - 130
@@ -202,11 +203,32 @@ ScrollView {
                 }
 
                 Row {
+                    visible: page.modeIndex === 4
+                    spacing: 10
+                    Label { text: "Direction"; color: "#8C7F6F"; font.pixelSize: 11
+                            font.bold: true; anchors.verticalCenter: parent.verticalCenter }
+                    ButtonGroup { id: directionGroup }
+                    Repeater {
+                        model: [{ label: "Left → Right", value: 1 },
+                                { label: "Right → Left", value: 0 }]
+                        Button {
+                            required property var modelData
+                            text: modelData.label
+                            checkable: true
+                            checked: page.waveDirection === modelData.value
+                            ButtonGroup.group: directionGroup
+                            onClicked: page.waveDirection = modelData.value
+                        }
+                    }
+                }
+
+                Row {
                     spacing: 10
                     Button {
                         text: "Apply effect"
                         onClicked: center.setRgbEffectPreset(page.rgbZones, page.modeIndex,
-                                                             page.speedSeconds, page.colorHex)
+                                                             page.speedSeconds, page.colorHex,
+                                                             page.waveDirection)
                     }
                     Button {
                         text: "Turn off"

@@ -626,6 +626,7 @@ impl DeviceInterface {
         mode: u8,
         speed_centiseconds: u16,
         color_hex: String,
+        wave_direction: u8,
         #[zbus(header)] header: Header<'_>,
     ) -> zbus::fdo::Result<String> {
         // Semantic preset: one user color; the daemon derives companions
@@ -633,6 +634,11 @@ impl DeviceInterface {
         if !(1..=4).contains(&mode) {
             return Err(zbus::fdo::Error::InvalidArgs(
                 "mode must be 1 (steady), 2 (breathing), 3 (cycle) or 4 (wave)".into(),
+            ));
+        }
+        if wave_direction > 1 {
+            return Err(zbus::fdo::Error::InvalidArgs(
+                "wave_direction must be 0 (right-to-left) or 1 (left-to-right)".into(),
             ));
         }
         let base = parse_hex_color(&color_hex).ok_or_else(|| {
@@ -663,7 +669,7 @@ impl DeviceInterface {
             zones,
             mode,
             speed_centiseconds,
-            1,
+            wave_direction,
             &keyframes,
         )
         .map_err(rgb_fdo_error)?;

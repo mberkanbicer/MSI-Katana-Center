@@ -200,7 +200,7 @@ void CenterClient::setRgbColorFromHex(int zones, const QString &hex) {
 }
 
 void CenterClient::setRgbEffectPreset(int zones, int mode, int speedSeconds,
-                                      const QString &hex) {
+                                      const QString &hex, int waveDirection) {
     const QString cleaned = hex.trimmed();
     if (cleaned.size() != 6) {
         m_actionError = true;
@@ -214,7 +214,8 @@ void CenterClient::setRgbEffectPreset(int zones, int mode, int speedSeconds,
                {QVariant::fromValue<quint8>(quint8(zones)),
                 QVariant::fromValue<quint8>(quint8(mode)),
                 QVariant::fromValue<quint16>(quint16(speedSeconds * 100)),
-                QVariant(cleaned)});
+                QVariant(cleaned),
+                QVariant::fromValue<quint8>(quint8(waveDirection))});
 }
 
 void CenterClient::callMethod(const QString &method, const QVariantList &args) {

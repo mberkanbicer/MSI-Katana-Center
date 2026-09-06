@@ -65,8 +65,9 @@ controller over usbfs; flash-save is never part of these calls. Physically
 verified on 2026-09-06.
 
 RGB effects use the semantic preset method
-`SetRgbPresetEffect(zones: y, mode: y, speed_centiseconds: q, color_hex: s)`
-(mode 1 = steady, 2 = breathing, 3 = cycle, 4 = wave). The client sends
+`SetRgbPresetEffect(zones: y, mode: y, speed_centiseconds: q, color_hex: s,
+wave_direction: y)` (mode 1 = steady, 2 = breathing, 3 = cycle, 4 = wave;
+wave_direction 0 = right-to-left, 1 = left-to-right). The client sends
 one `RRGGBB` color; the daemon derives the keyframe list — cycle appends
 the +180° companion, wave appends +120°/+240° companions (hue rotation in
 `msi-hardware::rgb::rotate_hue`) — so the Qt client never has to marshal
