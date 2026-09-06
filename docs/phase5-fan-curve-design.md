@@ -176,3 +176,51 @@ verification.
 - `msi-wmi-platform` fan-curve patch series (2025, WMI-native devices) —
   https://lore.kernel.org (LKML)
 - `MSI-Linux-Center-AGENTS.md` §23, §5.3, §35, §34
+
+# 9. Read-only EC capture procedure (reference laptop, no writes)
+
+Goal: confirm the writable curve layout on EC `17L5EMS1.115` before any
+Phase 5 code. The procedure reads EC RAM only — no `ec_sys` write support,
+no WMI `Set_Data`, no runtime changes. Runs in the user's own terminal
+(sudo is fine here: it reads kernel debugfs; it never runs the
+`msicenter` CLI or the daemon).
+
+Prerequisites: the kernel exposes the ACPI EC debugfs file
+`/sys/kernel/debug/ec/ec0/io` (Arch kernels default
+`CONFIG_ACPI_EC_DEBUGFS=y`; each `read()` returns one byte at the EC
+address given by the file position).
+
+```bash
+# 1. Mount debugfs if needed and confirm the EC interface exists.
+sudo mount -t debugfs none /sys/kernel/debug 2>/dev/null || true
+ls -l /sys/kernel/debug/ec/ec0/
+
+# 2. Record the pre-capture semantic state (no root): fan mode, temps,
+#    fan levels. Saves a provenance record for later comparison.
+msicenter status --json > status-before.json
+
+# 3. Dump the candidate G2 curve regions (GhostDeck family map and msi-ec
+#    issue #249 layout: CPU temp points ~0x68, fan points ~0x72; GPU
+#    points ~0x82/0x8A; 1-byte reads via dd bs=1).
+sudo dd if=/sys/kernel/debug/ec/ec0/io bs=1 skip=$((0x60)) count=$((0x20)) status=none | xxd -g1 > ec-0x60-0x7f.txt
+sudo dd if=/sys/kernel/debug/ec/ec0/io bs=1 skip=$((0x80)) count=$((0x20)) status=none | xxd -g1 > ec-0x80-0x9f.txt
+
+# 4. Provenance: keep byte-for-byte digests with the dumps.
+sha256sum ec-*.txt status-before.json
+```
+
+Share the two dump files plus `status-before.json` (its RGB controller
+serial line removed if present) so the layout can be compared against the
+public `17L5EMS1.111` baseline (msi-ec issue #80) and GhostDeck's
+family map. Cross-checks we run on the dumps before deciding A/B/C
+(§4):
+
+- the temperature-point columns track `msi-ec` CPU/GPU temps while a
+  load changes them;
+- the fan-point columns match the `cpu_fan_level`/`gpu_fan_level`
+  values at the same instant;
+- bytes match the issue #80 baseline layout for the same family.
+
+If `/sys/kernel/debug/ec/ec0/io` is absent (debugfs disabled in the
+kernel), stop and report — do not fall back to `ec_sys
+write_support=1`; that would violate §5.3 without a driver review.
