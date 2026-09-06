@@ -12,4 +12,5 @@ path = "src/main.rs"
 [dependencies]
 msi-core = { path = "../msi-core" }
 msi-dbus = { path = "../msi-dbus" }
+serde.workspace = true
 serde_json.workspace = true

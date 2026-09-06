@@ -1,10 +1,11 @@
 # Phase 8 — Scenes/profiles: design study
 
-Status: **pre-design, no code.** A "scene" is a named set of hardware
-settings applied in one action. Every individual setting already exists as
-a gated, physically verified write (Phase 4 + Phase 7); Phase 8 composes
-them. Follows `MSI-Linux-Center-AGENTS.md` §22 (scene concepts stay
-separate from Linux power policy) and §34.
+Status: CLI `scene list`/`scene apply` implemented 2026-09-06 in
+`msicenter-cli` (scene.rs); UI scene section pending. A "scene" is a named
+set of hardware settings applied in one action. Every individual setting
+already exists as a gated, physically verified write (Phase 4 + Phase 7);
+Phase 8 composes them. Follows `MSI-Linux-Center-AGENTS.md` §22 (scene
+concepts stay separate from Linux power policy) and §34.
 
 Acceptance criteria for this document: scene model defined; storage and
 application flow specified; security model (per-write gates preserved)

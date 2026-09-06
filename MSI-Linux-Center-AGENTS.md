@@ -1224,8 +1224,10 @@ flash-save physical verification pending.
 
 Scenes/profiles.
 
-Design study (no code): `docs/phase8-scenes-design.md` — user-owned scene
-file, sequential per-setting gated writes, no new daemon surface.
+Design study: `docs/phase8-scenes-design.md` — user-owned scene file,
+sequential per-setting gated writes, no new daemon surface. CLI
+`scene list`/`scene apply` implemented 2026-09-06; UI scene section
+pending.
 
 ## Phase 9
 

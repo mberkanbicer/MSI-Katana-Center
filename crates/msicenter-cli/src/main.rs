@@ -5,6 +5,8 @@ use msi_dbus::{
 };
 use std::process::ExitCode;
 
+mod scene;
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
@@ -132,6 +134,17 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             }
             println!("{}", request_rgb_save()?);
         }
+        "scene" => {
+            match args.get(1).map(String::as_str) {
+                None => Err("usage: msicenter scene list|apply NAME".into()),
+                Some("list") => scene_list(),
+                Some("apply") => match args.get(2).map(String::as_str) {
+                    Some(name) => scene_apply(name),
+                    None => Err("usage: msicenter scene apply NAME".into()),
+                },
+                Some(other) => Err(format!("unknown scene subcommand: {other}").into()),
+            }?;
+        }
         "version" | "--version" | "-V" => {
             println!("msicenter {}", env!("CARGO_PKG_VERSION"));
         }
@@ -140,6 +153,78 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn scene_list() -> Result<(), Box<dyn std::error::Error>> {
+    let path = scene::scenes_path();
+    if !path.is_file() {
+        println!("no scene file yet at {}", path.display());
+        println!("create one with a 'scenes' array; see docs/phase8-scenes-design.md");
+        return Ok(());
+    }
+    let file = scene::load(&path)?;
+    if file.scenes.is_empty() {
+        println!("no scenes defined in {}", path.display());
+        return Ok(());
+    }
+    println!("Scenes (from {}):", path.display());
+    for entry in &file.scenes {
+        let problems = scene::validate_scene(entry);
+        let status = if problems.is_empty() {
+            "ok".to_string()
+        } else {
+            format!("invalid: {}", problems.join("; "))
+        };
+        println!("  {:<16} {}", entry.name, status);
+    }
+    Ok(())
+}
+
+fn scene_apply(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let path = scene::scenes_path();
+    let file = scene::load(&path)?;
+    let entry = file
+        .scenes
+        .iter()
+        .find(|entry| entry.name == name)
+        .ok_or_else(|| format!("scene not found: {name}"))?;
+
+    let problems = scene::validate_scene(entry);
+    if !problems.is_empty() {
+        eprintln!("scene '{name}' is invalid:");
+        for problem in &problems {
+            eprintln!("  - {problem}");
+        }
+        return Err("scene not applied".into());
+    }
+
+    println!("Applying scene '{name}':");
+    let settings = &entry.settings;
+    if let Some(mode) = &settings.fan_mode {
+        report_step("fan_mode", request_fan_mode(mode));
+    }
+    if let Some(enabled) = settings.cooler_boost {
+        report_step("cooler_boost", request_cooler_boost(enabled));
+    }
+    if let Some(enabled) = settings.super_battery {
+        report_step("super_battery", request_super_battery(enabled));
+    }
+    if let (Some(start), Some(end)) = (settings.battery_start, settings.battery_end) {
+        report_step("battery_thresholds", request_battery_thresholds(start, end));
+    }
+    if let Some(rgb) = &settings.rgb {
+        if let Some((r, g, b)) = scene::color_to_rgb(&rgb.color) {
+            report_step("rgb", request_rgb_color(rgb.zones, r, g, b));
+        }
+    }
+    Ok(())
+}
+
+fn report_step(label: &str, result: Result<String, msi_dbus::ServiceError>) {
+    match result {
+        Ok(_) => println!("  ok   {label}"),
+        Err(error) => println!("  FAIL {label}: {error}"),
+    }
 }
 
 fn print_help() {
@@ -155,6 +240,8 @@ fn print_help() {
     println!("  msicenter rgb-color ZONE_MASK RRGGBB  (non-persistent)");
     println!("  msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS  (non-persistent)");
     println!("  msicenter rgb-save  (persistent flash save)");
+    println!("  msicenter scene list");
+    println!("  msicenter scene apply NAME");
     println!("  msicenter --version");
     println!();
     println!("Testing:");
