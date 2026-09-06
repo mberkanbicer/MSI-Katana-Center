@@ -468,6 +468,8 @@ void CenterClient::parseEc(const QJsonObject &ec) {
                          : QStringLiteral("n/a");
     };
     m_ecTemps = QStringLiteral("%1 / %2 (cpu / gpu)").arg(temp(cpu), temp(gpu));
+    m_cpuTemp = cpu;
+    m_gpuTemp = gpu;
 }
 
 void CenterClient::parseFans(const QJsonArray &fans) {

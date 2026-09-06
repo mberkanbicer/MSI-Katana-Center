@@ -51,10 +51,16 @@ struct TrayStatus {
                                                    ? QStringLiteral("on")
                                                    : QStringLiteral("off"))
                                             : QStringLiteral("n/a"))};
-        QString battery = QStringLiteral("bat n/a");
-        if (client->capacityPercent() >= 0)
-            battery = QStringLiteral("bat %1%").arg(client->capacityPercent());
-        line->setText(parts.join(QStringLiteral(" · ")) + QStringLiteral(" · ") + battery);
+        QStringList text = parts;
+        if (client->cpuTempC() > 0) {
+            text << QStringLiteral("cpu %1 °C").arg(client->cpuTempC());
+            if (client->gpuTempC() > 0)
+                text << QStringLiteral("gpu %1 °C").arg(client->gpuTempC());
+        }
+        text << (client->capacityPercent() >= 0
+                     ? QStringLiteral("bat %1%").arg(client->capacityPercent())
+                     : QStringLiteral("bat n/a"));
+        line->setText(text.join(QStringLiteral(" · ")));
     }
 };
 
@@ -126,6 +132,21 @@ int main(int argc, char *argv[]) {
         QMenu *quickMenu = menu->addMenu(QStringLiteral("Quick actions"));
         QuickActions quick;
         quick.fanMenu = quickMenu->addMenu(QStringLiteral("Fan mode"));
+
+        QMenu *rgbMenu = quickMenu->addMenu(QStringLiteral("Keyboard RGB"));
+        const struct {
+            const char *label;
+            const char *hex;
+        } rgbItems[] = {{"Steady red", "ff0000"},  {"Steady green", "00ff00"},
+                        {"Steady blue", "0000ff"}, {"Steady amber", "e2a35b"},
+                        {"Steady white", "ffffff"}, {"Turn off", "000000"}};
+        for (const auto &item : rgbItems) {
+            QAction *action = rgbMenu->addAction(QString::fromUtf8(item.label));
+            const QString hex = QString::fromUtf8(item.hex);
+            QObject::connect(action, &QAction::triggered, &client,
+                             [&client, hex] { client.setRgbColorFromHex(15, hex); });
+        }
+
         quick.coolerBoostOn = quickMenu->addAction(QStringLiteral("Cooler Boost: on"));
         quick.coolerBoostOff = quickMenu->addAction(QStringLiteral("Cooler Boost: off"));
         quick.superBatteryOn = quickMenu->addAction(QStringLiteral("Super Battery: on"));

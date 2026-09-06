@@ -70,6 +70,8 @@ public:
     QStringList sceneNames() const { return m_sceneNames; }
     QString sceneResultText() const { return m_sceneResultText; }
     bool sceneApplying() const { return m_sceneApplying; }
+    int cpuTempC() const { return m_cpuTemp; }
+    int gpuTempC() const { return m_gpuTemp; }
 
     // First full refresh summary for console/CI use ("connected: ...").
     QString summary() const {
@@ -143,6 +145,8 @@ private:
     QString m_error;
     QString m_actionMessage;
     bool m_actionError = false;
+    int m_cpuTemp = -1;
+    int m_gpuTemp = -1;
     QTimer m_timer;
     int m_inFlight = 0;
     bool m_loggedFirstSummary = false;
