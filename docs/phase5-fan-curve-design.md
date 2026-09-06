@@ -287,8 +287,48 @@ Uses only the already-verified, non-persistent fan-mode write
 4. re-dump both regions again
 5. share the four new dumps and the fan/temp lines of `msicenter status`
 
-Question answered: do the table bytes at `0x6A..`, `0x73..`, `0x82..`,
-`0x8B..` swap when the EC switches fan modes (per-mode table pointers)?
-Together with a load soak (watch `0x68`/`0x80` move while CPU/GPU heat),
-this decides whether Option A can expose a single writable curve or must
-first model several per-mode tables.
+## 10.5 Second capture set (2026-09-06) — mode-swap test blocked, extra evidence
+
+The fan-mode writes were rejected (`NotSupported`: opt-in disabled), so
+the mode-swap question stayed open — but the gate behavior itself was
+re-demonstrated (write refused while `MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES`
+is unset). Two dump pairs taken minutes apart in `auto` mode were
+byte-identical to each other and to §10.1 except for two addresses:
+
+- `0x68`: 0x56 (86 °C) → 0x49 (73 °C) — matched `cpu_temperature_c: 73`
+  in the paired `status --json`; live CPU temperature confirmed again.
+- `0x9E`: 0x39 → 0x37 — changed while every other table byte stayed
+  constant, so it is dynamic (checksum or event counter over the table
+  region / temperature). Any write design must identify it and update it
+  or it must be shown to be write-immune.
+
+GPU side (`0x80-0x89`) stayed 0 throughout (dGPU off); all candidate
+table runs (`0x6A-0x70`, `0x73-0x79`, `0x82-0x88`, `0x8B-0x91`,
+`0x93-0x97`) were constant across captures.
+
+## 10.6 Mode-swap experiment (retry with opt-in override)
+
+To answer "do table bytes swap when the EC switches fan modes", the
+daemon needs the fan-mode opt-in exactly like the 2026-09-05 validation
+run. Create a temporary systemd override, test, then remove it:
+
+    sudo mkdir -p /etc/systemd/system/msi-linux-center.service.d
+    sudo tee /etc/systemd/system/msi-linux-center.service.d/fan-test.conf > /dev/null <<'EOF'
+    [Service]
+    Environment=MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=1
+    EOF
+    sudo systemctl daemon-reload && sudo systemctl restart msi-linux-center.service
+
+Then, in auto: dump 0x60-0x9F (two dd commands of §9). Then
+`msicenter fan-mode advanced`, dump again; `msicenter fan-mode silent`,
+dump again; `msicenter fan-mode auto`, `msicenter status --json`.
+Finally remove the override and restart the daemon:
+
+    sudo rm /etc/systemd/system/msi-linux-center.service.d/fan-test.conf
+    sudo systemctl daemon-reload && sudo systemctl restart msi-linux-center.service
+    msicenter status   # fan_mode auto, opt-in gate closed again
+
+If the candidate runs at `0x6A-0x70` / `0x82-0x88` (and/or
+`0x73-0x79` / `0x8B-0x91`) change per mode, Option A must model
+per-mode tables; if they stay constant, a single curve family is active
+in `auto`/`advanced` and the design simplifies accordingly.
