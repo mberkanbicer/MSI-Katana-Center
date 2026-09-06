@@ -224,3 +224,63 @@ family map. Cross-checks we run on the dumps before deciding A/B/C
 If `/sys/kernel/debug/ec/ec0/io` is absent (debugfs disabled in the
 kernel), stop and report — do not fall back to `ec_sys
 write_support=1`; that would violate §5.3 without a driver review.
+
+# 10. Capture results (2026-09-06, EC 17L5EMS1.115)
+
+## 10.1 Dumps
+
+Region 0x60-0x7F:
+
+    0x60: 00 00 00 00 00 00 00 00 56 00 37 40 49 4c 52 58
+    0x70: 64 2b 00 2b 30 36 3c 4b 55 64 08 03 03 03 03 03
+
+Region 0x80-0x9F:
+
+    0x80: 00 00 37 3d 43 49 4f 53 63 00 00 2b 30 36 3c 4b
+    0x90: 55 64 08 03 03 03 03 02 06 0f 7d 06 0a 78 39 00
+
+Provenance: `sha256sum` of `status-before.json` recorded with the dumps.
+
+## 10.2 Public baselines (no writes)
+
+- **Same firmware**: msi-ec issue #220 ("Support for KATANA 17 B13V", EC
+  `17L5EMS1.115`) contains a full EC dump whose annotated ranges match
+  ours byte-for-byte: `0x6A-0x6F = 37 40 49 4C 52 58` and
+  `0x74-0x79 = 30 36 3C 4B 55 64`. Capture procedure validated.
+- **Same family, older firmware**: issue #80 (`17L5EMS1.111`) shows the
+  same structure with different values — the region is per-firmware table
+  data, not ASCII or constant.
+- **Same family, newer**: issue #381 (`17L5EMS2.115`) again differs at the
+  same addresses.
+
+## 10.3 Working hypotheses (to confirm in §10.4)
+
+- `0x68` reads the live CPU temperature: our capture 0x56 (86 °C, shortly
+  after a build) vs issue #80's 0x3A (58 °C); consistent with the Katana
+  register map in msi-ec issue #249 (CPU temp 0x68).
+- `0x80` reads the live GPU temperature: 0x00 here while the dGPU is
+  powered off — matches the 0/n-a sensor behavior seen everywhere else.
+- Curve table runs: 7-byte ascending runs ending at 100 °C appear at
+  `0x73-0x79` and `0x8B-0x91` (identical CPU/GPU default: 43, 48, 54, 60,
+  75, 85, 100) plus board-table candidates at `0x6A..` and `0x82..`;
+  `0x7B-0x7F`/`0x93-0x97` hold near-zero/step values (fan levels?).
+- Byte(s) near `0x9D-0x9E` differ between firmware dumps (0x38 vs 0x39)
+  — possibly a count or checksum; any write design must identify or avoid
+  them.
+
+## 10.4 Controlled read-back experiment (next, still no curve writes)
+
+Uses only the already-verified, non-persistent fan-mode write
+(`msicenter fan-mode`) plus read-only dumps — no raw EC writes:
+
+1. `msicenter fan-mode advanced` (Polkit prompt)
+2. re-dump 0x60-0x7F and 0x80-0x9F (commands of §9)
+3. `msicenter fan-mode silent`
+4. re-dump both regions again
+5. share the four new dumps and the fan/temp lines of `msicenter status`
+
+Question answered: do the table bytes at `0x6A..`, `0x73..`, `0x82..`,
+`0x8B..` swap when the EC switches fan modes (per-mode table pointers)?
+Together with a load soak (watch `0x68`/`0x80` move while CPU/GPU heat),
+this decides whether Option A can expose a single writable curve or must
+first model several per-mode tables.
