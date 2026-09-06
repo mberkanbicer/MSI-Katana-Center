@@ -8,6 +8,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -176,6 +178,8 @@ void CenterClient::setRgbColorFromHex(int zones, const QString &hex) {
         m_actionError = true;
         m_actionMessage = QStringLiteral("RGB: invalid color '%1'").arg(hex);
         emit changed();
+        emit actionDone(false, actionTitle(QStringLiteral("SetRgbColor")),
+                        QStringLiteral("invalid color '%1'").arg(hex));
         return;
     }
     bool ok = false;
@@ -184,6 +188,8 @@ void CenterClient::setRgbColorFromHex(int zones, const QString &hex) {
         m_actionError = true;
         m_actionMessage = QStringLiteral("RGB: invalid color '%1'").arg(hex);
         emit changed();
+        emit actionDone(false, actionTitle(QStringLiteral("SetRgbColor")),
+                        QStringLiteral("invalid color '%1'").arg(hex));
         return;
     }
     callMethod(QStringLiteral("SetRgbColor"),
@@ -200,6 +206,8 @@ void CenterClient::setRgbEffectPreset(int zones, int mode, int speedSeconds,
         m_actionError = true;
         m_actionMessage = QStringLiteral("RGB: invalid color '%1'").arg(hex);
         emit changed();
+        emit actionDone(false, actionTitle(QStringLiteral("SetRgbPresetEffect")),
+                        QStringLiteral("invalid color '%1'").arg(hex));
         return;
     }
     callMethod(QStringLiteral("SetRgbPresetEffect"),
@@ -217,13 +225,68 @@ void CenterClient::callMethod(const QString &method, const QVariantList &args) {
     QDBusPendingCall call = QDBusConnection::systemBus().asyncCall(msg);
     auto *watcher = new QDBusPendingCallWatcher(call, this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, method](QDBusPendingCallWatcher *w) {
+            [this, method, args](QDBusPendingCallWatcher *w) {
                 w->deleteLater();
-                handleAction(method, w->reply());
+                handleAction(method, args, w->reply());
             });
 }
 
+QString CenterClient::actionTitle(const QString &method) const {
+    if (method == QStringLiteral("SetFanMode"))
+        return QStringLiteral("Fan mode");
+    if (method == QStringLiteral("SetCoolerBoost"))
+        return QStringLiteral("Cooler Boost");
+    if (method == QStringLiteral("SetSuperBattery"))
+        return QStringLiteral("Super Battery");
+    if (method == QStringLiteral("SetBatteryThresholds"))
+        return QStringLiteral("Battery limit");
+    if (method == QStringLiteral("SetRgbColor"))
+        return QStringLiteral("RGB color");
+    if (method == QStringLiteral("SetRgbPresetEffect"))
+        return QStringLiteral("RGB effect");
+    if (method == QStringLiteral("SaveRgbState"))
+        return QStringLiteral("RGB flash save");
+    return method;
+}
+
+QString CenterClient::actionDetail(const QString &method,
+                                   const QVariantList &args) const {
+    if (method == QStringLiteral("SetFanMode"))
+        return args.value(0).toString();
+    if (method == QStringLiteral("SetCoolerBoost")
+        || method == QStringLiteral("SetSuperBattery"))
+        return args.value(0).toBool() ? QStringLiteral("on")
+                                      : QStringLiteral("off");
+    if (method == QStringLiteral("SetBatteryThresholds"))
+        return QStringLiteral("%1% – %2%")
+            .arg(args.value(0).toInt())
+            .arg(args.value(1).toInt());
+    if (method == QStringLiteral("SetRgbPresetEffect")) {
+        const QString modeName =
+            [](int mode) {
+                switch (mode) {
+                case 2: return QStringLiteral("breathing");
+                case 3: return QStringLiteral("cycle");
+                case 4: return QStringLiteral("wave");
+                default: return QStringLiteral("steady");
+                }
+            }(args.value(1).toInt());
+        return QStringLiteral("%1 · %2 s (non-persistent)")
+            .arg(modeName, QString::number(args.value(2).toInt() / 100));
+    }
+    if (method == QStringLiteral("SetRgbColor")) {
+        auto byte = [&args](int index) {
+            return QStringLiteral("%1").arg(args.value(index).toInt(), 2, 16,
+                                            QLatin1Char('0'));
+        };
+        return QStringLiteral("#%1%2%3 (non-persistent)")
+            .arg(byte(1), byte(2), byte(3));
+    }
+    return QString();
+}
+
 void CenterClient::handleAction(const QString &method,
+                                const QVariantList &args,
                                 const QDBusMessage &reply) {
     bool ok = false;
     if (reply.type() == QDBusMessage::ReplyMessage) {
@@ -246,17 +309,15 @@ void CenterClient::handleAction(const QString &method,
         // Refresh cached state after any write attempt (success or gate
         // refusal) when nobody is chaining steps.
         refreshNow();
+        emit actionDone(ok, actionTitle(method),
+                        ok ? actionDetail(method, args) : reply.errorMessage());
     }
 }
 
 void CenterClient::reloadScenes() {
     m_sceneNames.clear();
     m_scenes = QJsonArray();
-    const QString path = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
-    const QString base = path.isEmpty()
-                             ? QDir::homePath() + QStringLiteral("/.config")
-                             : path;
-    QFile file(base + QStringLiteral("/msi-linux-center/scenes.json"));
+    QFile file(scenesFilePath());
     if (!file.open(QIODevice::ReadOnly)) {
         emit changed();
         return;
@@ -287,6 +348,7 @@ void CenterClient::applyScene(const QString &name) {
         m_sceneResultText.clear();
         m_sceneStepIndex = 0;
         m_sceneApplying = true;
+        m_sceneName = name;
         emit changed();
         runNextSceneStep();
         return;
@@ -355,6 +417,11 @@ void CenterClient::runNextSceneStep() {
             m_sceneResultText += QStringLiteral("\n") + line;
         emit changed();
         refreshNow();
+        emit actionDone(failed == 0, QStringLiteral("Scene"),
+                        QStringLiteral("'%1': %2 ok, %3 failed")
+                            .arg(m_sceneName)
+                            .arg(m_sceneResults.size() - failed)
+                            .arg(failed));
         return;
     }
     const SceneStep &step = m_sceneSteps.at(m_sceneStepIndex);
@@ -435,4 +502,181 @@ void CenterClient::parseCaps(const QJsonArray &caps) {
                                                          : QStringLiteral("no"));
     }
     m_caps = parts.join(QStringLiteral(" | "));
+}
+
+QString CenterClient::scenesFilePath() const {
+    const QString path = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
+    const QString base = path.isEmpty()
+                             ? QDir::homePath() + QStringLiteral("/.config")
+                             : path;
+    return base + QStringLiteral("/msi-linux-center/scenes.json");
+}
+
+// Structural validation mirroring the CLI scene rules (serde schema +
+// scene::validate_scene): known keys only, bounded values, hex colors.
+namespace {
+bool validHexColor(const QString &text) {
+    if (text.size() != 6)
+        return false;
+    for (const QChar &ch : text) {
+        const bool hex = (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f')
+                         || (ch >= 'A' && ch <= 'F');
+        if (!hex)
+            return false;
+    }
+    return true;
+}
+
+QString validateSceneEntry(const QJsonValue &value, int index) {
+    const QString where = QStringLiteral("scene %1").arg(index + 1);
+    const QJsonObject entry = value.toObject();
+    const QString name = entry.value("name").toString();
+    if (name.isEmpty())
+        return where + ": missing or empty 'name'";
+    const QJsonObject settings = entry.value("settings").toObject();
+    if (settings.isEmpty())
+        return QString();
+    const QStringList known = {
+        QStringLiteral("fan_mode"),       QStringLiteral("cooler_boost"),
+        QStringLiteral("super_battery"),  QStringLiteral("battery_start"),
+        QStringLiteral("battery_end"),    QStringLiteral("rgb")};
+    for (const QString &key : settings.keys()) {
+        if (!known.contains(key))
+            return where + ": unknown settings key '" + key + "'";
+    }
+    if (settings.contains(QStringLiteral("fan_mode"))
+        && !settings.value("fan_mode").isString())
+        return where + ": 'fan_mode' must be a string";
+    for (const char *key : {"cooler_boost", "super_battery"}) {
+        if (settings.contains(QLatin1String(key))
+            && !settings.value(QLatin1String(key)).isBool())
+            return where + QStringLiteral(": '%1' must be a boolean").arg(key);
+    }
+    for (const char *key : {"battery_start", "battery_end"}) {
+        const QJsonValue v = settings.value(QLatin1String(key));
+        if (!v.isUndefined() && (!v.isDouble() || v.toInt() < 0 || v.toInt() > 100))
+            return where + QStringLiteral(": '%1' must be 0-100").arg(key);
+    }
+    if (settings.contains(QStringLiteral("battery_start"))
+        && settings.contains(QStringLiteral("battery_end"))
+        && settings.value("battery_start").toInt()
+               >= settings.value("battery_end").toInt())
+        return where + ": battery_start must be below battery_end";
+    const QJsonObject rgb = settings.value("rgb").toObject();
+    if (!rgb.isEmpty()) {
+        const int zones = rgb.value("zones").toInt(-1);
+        const QString color = rgb.value("color").toString();
+        if (zones < 0 || zones > 15)
+            return where + ": 'rgb.zones' must be a zone bitmask (0-15)";
+        if (!validHexColor(color))
+            return where + ": 'rgb.color' must be RRGGBB hex";
+    }
+    return QString();
+}
+} // namespace
+
+void CenterClient::importScenes() {
+    const QString fileName = QFileDialog::getOpenFileName(
+        nullptr, QStringLiteral("Import scenes"),
+        QDir::homePath(), QStringLiteral("JSON (*.json)"));
+    if (fileName.isEmpty())
+        return; // user cancelled
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("cannot read %1").arg(fileName);
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes import"),
+                        m_actionMessage);
+        return;
+    }
+    const QByteArray bytes = file.readAll();
+    file.close();
+
+    QJsonParseError error{};
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("invalid JSON: %1").arg(error.errorString());
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes import"), m_actionMessage);
+        return;
+    }
+    const QJsonArray scenes = doc.object().value("scenes").toArray();
+    if (!doc.object().contains(QStringLiteral("scenes")) || scenes.isEmpty()) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("no 'scenes' array found");
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes import"), m_actionMessage);
+        return;
+    }
+    for (int index = 0; index < scenes.size(); ++index) {
+        const QString problem = validateSceneEntry(scenes.at(index), index);
+        if (!problem.isEmpty()) {
+            m_actionError = true;
+            m_actionMessage = QStringLiteral("invalid %1").arg(problem);
+            emit changed();
+            emit actionDone(false, QStringLiteral("Scenes import"), m_actionMessage);
+            return;
+        }
+    }
+
+    QFile target(scenesFilePath());
+    if (!QDir().mkpath(QFileInfo(target).absolutePath())
+        || !target.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("cannot write %1").arg(scenesFilePath());
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes import"), m_actionMessage);
+        return;
+    }
+    target.write(bytes);
+    target.close();
+    m_actionError = false;
+    m_actionMessage = QStringLiteral("imported %1 scene(s) from %2")
+                          .arg(scenes.size())
+                          .arg(QFileInfo(fileName).fileName());
+    emit changed();
+    emit actionDone(true, QStringLiteral("Scenes import"), m_actionMessage);
+    reloadScenes();
+}
+
+void CenterClient::exportScenes() {
+    QFile source(scenesFilePath());
+    if (!source.exists()) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("no scene file yet at %1").arg(scenesFilePath());
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes export"), m_actionMessage);
+        return;
+    }
+    const QString fileName = QFileDialog::getSaveFileName(
+        nullptr, QStringLiteral("Export scenes"),
+        QDir::homePath() + QStringLiteral("/scenes.json"), QStringLiteral("JSON (*.json)"));
+    if (fileName.isEmpty())
+        return; // user cancelled
+    if (!source.open(QIODevice::ReadOnly)) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("cannot read %1").arg(scenesFilePath());
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes export"), m_actionMessage);
+        return;
+    }
+    const QByteArray bytes = source.readAll();
+    source.close();
+    QFile target(fileName);
+    if (!target.open(QIODevice::WriteOnly | QIODevice::Truncate)
+        || target.write(bytes) != bytes.size()) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("cannot write %1").arg(fileName);
+        emit changed();
+        emit actionDone(false, QStringLiteral("Scenes export"), m_actionMessage);
+        return;
+    }
+    target.close();
+    m_actionError = false;
+    m_actionMessage = QStringLiteral("exported to %1").arg(fileName);
+    emit changed();
+    emit actionDone(true, QStringLiteral("Scenes export"), m_actionMessage);
 }

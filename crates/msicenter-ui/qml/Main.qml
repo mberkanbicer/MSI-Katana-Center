@@ -171,4 +171,15 @@ ApplicationWindow {
             }
         }
     }
+
+    // ---- OSD toast (separate top-level window) ----
+    OSD {
+        id: osd
+    }
+    Connections {
+        target: center
+        function onActionDone(ok, title, detail) {
+            osd.showMessage(title, detail, !ok)
+        }
+    }
 }

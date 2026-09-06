@@ -1,5 +1,6 @@
 #include "centerclient.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QDebug>
 #include <QMenu>
@@ -11,8 +12,8 @@
 #include <QQuickWindow>
 #include <QSystemTrayIcon>
 
-// Builds a small amber "fan/gear" style pixmap for the tray icon without
-// depending on an icon theme.
+// Builds a small amber "M" pixmap for the tray icon without depending on
+// an icon theme.
 static QIcon makeTrayIcon() {
     QPixmap pixmap(64, 64);
     pixmap.fill(Qt::transparent);
@@ -29,6 +30,43 @@ static QIcon makeTrayIcon() {
     painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("M"));
     return QIcon(pixmap);
 }
+
+// Quick actions below only trigger the same Polkit-gated daemon methods as
+// the UI pages; opt-in/firmware gates and Polkit prompts still apply.
+struct QuickActions {
+    QMenu *fanMenu = nullptr;
+    QAction *coolerBoostOn = nullptr;
+    QAction *coolerBoostOff = nullptr;
+    QAction *superBatteryOn = nullptr;
+    QAction *superBatteryOff = nullptr;
+    QStringList lastFanModes;
+
+    void refresh(CenterClient *client) {
+        const QStringList modes = client->fanModes();
+        if (modes != lastFanModes && !modes.isEmpty()) {
+            lastFanModes = modes;
+            fanMenu->clear();
+            for (const QString &mode : modes) {
+                QString label = mode;
+                if (!label.isEmpty())
+                    label[0] = label[0].toUpper();
+                QAction *action = fanMenu->addAction(label);
+                action->setCheckable(true);
+                QObject::connect(action, &QAction::triggered, client,
+                                 [client, mode] { client->setFanMode(mode); });
+            }
+        }
+        const auto actions = fanMenu->actions();
+        const QString current = client->ecFanMode();
+        for (QAction *action : actions)
+            action->setChecked(action->text().compare(current,
+                                                      Qt::CaseInsensitive) == 0);
+        coolerBoostOn->setChecked(client->coolerBoostOn());
+        coolerBoostOff->setChecked(!client->coolerBoostOn());
+        superBatteryOn->setChecked(client->superBatteryOn());
+        superBatteryOff->setChecked(!client->superBatteryOn());
+    }
+};
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
@@ -55,6 +93,29 @@ int main(int argc, char *argv[]) {
         QMenu *menu = new QMenu();
         QAction *toggleAction = menu->addAction(QStringLiteral("Show / Hide"));
         QAction *refreshAction = menu->addAction(QStringLiteral("Refresh"));
+
+        QMenu *quickMenu = menu->addMenu(QStringLiteral("Quick actions"));
+        QuickActions quick;
+        quick.fanMenu = quickMenu->addMenu(QStringLiteral("Fan mode"));
+        quick.coolerBoostOn = quickMenu->addAction(QStringLiteral("Cooler Boost: on"));
+        quick.coolerBoostOff = quickMenu->addAction(QStringLiteral("Cooler Boost: off"));
+        quick.superBatteryOn = quickMenu->addAction(QStringLiteral("Super Battery: on"));
+        quick.superBatteryOff = quickMenu->addAction(QStringLiteral("Super Battery: off"));
+        for (auto *action : {quick.coolerBoostOn, quick.coolerBoostOff}) {
+            action->setCheckable(true);
+            const bool enabled = action == quick.coolerBoostOn;
+            QObject::connect(action, &QAction::triggered, &client,
+                             [&client, enabled] { client.setCoolerBoost(enabled); });
+        }
+        for (auto *action : {quick.superBatteryOn, quick.superBatteryOff}) {
+            action->setCheckable(true);
+            const bool enabled = action == quick.superBatteryOn;
+            QObject::connect(action, &QAction::triggered, &client,
+                             [&client, enabled] { client.setSuperBattery(enabled); });
+        }
+        QObject::connect(&client, &CenterClient::changed, &client,
+                         [&quick, &client] { quick.refresh(&client); });
+
         menu->addSeparator();
         QAction *quitAction = menu->addAction(QStringLiteral("Quit"));
         tray.setContextMenu(menu);

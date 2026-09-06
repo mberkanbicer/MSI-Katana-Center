@@ -25,6 +25,7 @@ qt_add_resources(msicenter-ui "qml"
         qml/RgbPage.qml
         qml/ScenesPage.qml
         qml/DiagnosticsPage.qml
+        qml/OSD.qml
 )
 
 target_link_libraries(msicenter-ui PRIVATE

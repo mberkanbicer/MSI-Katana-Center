@@ -90,9 +90,14 @@ public slots:
                             const QString &hex);
     void reloadScenes();
     void applyScene(const QString &name);
+    Q_INVOKABLE void importScenes();
+    Q_INVOKABLE void exportScenes();
 
 signals:
     void changed();
+    // One-shot write feedback for the OSD overlay: ok flag, a short human
+    // title ("Fan mode", "Scene"...) and a one-line detail.
+    void actionDone(bool ok, const QString &title, const QString &detail);
 
 private:
     struct SceneStep {
@@ -105,7 +110,11 @@ private:
     void fetchProperty(const QString &iface, const QString &property);
     void handleJson(const QString &property, const QString &json);
     void callMethod(const QString &method, const QVariantList &args);
-    void handleAction(const QString &method, const QDBusMessage &reply);
+    QString scenesFilePath() const;
+    void handleAction(const QString &method, const QVariantList &args,
+                      const QDBusMessage &reply);
+    QString actionTitle(const QString &method) const;
+    QString actionDetail(const QString &method, const QVariantList &args) const;
     void parseEc(const QJsonObject &ec);
     void parseFans(const QJsonArray &fans);
     void parseBattery(const QJsonObject &battery);
@@ -144,5 +153,6 @@ private:
     QString m_sceneResultText;
     int m_sceneStepIndex = 0;
     bool m_sceneApplying = false;
+    QString m_sceneName;
     std::function<void(bool, const QString &)> m_actionCallback;
 };

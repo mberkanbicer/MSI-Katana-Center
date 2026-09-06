@@ -82,6 +82,14 @@ ScrollView {
                 text: "Reload"
                 onClicked: center.reloadScenes()
             }
+            Button {
+                text: "Import…"
+                onClicked: center.importScenes()
+            }
+            Button {
+                text: "Export…"
+                onClicked: center.exportScenes()
+            }
             BusyIndicator {
                 visible: center.sceneApplying
                 implicitWidth: 24
