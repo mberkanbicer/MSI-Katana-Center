@@ -8,9 +8,11 @@ ScrollView {
     contentWidth: availableWidth
 
     Column {
-        width: page.availableWidth
+        x: 24
+        width: page.availableWidth - 48
         spacing: 14
-        padding: 24
+        topPadding: 24
+        bottomPadding: 24
 
         Label {
             text: "Power & Fans"
