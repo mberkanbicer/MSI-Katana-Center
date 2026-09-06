@@ -255,14 +255,22 @@ Provenance: `sha256sum` of `status-before.json` recorded with the dumps.
 
 ## 10.3 Working hypotheses (to confirm in §10.4)
 
-- `0x68` reads the live CPU temperature: our capture 0x56 (86 °C, shortly
-  after a build) vs issue #80's 0x3A (58 °C); consistent with the Katana
-  register map in msi-ec issue #249 (CPU temp 0x68).
-- `0x80` reads the live GPU temperature: 0x00 here while the dGPU is
-  powered off — matches the 0/n-a sensor behavior seen everywhere else.
+Cross-referenced against `status-before.json` (fan_mode `auto`, CPU 86 °C,
+GPU 0, CPU fan level 43, GPU fan level 0):
+
+- `0x68` = live CPU temperature: 0x56 (86 °C) matches
+  `cpu_temperature_c` exactly.
+- `0x80` = live GPU temperature: 0x00 matches `gpu_temperature_c` while
+  the dGPU is off.
+- `0x71` = live CPU fan level: 0x2B (43) matches `cpu_fan_level`; `0x89`
+  = live GPU fan level (0x00, GPU off). These four live bytes match the
+  Katana register map from msi-ec issue #249 (temps 0x68/0x80, fan
+  percent 0x71/0x89).
 - Curve table runs: 7-byte ascending runs ending at 100 °C appear at
   `0x73-0x79` and `0x8B-0x91` (identical CPU/GPU default: 43, 48, 54, 60,
-  75, 85, 100) plus board-table candidates at `0x6A..` and `0x82..`;
+  75, 85, 100) plus board-table candidates at `0x6A..0x70` (55, 64, 73,
+  76, 82, 88, 100) and `0x82..0x88` (55, 61, 67, 73, 79, 83, 99 — the
+  irregular GPU sequence is suspicious and needs the mode-swap test);
   `0x7B-0x7F`/`0x93-0x97` hold near-zero/step values (fan levels?).
 - Byte(s) near `0x9D-0x9E` differ between firmware dumps (0x38 vs 0x39)
   — possibly a count or checksum; any write design must identify or avoid
