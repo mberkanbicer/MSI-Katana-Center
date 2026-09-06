@@ -1,11 +1,24 @@
 # Phase 8 — Scenes/profiles: design study
 
-Status: CLI `scene list`/`scene apply` implemented 2026-09-06 in
-`msicenter-cli` (scene.rs); UI scene section pending. A "scene" is a named
-set of hardware settings applied in one action. Every individual setting
-already exists as a gated, physically verified write (Phase 4 + Phase 7);
-Phase 8 composes them. Follows `MSI-Linux-Center-AGENTS.md` §22 (scene
-concepts stay separate from Linux power policy) and §34.
+Status: CLI `scene list`/`scene apply` implemented and physically validated
+on 2026-09-06; UI scene section pending. A "scene" is a named set of
+hardware settings applied in one action. Every individual setting already
+exists as a gated, physically verified write (Phase 4 + Phase 7); Phase 8
+composes them. Follows `MSI-Linux-Center-AGENTS.md` §22 (scene concepts
+stay separate from Linux power policy) and §34.
+
+## Validation record (2026-09-06)
+
+- `msicenter scene list` on the reference laptop: `Gaming ok`.
+- With all four opt-ins enabled, `msicenter scene apply Gaming` applied
+  every setting: `ok fan_mode`, `ok cooler_boost`, `ok battery_thresholds`,
+  `ok rgb`; `msicenter status` confirmed fan mode `auto`, Cooler Boost
+  `off`, charge start `80%`; keyboard turned red (rgb).
+- After removing the opt-in override, the same apply reported all four
+  settings `FAIL ... NotSupported` (gates closed).
+- Battery thresholds were restored to the original 90/100 afterwards.
+- Scene file location used for the test:
+  `~/.config/msi-linux-center/scenes.json`.
 
 Acceptance criteria for this document: scene model defined; storage and
 application flow specified; security model (per-write gates preserved)

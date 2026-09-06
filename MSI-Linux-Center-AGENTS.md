@@ -1226,8 +1226,8 @@ Scenes/profiles.
 
 Design study: `docs/phase8-scenes-design.md` — user-owned scene file,
 sequential per-setting gated writes, no new daemon surface. CLI
-`scene list`/`scene apply` implemented 2026-09-06; UI scene section
-pending.
+`scene list`/`scene apply` implemented and physically validated
+2026-09-06; UI scene section pending.
 
 ## Phase 9
 
