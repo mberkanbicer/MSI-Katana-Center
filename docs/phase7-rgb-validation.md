@@ -67,8 +67,12 @@ Performed on the reference laptop (Katana 17 B13VGK, controller serial
 - `msicenter rgb-color 1 00ff00` → zone 1 green
 - `msicenter rgb-color f 0000ff` → blue; `msicenter rgb-color f 000000` →
   LEDs off
-- opt-in override removed; `SetRgbColor` rejected with
+- `msicenter rgb-effect f breath 3 ff0000,0000ff` → breathing
+- `msicenter rgb-effect f wave 5 ff0000,00ff00,0000ff` → color wave
+- `msicenter rgb-effect f cycle 4 ff0000,00ff00` → color cycle
+- `msicenter rgb-effect 1 steady 1 00ff00` → zone 1 steady green
+- opt-in override removed; all `SetRgb*` calls rejected with
   `org.freedesktop.DBus.Error.NotSupported` while disabled
-- no flash-save was ever sent; effect is non-persistent
+- no flash-save was ever sent; effects are non-persistent
 
-Outcome: non-persistent RGB color write verification passed.
+Outcome: non-persistent RGB color and effect write verification passed.

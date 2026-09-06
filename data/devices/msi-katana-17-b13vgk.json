@@ -94,7 +94,7 @@
       "local_verification": "verified_write",
       "writes_tested": true,
       "confidence": "verified",
-      "notes": "Non-persistent steady color physically verified on 2026-09-06 on the reference laptop via SetRgbColor over usbfs (zone 0xf red/green/blue applied and cleared; zone 0x1 green; no flash-save sent; write rejected with NotSupported while the opt-in was disabled)."
+      "notes": "Non-persistent effects physically verified on 2026-09-06 on the reference laptop via SetRgbColor/SetRgbEffect over usbfs (zone 0xf steady red/green/blue, breathing red/blue, color wave RGB, color cycle RG, zone 0x1 steady green; cleared to off; no flash-save sent; writes rejected with NotSupported while the opt-in was disabled)."
     },
     {
       "feature": "battery_threshold",
