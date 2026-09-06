@@ -1,6 +1,6 @@
 use msi_core::{
     BackendAvailability, BatteryStatus, CapabilitySet, DeviceProfile, EcStatus, FanReading,
-    RuntimeCapability, SupportTier, SystemStatus,
+    RgbStatus, RuntimeCapability, SupportTier, SystemStatus,
 };
 use msi_device_db::DatabaseError;
 use msi_hardware::{validate_battery_thresholds, FanModeError, HardwarePaths};
@@ -137,6 +137,7 @@ fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError>
             backends.rgb_hid = hw.has_usb_device(vendor, product)?;
         }
     }
+    let rgb = rgb_status(&matched_profile);
     let runtime_capabilities =
         runtime_capabilities(matched_profile.as_ref(), &backends, &ec, &fans, &battery);
 
@@ -148,7 +149,33 @@ fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError>
         ec,
         fans,
         battery,
+        rgb,
     })
+}
+
+/// Read-only hidapi probe of the RGB controller declared by the profile.
+/// Returns an empty status when no profile/vendor-product pair is declared
+/// or the device cannot be opened (no usbfs access, device absent).
+fn rgb_status(profile: &Option<DeviceProfile>) -> RgbStatus {
+    let Some(profile) = profile else {
+        return RgbStatus::default();
+    };
+    let (Some(vendor), Some(product)) = (&profile.rgb_usb_vid, &profile.rgb_usb_pid) else {
+        return RgbStatus::default();
+    };
+    let Ok(vendor_id) = u16::from_str_radix(vendor, 16) else {
+        return RgbStatus::default();
+    };
+    let Ok(product_id) = u16::from_str_radix(product, 16) else {
+        return RgbStatus::default();
+    };
+    match msi_hardware::rgb::probe_rgb_controller(vendor_id, product_id) {
+        Some(info) => RgbStatus {
+            controller_name: Some(info.name),
+            controller_serial: info.serial,
+        },
+        None => RgbStatus::default(),
+    }
 }
 
 fn runtime_capabilities(

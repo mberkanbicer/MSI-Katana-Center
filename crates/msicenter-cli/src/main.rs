@@ -138,6 +138,17 @@ fn print_status(status: &SystemStatus) {
     }
 
     println!();
+    println!("RGB");
+    println!(
+        "  Controller  : {}",
+        show(status.rgb.controller_name.as_deref())
+    );
+    println!(
+        "  Serial      : {}",
+        show(status.rgb.controller_serial.as_deref())
+    );
+
+    println!();
     println!("Battery");
     println!("  Device      : {}", show(status.battery.name.as_deref()));
     println!("  Status      : {}", show(status.battery.status.as_deref()));

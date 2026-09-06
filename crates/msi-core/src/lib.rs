@@ -80,6 +80,13 @@ pub struct SuperBatteryState {
     pub super_battery: Option<bool>,
 }
 
+/// Read-only identity of the detected RGB HID controller (if any).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RgbStatus {
+    pub controller_name: Option<String>,
+    pub controller_serial: Option<String>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CapabilitySet {
     pub ec_firmware: bool,
@@ -195,4 +202,5 @@ pub struct SystemStatus {
     pub ec: EcStatus,
     pub fans: Vec<FanReading>,
     pub battery: BatteryStatus,
+    pub rgb: RgbStatus,
 }

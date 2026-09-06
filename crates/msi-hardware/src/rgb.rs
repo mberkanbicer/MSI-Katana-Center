@@ -1,7 +1,14 @@
-//! MysticLight MS-1565 (1462:1601) keyboard RGB packet building.
+//! MysticLight MS-1565 (1462:1601) keyboard RGB.
 //!
-//! Pure, Linux-independent protocol layer — no device I/O here. The wire
-//! format is documented in `docs/phase7-rgb-protocol.md` and was
+//! Two layers:
+//!
+//! * packet building — pure, Linux-independent (zone-select + set-effect),
+//!   no device I/O;
+//! * device probing — hidapi over the libusb backend (usbfs), used by the
+//!   root daemon. Only read-only probing is wired up so far; sending
+//!   feature reports stays a separate, gated step (AGENTS §24).
+//!
+//! The wire format is documented in `docs/phase7-rgb-protocol.md` and was
 //! cross-verified field-for-field against `msi-katana-rgb` and OpenRGB RC3
 //! (`MSIMysticLightKBController`, `FeaturePacket_MS1565`).
 //!
@@ -82,6 +89,45 @@ impl std::fmt::Display for RgbPacketError {
 }
 
 impl std::error::Error for RgbPacketError {}
+
+/// Identity of an opened RGB controller (read-only probe).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RgbControllerInfo {
+    pub name: String,
+    pub serial: Option<String>,
+}
+
+/// Opens the HID controller with the given vendor/product ids and reads its
+/// product and serial strings. Read-only: no feature report is sent.
+/// Requires usbfs access (root, or udev rules) — the daemon runs as root.
+pub fn probe_rgb_controller(vendor_id: u16, product_id: u16) -> Option<RgbControllerInfo> {
+    use hidapi::HidApi;
+
+    let api = HidApi::new().ok()?;
+    for device in api.device_list() {
+        if device.vendor_id() != vendor_id || device.product_id() != product_id {
+            continue;
+        }
+        let opened = device.open_device(&api).ok()?;
+        let name = opened
+            .get_product_string()
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        let name = if name.is_empty() {
+            format!("{vendor_id:#06x}:{product_id:#06x}")
+        } else {
+            name
+        };
+        let serial = opened
+            .get_serial_number_string()
+            .ok()
+            .flatten()
+            .filter(|serial| !serial.is_empty());
+        return Some(RgbControllerInfo { name, serial });
+    }
+    None
+}
 
 /// Builds a zone-select packet: `[report 2][packet 1][zone mask]` padded to 64.
 pub fn zone_select_packet(zones: u8) -> Result<[u8; PACKET_SIZE], RgbPacketError> {

@@ -7,3 +7,5 @@ rust-version.workspace = true
 
 [dependencies]
 msi-core = { path = "../msi-core" }
+# libusb backend: usbfs access from the root daemon; no hidraw on this kernel.
+hidapi = { version = "2", default-features = false, features = ["linux-shared-libusb"] }
