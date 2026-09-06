@@ -86,6 +86,8 @@ public slots:
     void setSuperBattery(bool enabled);
     void setBatteryThresholds(int start, int end);
     void setRgbColorFromHex(int zones, const QString &hex);
+    void setRgbEffectPreset(int zones, int mode, int speedSeconds,
+                            const QString &hex);
     void reloadScenes();
     void applyScene(const QString &name);
 

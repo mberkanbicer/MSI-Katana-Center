@@ -620,6 +620,64 @@ impl DeviceInterface {
         Ok(applied.to_string())
     }
 
+    async fn set_rgb_preset_effect(
+        &self,
+        zones: u8,
+        mode: u8,
+        speed_centiseconds: u16,
+        color_hex: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<String> {
+        // Semantic preset: one user color; the daemon derives companions
+        // (cycle: +180, wave: +120/+240) so clients never marshal a(yyy).
+        if !(1..=4).contains(&mode) {
+            return Err(zbus::fdo::Error::InvalidArgs(
+                "mode must be 1 (steady), 2 (breathing), 3 (cycle) or 4 (wave)".into(),
+            ));
+        }
+        let base = parse_hex_color(&color_hex).ok_or_else(|| {
+            zbus::fdo::Error::InvalidArgs(format!("invalid color {color_hex:?} (expected RRGGBB)"))
+        })?;
+        let colors = match mode {
+            1 | 2 => vec![base],
+            3 => vec![base, msi_hardware::rgb::rotate_hue(base, 180.0)],
+            _ => vec![
+                base,
+                msi_hardware::rgb::rotate_hue(base, 120.0),
+                msi_hardware::rgb::rotate_hue(base, 240.0),
+            ],
+        };
+
+        let current = snapshot(&self.status)?;
+        require_rgb_write_support(&current, rgb_writes_enabled())?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_RGB_COLOR_ACTION).await?;
+        let (vendor, product) = rgb_vid_pid(&current)?;
+
+        let keyframes = msi_hardware::rgb::keyframes_from_colors(&colors);
+        msi_hardware::rgb::send_effect(
+            vendor,
+            product,
+            zones,
+            mode,
+            speed_centiseconds,
+            1,
+            &keyframes,
+        )
+        .map_err(rgb_fdo_error)?;
+
+        let applied = serde_json::json!({
+            "zone_mask": format!("{zones:#04x}"),
+            "mode": mode,
+            "speed_centiseconds": speed_centiseconds,
+            "colors": colors,
+            "persistent": false,
+        });
+        Ok(applied.to_string())
+    }
+
     #[zbus(signal, name = "StateChanged")]
     async fn state_changed(context: &SignalContext<'_>) -> zbus::Result<()>;
 }
@@ -841,6 +899,16 @@ fn require_rgb_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo:
         ));
     }
     Ok(())
+}
+
+/// Parses an RRGGBB hex color string into (r, g, b).
+fn parse_hex_color(hex: &str) -> Option<(u8, u8, u8)> {
+    let bytes = hex.as_bytes();
+    if bytes.len() != 6 || !bytes.iter().all(u8::is_ascii_hexdigit) {
+        return None;
+    }
+    let channel = |range: std::ops::Range<usize>| u8::from_str_radix(&hex[range], 16).ok();
+    Some((channel(0..2)?, channel(2..4)?, channel(4..6)?))
 }
 
 /// Resolves the RGB VID/PID pair from the matched profile.

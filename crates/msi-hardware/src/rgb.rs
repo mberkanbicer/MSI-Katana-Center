@@ -189,6 +189,48 @@ pub fn keyframes_from_colors(colors: &[(u8, u8, u8)]) -> Vec<RgbKeyframe> {
         .collect()
 }
 
+/// Rotates a color's hue by `degrees` (RGB -> HSL -> rotate -> RGB).
+/// Used to derive harmonious companion colors for effects from a single
+/// user-chosen color (cycle: +180, wave: +120/+240).
+pub fn rotate_hue(color: (u8, u8, u8), degrees: f64) -> (u8, u8, u8) {
+    let (r, g, b) = (
+        f64::from(color.0) / 255.0,
+        f64::from(color.1) / 255.0,
+        f64::from(color.2) / 255.0,
+    );
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let lightness = (max + min) / 2.0;
+    let delta = max - min;
+    if delta < 1e-9 {
+        // Grayscale: no hue to rotate; return unchanged.
+        return color;
+    }
+    let saturation = delta / (1.0 - (2.0 * lightness - 1.0).abs());
+    let hue = if max == r {
+        60.0 * (((g - b) / delta).rem_euclid(6.0))
+    } else if max == g {
+        60.0 * (((b - r) / delta) + 2.0)
+    } else {
+        60.0 * (((r - g) / delta) + 4.0)
+    };
+    let hue = (hue + degrees).rem_euclid(360.0);
+
+    let chroma = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+    let x = chroma * (1.0 - ((hue / 60.0).rem_euclid(2.0) - 1.0).abs());
+    let m = lightness - chroma / 2.0;
+    let (rr, gg, bb) = match hue {
+        h if h < 60.0 => (chroma, x, 0.0),
+        h if h < 120.0 => (x, chroma, 0.0),
+        h if h < 180.0 => (0.0, chroma, x),
+        h if h < 240.0 => (0.0, x, chroma),
+        h if h < 300.0 => (x, 0.0, chroma),
+        _ => (chroma, 0.0, x),
+    };
+    let channel = |value: f64| ((value + m) * 255.0).round().clamp(0.0, 255.0) as u8;
+    (channel(rr), channel(gg), channel(bb))
+}
+
 /// Sends a **non-persistent** effect to the selected zones: zone select
 /// plus one set-effect feature report. Never sends flash-save; see
 /// [`save_to_flash`] for the separate persistent path.
@@ -440,5 +482,22 @@ mod tests {
         assert_eq!(three[0].time, 0);
         assert_eq!(three[1].time, 50);
         assert_eq!(three[2].time, 100);
+    }
+
+    #[test]
+    fn rotates_hue() {
+        // Red +120° -> green-ish, +180° -> cyan, +240° -> blue-ish.
+        let greenish = rotate_hue((255, 0, 0), 120.0);
+        assert!(greenish.1 > greenish.0 && greenish.1 > greenish.2);
+        let cyan = rotate_hue((255, 0, 0), 180.0);
+        assert!(cyan.1 > 200 && cyan.2 > 200 && cyan.0 < 50);
+        let blueish = rotate_hue((255, 0, 0), 240.0);
+        assert!(blueish.2 > blueish.0 && blueish.2 > blueish.1);
+        // Grayscale stays grayscale.
+        assert_eq!(rotate_hue((120, 120, 120), 90.0), (120, 120, 120));
+        // Round trip: full rotation returns the original color.
+        let original = (200, 60, 40);
+        let back = rotate_hue(rotate_hue(original, 137.0), 360.0 - 137.0);
+        assert_eq!(back, original);
     }
 }

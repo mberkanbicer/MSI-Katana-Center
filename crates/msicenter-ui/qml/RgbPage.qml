@@ -8,6 +8,9 @@ ScrollView {
     contentWidth: availableWidth
 
     property int rgbZones: 15
+    property string colorHex: "ff0000"
+    property int modeIndex: 1          // 1 steady, 2 breathing, 3 cycle, 4 wave
+    property int speedSeconds: 3
 
     function hslToHex(h, s, l) {
         const c = Qt.hsla(h, s, l, 1)
@@ -21,6 +24,9 @@ ScrollView {
         const v = parseInt(text, 16)
         return Qt.rgba(((v >> 16) & 0xff) / 255, ((v >> 8) & 0xff) / 255,
                        (v & 0xff) / 255, 1)
+    }
+    function applyColor(color) {
+        page.colorHex = color
     }
 
     Column {
@@ -37,13 +43,14 @@ ScrollView {
             color: "#E8DCCB"
         }
 
+        // ---- Controller & zones ----
         Rectangle {
             width: parent.width
             radius: 10
             color: "#292420"
             border.color: "#3A332B"
             border.width: 1
-            ColumnLayout {
+            Column {
                 anchors.fill: parent
                 anchors.margins: 18
                 spacing: 12
@@ -78,65 +85,143 @@ ScrollView {
             implicitHeight: 190
         }
 
+        // ---- Color & effect ----
         Rectangle {
             width: parent.width
             radius: 10
             color: "#292420"
             border.color: "#3A332B"
             border.width: 1
-            ColumnLayout {
+            Column {
                 anchors.fill: parent
                 anchors.margins: 18
                 spacing: 12
-                Label { text: "Steady color (non-persistent)"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
 
-                Flow {
-                    width: parent.width
+                Label { text: "Color & effect (non-persistent)"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+
+                Row {
                     spacing: 10
-                    Repeater {
-                        model: [{ name: "Red", hex: "ff0000" },
-                                { name: "Green", hex: "00ff00" },
-                                { name: "Blue", hex: "0000ff" },
-                                { name: "Yellow", hex: "ffff00" },
-                                { name: "Cyan", hex: "00ffff" },
-                                { name: "White", hex: "ffffff" },
-                                { name: "Off", hex: "000000" }]
-                        Rectangle {
-                            required property var modelData
-                            width: 64
-                            height: 44
-                            radius: 8
-                            color: modelData.hex === "000000" ? "#1B1815" : ("#" + modelData.hex)
-                            border.color: modelData.hex === "000000" ? "#8C7F6F" : "#4A4237"
-                            border.width: 1
-                            Label {
-                                anchors.centerIn: parent
-                                text: modelData.name
-                                color: modelData.name === "Off" ? "#B5A896" : "#1B1815"
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: center.setRgbColorFromHex(page.rgbZones, modelData.hex)
-                                onEntered: parent.border.color = "#E2A35B"
-                                onExited: parent.border.color = modelData.hex === "000000"
-                                                          ? "#8C7F6F" : "#4A4237"
+                    Rectangle {
+                        id: selectedSwatch
+                        width: 46
+                        height: 34
+                        radius: 6
+                        color: hexToColor(page.colorHex)
+                        border.color: "#E2A35B"
+                        border.width: 2
+                        Label {
+                            anchors.centerIn: parent
+                            text: "selected"
+                            color: page.colorHex === "ffffff" || page.colorHex === "00ffff"
+                                       || page.colorHex === "ffff00" ? "#1B1815" : "#E8DCCB"
+                            font.pixelSize: 8
+                            font.bold: true
+                        }
+                    }
+                    Flow {
+                        width: parent.parent.width - 62
+                        spacing: 8
+                        Repeater {
+                            model: [{ name: "Red", hex: "ff0000" },
+                                    { name: "Green", hex: "00ff00" },
+                                    { name: "Blue", hex: "0000ff" },
+                                    { name: "Yellow", hex: "ffff00" },
+                                    { name: "Cyan", hex: "00ffff" },
+                                    { name: "White", hex: "ffffff" }]
+                            Rectangle {
+                                required property var modelData
+                                width: 46
+                                height: 34
+                                radius: 6
+                                color: "#" + modelData.hex
+                                border.color: page.colorHex === modelData.hex
+                                                 ? "#E2A35B" : "#3A332B"
+                                border.width: page.colorHex === modelData.hex ? 2 : 1
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: modelData.name
+                                    color: modelData.hex === "ffffff" || modelData.hex === "00ffff"
+                                           || modelData.hex === "ffff00" ? "#1B1815" : "#E8DCCB"
+                                    font.pixelSize: 9
+                                    font.bold: true
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: page.colorHex = modelData.hex
+                                    onEntered: parent.border.color = "#E2A35B"
+                                    onExited: parent.border.color =
+                                        page.colorHex === modelData.hex ? "#E2A35B" : "#3A332B"
+                                }
                             }
                         }
                     }
                 }
+
+                Row {
+                    spacing: 10
+                    Label { text: "Effect"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter }
+                    ButtonGroup { id: effectGroup }
+                    Repeater {
+                        model: [{ label: "Steady", mode: 1 },
+                                { label: "Breathing", mode: 2 },
+                                { label: "Cycle", mode: 3 },
+                                { label: "Wave", mode: 4 }]
+                        Button {
+                            required property var modelData
+                            text: modelData.label
+                            checkable: true
+                            checked: page.modeIndex === modelData.mode
+                            ButtonGroup.group: effectGroup
+                            onClicked: page.modeIndex = modelData.mode
+                        }
+                    }
+                }
+
+                Row {
+                    visible: page.modeIndex !== 1
+                    spacing: 10
+                    width: parent.width
+                    Label {
+                        text: "Speed: " + page.speedSeconds + " s"
+                        width: 110
+                        color: "#B5A896"
+                        font.pixelSize: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Slider {
+                        id: speedSlider
+                        from: 1
+                        to: 10
+                        stepSize: 1
+                        value: page.speedSeconds
+                        width: parent.width - 130
+                        onMoved: page.speedSeconds = Math.round(value)
+                    }
+                }
+
+                Row {
+                    spacing: 10
+                    Button {
+                        text: "Apply effect"
+                        onClicked: center.setRgbEffectPreset(page.rgbZones, page.modeIndex,
+                                                             page.speedSeconds, page.colorHex)
+                    }
+                    Button {
+                        text: "Turn off"
+                        onClicked: center.setRgbColorFromHex(page.rgbZones, "000000")
+                    }
+                }
                 Label {
-                    text: "Effects (breathing, wave, cycle) and flash-save are available from the CLI: "
-                          + "msicenter rgb-effect, msicenter rgb-save"
+                    text: page.modeIndex === 3
+                              ? "Cycle and wave derive companion colors from your selection."
+                              : "Breathing fades your selected color; steady lights it."
                     color: "#8C7F6F"
                     font.pixelSize: 10
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    width: parent.width
                 }
             }
-            implicitHeight: 220
+            implicitHeight: 330
         }
 
         // ---- Custom color picker ----
@@ -158,19 +243,11 @@ ScrollView {
                     Rectangle {
                         id: preview
                         width: 72
-                        height: 48
+                        height: 44
                         radius: 8
                         border.color: "#4A4237"
                         border.width: 1
-                        color: validHex(hexField.text)
-                                   ? hexToColor(hexField.text)
-                                   : "#3A332B"
-                        Label {
-                            anchors.centerIn: parent
-                            visible: !validHex(hexField.text)
-                            text: "?"
-                            color: "#8C7F6F"
-                        }
+                        color: validHex(hexField.text) ? hexToColor(hexField.text) : "#3A332B"
                     }
                     Column {
                         spacing: 8
@@ -183,15 +260,15 @@ ScrollView {
                                 placeholderText: "RRGGBB"
                                 maximumLength: 6
                                 font.family: "monospace"
-                                onAccepted: center.setRgbColorFromHex(page.rgbZones, text)
+                                onAccepted: page.colorHex = text
                             }
                             Button {
-                                text: "Apply to zone"
-                                onClicked: center.setRgbColorFromHex(page.rgbZones, hexField.text)
+                                text: "Use this color"
+                                onClicked: page.colorHex = hexField.text
                             }
                         }
                         Label {
-                            text: "press Enter in the hex field, or use Apply"
+                            text: "Enter or 'Use this color', then Apply effect above"
                             color: "#8C7F6F"
                             font.pixelSize: 10
                         }
@@ -235,8 +312,7 @@ ScrollView {
                     }
                 }
             }
-            implicitHeight: 280
+            implicitHeight: 300
         }
-
     }
 }

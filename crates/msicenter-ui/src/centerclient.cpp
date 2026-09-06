@@ -193,6 +193,22 @@ void CenterClient::setRgbColorFromHex(int zones, const QString &hex) {
                 QVariant::fromValue<quint8>(quint8(value & 0xff))});
 }
 
+void CenterClient::setRgbEffectPreset(int zones, int mode, int speedSeconds,
+                                      const QString &hex) {
+    const QString cleaned = hex.trimmed();
+    if (cleaned.size() != 6) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("RGB: invalid color '%1'").arg(hex);
+        emit changed();
+        return;
+    }
+    callMethod(QStringLiteral("SetRgbPresetEffect"),
+               {QVariant::fromValue<quint8>(quint8(zones)),
+                QVariant::fromValue<quint8>(quint8(mode)),
+                QVariant::fromValue<quint16>(quint16(speedSeconds * 100)),
+                QVariant(cleaned)});
+}
+
 void CenterClient::callMethod(const QString &method, const QVariantList &args) {
     QDBusMessage msg = QDBusMessage::createMethodCall(
         kService, kPath, kDeviceIface, method);
