@@ -368,3 +368,46 @@ Same-instant pairs answer: (1) does `0x89` track `gpu_fan_level`
 `auto` / `advanced` / `silent`; (3) how do `0x68`/`0x71`/`0x80`/`0x89`
 move under load (load soak for the write-verification protocol later).
 Remove the override and restart the daemon afterwards (§10.6).
+
+## 10.9 Full capture round results (2026-09-06) — live bytes proven, tables mode-independent
+
+Four same-instant dump+status pairs (idle/load in `auto`, then `advanced`,
+`silent`), opt-in override active, gate re-verified after cleanup
+(`NotSupported` on write with the override removed).
+
+Live-byte proof (every capture matched `status --json` exactly):
+
+- `0x68` CPU temp: 87 → 95 (load) → 69 → 91; `0x80` GPU temp: 0 always
+  (dGPU off).
+- `0x71` CPU fan level: 43 → 85 → 60 → 48; `0x89` GPU fan level:
+  0 → 85 → 43 → 0 — the earlier 0x89=0 vs `gpu_fan_level 48` mismatch
+  was a dump/status timing gap; 0x89 is the live GPU fan byte (driver
+  CONF_G2_10 map confirmed).
+- `0x9E`: 0x3A → 0x3B → 0x3B → 0x3B — drifted once under load, then
+  stable; still dynamic, semantics unknown (checksum/counter candidate).
+
+Mode independence (key Phase 5 result): every candidate table run was
+byte-identical in `auto`, `advanced` and `silent`:
+
+    CPU 0x6A-0x70: 55 64 73 76 82 88 100
+    CPU 0x73-0x79: 43 48 54 60 75 85 100
+    GPU 0x82-0x88: 55 61 67 73 79 83 99
+    GPU 0x8B-0x91: 43 48 54 60 75 85 100
+    CPU 0x7B-0x7F: 03 03 03 03 03    GPU 0x93-0x97: 03 03 03 03 02
+    0x98 = 0x06 (cooler-boost bit 7 clear), 0x99-0x9D = 0F 7D 06 0A 78
+
+Working structural model: each side has a 7-point fan table and a 7-point
+temperature table with a live fan-level byte between them — CPU fan
+`0x6A-0x70`, live `0x71`, temps `0x73-0x79`; GPU fan `0x82-0x88`, live
+`0x89`, temps `0x8B-0x91` (gap bytes `0x72`/`0x8A` are 0). The GPU fan
+table is the irregular 55..99 run; the smooth 43..100 runs are the
+temperature points (identical CPU/GPU defaults on this firmware).
+
+Remaining gate before any write experiment: identify `0x9E` (or prove it
+is write-immune). If it is a checksum over the table region, a write that
+ignores it will be reverted or ignored by the EC. Sources to consult next:
+GhostDeck `Devices.cs` for the G2 family (exact byte set MSI Center
+writes for a curve, including any trailing/checksum bytes) and the msi-ec
+issue #80 comments (maintainer's row annotations). Only after that and an
+explicit user go-ahead does a minimal one-point write test (§35 gates)
+become eligible.
