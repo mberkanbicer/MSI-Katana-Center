@@ -8,8 +8,12 @@ The first RGB write path is limited to:
 - MysticLight MS-1565 controller (`1462:1601`, serial `4062C8A28000`)
 - a single **non-persistent** steady color over the selected zones
 - transport: hidapi/libusb (usbfs) from the root daemon
+- non-persistent effect modes (breathing/cycle/wave) through the daemon
+  `SetRgbPresetEffect` semantic method: one user color + mode; the daemon
+  derives companion colors (cycle +180°, wave +120/+240°) so clients
+  never marshal `a(yyy)` (implemented; desktop visual test pending)
 
-No flash-save (0xA0), no effects beyond steady, no per-key mode.
+No flash-save (0xA0) in these calls, no per-key mode.
 
 ## Safety behavior
 

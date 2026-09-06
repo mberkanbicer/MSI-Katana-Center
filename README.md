@@ -18,8 +18,8 @@ verification on the reference laptop. See
 | 3 | D-Bus daemon, systemd unit, D-Bus policy, Polkit actions | complete |
 | 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — all physically verified 2026-09-05 |
 | 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) |
-| 6 | Qt/QML desktop UI | milestone 2 in `crates/msicenter-ui/`; plan: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
-| 7 | RGB (MysticLight MS-1565) | non-persistent `SetRgbColor` physically verified 2026-09-06; flash-save/effect modes future |
+| 6 | Qt/QML desktop UI | Material/warm desktop client with sidebar navigation, write controls, RGB color+effect pickers, system tray: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
+| 7 | RGB (MysticLight MS-1565) | non-persistent `SetRgbColor` physically verified 2026-09-06; effect modes via `SetRgbPresetEffect` implemented (desktop test pending); flash-save implemented, physical test pending |
 
 ## Current scope
 
@@ -35,9 +35,10 @@ verification on the reference laptop. See
 - D-Bus daemon (`org.msilinux.Center`) and Qt/QML desktop client
 - all paths redirectable via `MSI_LINUX_CENTER_SYSROOT`
 
-No MUX or fan-curve write exists yet. RGB steady colors are writable
-(non-persistent only; flash-save not implemented). Performance-mode writes
-are deferred (current EC state `0xc0` is not writable by `msi-ec`; see
+No MUX or fan-curve write exists yet. RGB steady color and effect modes
+are writable (non-persistent; flash-save implemented behind a separate
+opt-in but not yet physically tested). Performance-mode writes are
+deferred (current EC state `0xc0` is not writable by `msi-ec`; see
 `MSI-Linux-Center-AGENTS.md` §6.1).
 
 ## Requirements
@@ -91,6 +92,8 @@ All Linux paths can be redirected for tests:
 ## D-Bus API
 
 Bus `org.msilinux.Center` (system bus), interfaces
-`org.msilinux.Center1.Device` and `.Sensors`, plus the four gated write
-methods. JSON-encoded properties today; typed records are planned once the
-UI/SDK needs them. See [`docs/dbus-contract.md`](docs/dbus-contract.md).
+`org.msilinux.Center1.Device` and `.Sensors`, plus the gated write
+methods (battery thresholds, fan mode, Cooler Boost, Super Battery, RGB
+color, RGB effect preset, RGB flash-save). JSON-encoded properties today;
+typed records are planned once the UI/SDK needs them. See
+[`docs/dbus-contract.md`](docs/dbus-contract.md).

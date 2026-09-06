@@ -1,11 +1,14 @@
 # Phase 8 — Scenes/profiles: design study
 
 Status: CLI `scene list`/`scene apply` implemented and physically validated
-on 2026-09-06; UI scene section pending. A "scene" is a named set of
-hardware settings applied in one action. Every individual setting already
-exists as a gated, physically verified write (Phase 4 + Phase 7); Phase 8
-composes them. Follows `MSI-Linux-Center-AGENTS.md` §22 (scene concepts
-stay separate from Linux power policy) and §34.
+on 2026-09-06; UI scene section implemented in `crates/msicenter-ui`
+(`ScenesPage.qml`: scene list, reload, sequential apply with per-step
+result panel) — desktop visual test pending with the rest of the UI. A
+"scene" is a named set of hardware settings applied in one action. Every
+individual setting already exists as a gated, physically verified write
+(Phase 4 + Phase 7); Phase 8 composes them. Follows
+`MSI-Linux-Center-AGENTS.md` §22 (scene concepts stay separate from Linux
+power policy) and §34.
 
 ## Validation record (2026-09-06)
 

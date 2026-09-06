@@ -84,7 +84,9 @@ Firmware-family compatibility may be useful for read-only detection, but write c
 
 # 3. Current project phase
 
-The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, and the Phase 3 D-Bus daemon layer. The current snapshot is **Phase 4**: gated, Polkit-protected write paths through Linux interfaces, all physically verified on the reference laptop on 2026-09-05 — battery charge thresholds through `power_supply`, and fan mode, Cooler Boost, and Super Battery through `msi-ec`.
+The repository has completed the Phase 1 read-only core, the Phase 2 runtime-capability/provenance architecture, the Phase 3 D-Bus daemon layer, the Phase 4 gated write paths (all physically verified on the reference laptop on 2026-09-05), the Phase 6 Qt/QML UI (write controls + Material/warm polish pass), the Phase 7 RGB non-persistent paths (steady color physically verified 2026-09-06; effect presets and the separate flash-save implemented — desktop/physical verification pending), and the Phase 8 scenes CLI + UI (CLI physically validated 2026-09-06).
+
+Remaining work is verification on the reference laptop (desktop visual tests of UI write controls, RGB effect picker, tray; the opt-in flash-save physical test) and the Phase 5 fan-curve hardware research; see §34.
 
 It implements:
 
@@ -1170,7 +1172,7 @@ Still read-only.
 - systemd service
 - no hardware writes initially
 
-## Phase 4 — current
+## Phase 4 — complete
 
 First safe semantic writes, preferably through existing Linux interfaces.
 
@@ -1184,25 +1186,27 @@ Status:
 
 Each feature must be introduced separately and locally validated.
 
-## Phase 5 — next
+## Phase 5 — next (hardware research)
 
 Custom fan curves with explicit EC safety controls.
 
-Design study (no code): `docs/phase5-fan-curve-design.md`.
+Design study (no code): `docs/phase5-fan-curve-design.md`. No code before
+the EC write path and rollback for fan tables is demonstrated on the
+reference hardware.
 
-## Phase 6
+## Phase 6 — complete (desktop visual test pending)
 
 Qt 6 / QML UI.
 
-Architecture plan (no code): `docs/phase6-ui-design.md`.
-
-Milestone 1 (read-only dashboard skeleton) implemented in
-`crates/msicenter-ui/` (C++17 + QtDBus client, QML views); runs against the
-live daemon, verified on 2026-09-05. Milestone 2 adds write controls for the
-four verified features (fan mode, Cooler Boost, Super Battery, battery
-thresholds); all calls go through the daemon's Polkit-gated methods and the
-UI reports daemon replies/refusals verbatim. Write controls were verified
-via CLI; UI-side interaction needs a desktop visual test.
+Architecture plan: `docs/phase6-ui-design.md`; implemented in
+`crates/msicenter-ui/` (C++17 + QtDBus client, QML views). Read-only
+dashboard verified on the live daemon 2026-09-05; write controls for the
+four Phase-4 features go through the daemon's Polkit-gated methods and
+report daemon replies/refusals verbatim. Polish pass (2026-09-07+):
+forced Material style (`QQuickStyle::setStyle`), warm Material palette
+(amber `#E2A35B`), sidebar navigation, RGB color picker (HSL + hex) and
+effect picker (steady/breathing/cycle/wave), system tray + autostart
+files. UI-side write interactions need a desktop visual test.
 
 ## Phase 7
 
@@ -1213,21 +1217,25 @@ hidapi with libusb backend from the root daemon (no hidraw on this kernel;
 system libusb/hidapi present; same path OpenRGB uses). Protocol notes:
 `docs/phase7-rgb-protocol.md`. Packet builder implemented and unit-tested
 (no device writes): `msi-hardware::rgb` (zone-select + set-effect packets,
-validation, keyframe cap 10). Daemon usbfs probe verified on hardware
-2026-09-06 (serial 4062C8A28000). Gated non-persistent `SetRgbColor` write
-path implemented and physically verified 2026-09-06
-(`docs/phase7-rgb-validation.md`). Non-persistent `SetRgbEffect` (modes)
-and the separate, higher-risk flash-save `SaveRgbState` are implemented;
-flash-save physical verification pending.
+validation, keyframe cap 10, `rotate_hue` for companion colors). Daemon
+usbfs probe verified on hardware 2026-09-06 (serial 4062C8A28000). Gated
+non-persistent `SetRgbColor` write path implemented and physically
+verified 2026-09-06 (`docs/phase7-rgb-validation.md`). Effect modes are
+exposed through the semantic `SetRgbPresetEffect(zones, mode, speed,
+color_hex)` method (daemon derives keyframe colors; Qt clients never
+marshal `a(yyy)`; desktop test pending). The separate, higher-risk
+flash-save `SaveRgbState` is implemented; flash-save physical verification
+pending (user opt-in; overwrites the Windows effect, no restore).
 
-## Phase 8
+## Phase 8 — complete (desktop visual test pending)
 
 Scenes/profiles.
 
 Design study: `docs/phase8-scenes-design.md` — user-owned scene file,
 sequential per-setting gated writes, no new daemon surface. CLI
 `scene list`/`scene apply` implemented and physically validated
-2026-09-06; UI scene section pending.
+2026-09-06; UI scene section (`ScenesPage.qml`: list, reload, sequential
+apply with per-step results) implemented, desktop visual test pending.
 
 ## Phase 9
 

@@ -64,6 +64,15 @@ non-persistent steady color or effect to the declared MysticLight
 controller over usbfs; flash-save is never part of these calls. Physically
 verified on 2026-09-06.
 
+RGB effects use the semantic preset method
+`SetRgbPresetEffect(zones: y, mode: y, speed_centiseconds: q, color_hex: s)`
+(mode 1 = steady, 2 = breathing, 3 = cycle, 4 = wave). The client sends
+one `RRGGBB` color; the daemon derives the keyframe list — cycle appends
+the +180° companion, wave appends +120°/+240° companions (hue rotation in
+`msi-hardware::rgb::rotate_hue`) — so the Qt client never has to marshal
+`a(yyy)`. Same opt-in env, Polkit action and VID/PID gating as
+`SetRgbColor`; nothing is written to flash.
+
 Persistent RGB writes are separate and higher-risk (AGENTS §24):
 `SaveRgbState()` needs `MSI_LINUX_CENTER_ENABLE_RGB_FLASH_WRITES=1` and the
 Polkit action `org.msilinux.Center.set-rgb-save`. Physical verification

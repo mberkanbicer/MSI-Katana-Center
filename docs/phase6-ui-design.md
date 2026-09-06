@@ -1,8 +1,17 @@
 # Phase 6 — Qt/QML desktop UI: design study
 
-Status: **architecture plan, no code.** Mirrors the Phase 5 approach: record
-environment facts, map the existing service surface to UI needs, decide the
-component architecture, and list open decisions before implementation.
+Status: implemented in `crates/msicenter-ui` (C++17 + QtDBus client, QML
+views). Milestone 1 (read-only dashboard) and milestone 2 (write controls
+for the four Phase-4 features) run against the live daemon, verified
+2026-09-05; write replies/refusals are shown verbatim. UI polish pass
+completed: forced Material style (`QQuickStyle::setStyle` — Qt 6.8+ no
+longer auto-selects from imports), warm Material Design palette
+(amber `#E2A35B` on warm dark surfaces), sidebar + StackLayout
+navigation (Overview/Power & Fans/Battery/Keyboard RGB/Scenes/
+Diagnostics), RGB color picker (HSL sliders + hex + live preview) and RGB
+effect picker (steady/breathing/cycle/wave via daemon
+`SetRgbPresetEffect`), system tray with hide-to-close, autostart
+descriptor. Desktop visual test of write controls pending (user session).
 
 Acceptance criteria for this document: (1) environment facts are recorded;
 (2) the D-Bus surface is mapped to concrete UI screens and actions;
