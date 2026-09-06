@@ -31,6 +31,7 @@ class CenterClient : public QObject {
     Q_PROPERTY(int chargeStartPercent READ chargeStartPercent NOTIFY changed)
     Q_PROPERTY(int chargeEndPercent READ chargeEndPercent NOTIFY changed)
     Q_PROPERTY(QString capsText READ capsText NOTIFY changed)
+    Q_PROPERTY(QString rgbControllerText READ rgbControllerText NOTIFY changed)
     Q_PROPERTY(QString lastError READ lastError NOTIFY changed)
     Q_PROPERTY(QString actionMessage READ actionMessage NOTIFY changed)
     Q_PROPERTY(bool actionError READ actionError NOTIFY changed)
@@ -54,6 +55,7 @@ public:
     int chargeStartPercent() const { return m_chargeStart; }
     int chargeEndPercent() const { return m_chargeEnd; }
     QString capsText() const { return m_caps; }
+    QString rgbControllerText() const { return m_rgbController; }
     QString lastError() const { return m_error; }
     QString actionMessage() const { return m_actionMessage; }
     bool actionError() const { return m_actionError; }
@@ -72,6 +74,7 @@ public slots:
     void setCoolerBoost(bool enabled);
     void setSuperBattery(bool enabled);
     void setBatteryThresholds(int start, int end);
+    void setRgbColorFromHex(int zones, const QString &hex);
 
 signals:
     void changed();
@@ -103,6 +106,7 @@ private:
     int m_chargeStart = -1;
     int m_chargeEnd = -1;
     QString m_caps;
+    QString m_rgbController;
     QString m_error;
     QString m_actionMessage;
     bool m_actionError = false;

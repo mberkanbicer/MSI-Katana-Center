@@ -349,6 +349,11 @@ impl DeviceInterface {
         to_json(&snapshot(&self.status)?.runtime_capabilities)
     }
 
+    #[zbus(property, name = "RgbController")]
+    fn rgb_controller(&self) -> zbus::fdo::Result<String> {
+        to_json(&snapshot(&self.status)?.rgb)
+    }
+
     async fn refresh(
         &self,
         #[zbus(signal_context)] context: SignalContext<'_>,

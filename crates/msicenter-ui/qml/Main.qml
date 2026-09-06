@@ -21,6 +21,7 @@ Window {
             y: 16
             width: parent.parent.width - 32
             spacing: 8
+            property int rgbZones: 15
 
             Text {
                 text: "MSI Linux Center"
@@ -158,6 +159,77 @@ Window {
                                    parseInt(limitStart.text, 10),
                                    parseInt(limitEnd.text, 10))
                 }
+            }
+
+            // ---- RGB (non-persistent) ----
+            SectionLabel { text: "RGB keyboard" }
+            KV { label: "Controller"; value: center.rgbControllerText }
+            Row {
+                spacing: 6
+                ActionButton {
+                    label: "All zones"
+                    highlighted: column.rgbZones === 15
+                    onClicked: column.rgbZones = 15
+                }
+                ActionButton {
+                    label: "Zone 1"
+                    highlighted: column.rgbZones === 1
+                    onClicked: column.rgbZones = 1
+                }
+                ActionButton {
+                    label: "Zone 2"
+                    highlighted: column.rgbZones === 2
+                    onClicked: column.rgbZones = 2
+                }
+                ActionButton {
+                    label: "Zone 3"
+                    highlighted: column.rgbZones === 4
+                    onClicked: column.rgbZones = 4
+                }
+                ActionButton {
+                    label: "Zone 4"
+                    highlighted: column.rgbZones === 8
+                    onClicked: column.rgbZones = 8
+                }
+            }
+            Text {
+                text: "Colors (steady, non-persistent)"
+                color: "#a6adc8"
+                font.pointSize: 9
+            }
+            Row {
+                spacing: 6
+                ActionButton {
+                    label: "Red"
+                    onClicked: center.setRgbColorFromHex(column.rgbZones, "ff0000")
+                }
+                ActionButton {
+                    label: "Green"
+                    onClicked: center.setRgbColorFromHex(column.rgbZones, "00ff00")
+                }
+                ActionButton {
+                    label: "Blue"
+                    onClicked: center.setRgbColorFromHex(column.rgbZones, "0000ff")
+                }
+                ActionButton {
+                    label: "Yellow"
+                    onClicked: center.setRgbColorFromHex(column.rgbZones, "ffff00")
+                }
+                ActionButton {
+                    label: "White"
+                    onClicked: center.setRgbColorFromHex(column.rgbZones, "ffffff")
+                }
+                ActionButton {
+                    label: "Off"
+                    onClicked: center.setRgbColorFromHex(column.rgbZones, "000000")
+                }
+            }
+            Text {
+                text: "Effects: use 'msicenter rgb-effect' in a terminal for now"
+                color: "#585b70"
+                font.pointSize: 8
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                width: parent.width
             }
 
             // ---- Action result ----

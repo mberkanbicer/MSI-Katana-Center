@@ -68,6 +68,7 @@ void CenterClient::fetchAll() {
     fetchProperty(kDeviceIface, "MatchedProfile");
     fetchProperty(kDeviceIface, "SupportTier");
     fetchProperty(kDeviceIface, "RuntimeCapabilities");
+    fetchProperty(kDeviceIface, "RgbController");
     fetchProperty(kSensorsIface, "EcState");
     fetchProperty(kSensorsIface, "FanRpm");
     fetchProperty(kSensorsIface, "Battery");
@@ -130,6 +131,17 @@ void CenterClient::handleJson(const QString &property, const QString &json) {
         } else if (property == "RuntimeCapabilities") {
             if (doc.isArray())
                 parseCaps(doc.array());
+        } else if (property == "RgbController") {
+            if (doc.isObject()) {
+                const QJsonObject rgb = doc.object();
+                const QString name = rgb.value("controller_name").toString();
+                const QString serial = rgb.value("controller_serial").toString();
+                m_rgbController = name.isEmpty()
+                                      ? QStringLiteral("not detected")
+                                      : (serial.isEmpty()
+                                             ? name
+                                             : QStringLiteral("%1 (%2)").arg(name, serial));
+            }
         }
     }
     emit changed();
@@ -152,6 +164,29 @@ void CenterClient::setBatteryThresholds(int start, int end) {
     callMethod(QStringLiteral("SetBatteryThresholds"),
                {QVariant::fromValue<quint8>(quint8(start)),
                 QVariant::fromValue<quint8>(quint8(end))});
+}
+
+void CenterClient::setRgbColorFromHex(int zones, const QString &hex) {
+    const QString cleaned = hex.trimmed();
+    if (cleaned.size() != 6) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("RGB: invalid color '%1'").arg(hex);
+        emit changed();
+        return;
+    }
+    bool ok = false;
+    const int value = cleaned.toInt(&ok, 16);
+    if (!ok || value < 0) {
+        m_actionError = true;
+        m_actionMessage = QStringLiteral("RGB: invalid color '%1'").arg(hex);
+        emit changed();
+        return;
+    }
+    callMethod(QStringLiteral("SetRgbColor"),
+               {QVariant::fromValue<quint8>(quint8(zones)),
+                QVariant::fromValue<quint8>(quint8((value >> 16) & 0xff)),
+                QVariant::fromValue<quint8>(quint8((value >> 8) & 0xff)),
+                QVariant::fromValue<quint8>(quint8(value & 0xff))});
 }
 
 void CenterClient::callMethod(const QString &method, const QVariantList &args) {
