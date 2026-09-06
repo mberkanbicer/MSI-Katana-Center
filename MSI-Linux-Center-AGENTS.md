@@ -1202,7 +1202,7 @@ Architecture plan: `docs/phase6-ui-design.md`; implemented in
 `crates/msicenter-ui/` (C++17 + QtDBus client, QML views). Read-only
 dashboard verified on the live daemon 2026-09-05; write controls for the
 four Phase-4 features go through the daemon's Polkit-gated methods and
-report daemon replies/refusals verbatim. Polish pass (2026-09-07+):
+report daemon replies/refusals verbatim. Polish pass (2026-09-06):
 forced Material style (`QQuickStyle::setStyle`), warm Material palette
 (amber `#E2A35B`), sidebar navigation, RGB color picker (HSL + hex) and
 effect picker (steady/breathing/cycle/wave), system tray + autostart

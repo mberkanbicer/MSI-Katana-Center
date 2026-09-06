@@ -37,6 +37,36 @@ External, cross-checked references:
   (`pwm*_auto_point*_temp/_pwm`) for WMI devices, but that support does not
   exist for this device's driver today.
 
+### Cross-check 2026-09-06 (public upstream, no writes)
+
+- `msi-ec` is **mainline since kernel 6.4**; upstream still exposes only fan
+  *modes* — the `advanced` mode is a fixed 6-level profile, not an editable
+  curve (README, checked 2026-09-06).
+- GhostDeck writes curves over MSI's own ACPI-WMI `MSI_ACPI` transport
+  (Windows `wmiacpi.sys` + vendor MOF schema, *no MSI kernel driver in the
+  path*; `docs/MSI-WMI-SCHEMA.md`); writes are volatile (reboot restores
+  firmware defaults) and the `17L5EMS1.*` family is listed as tested with an
+  editable fan curve.
+- `BeardOverflow/msi-ec` issue #80 holds a public EC memory dump for EC
+  `17L5EMS1.111` (same EC family as our `.115`): raw table bytes are
+  available for offline layout comparison before any read-only capture.
+- Katana-class curve registers documented in issue #249 (EC `17LNIMS1.505`):
+  CPU temp `0x68`, temp points `0x69–0x6F`, fan points `0x72–0x78`; GPU temp
+  `0x80`, fan points `0x8A–0x90` — consistent with the fixed G2 table
+  addresses (CPU `0x6A`/`0x72`, GPU `0x82`/`0x8A`) GhostDeck writes.
+- Third-party msi-ec forks (e.g. MsiController) already carry per-firmware
+  curve/config register sets (CONF0–CONF55), confirming the registers are
+  EC-writable on the platform family — but none is validated on our exact
+  firmware.
+- The 2025 `msi-wmi-platform` fan-curve series (`Get_Fan`/`Set_Fan`,
+  `Get_AP`/`Set_AP`, 6 auto-points) targets newer WMI-native devices (Claw
+  series), not the EC-RAM approach this device uses.
+
+Conclusion: Option A (extend `msi-ec`) remains the only Linux path that
+fits §5.1 for this EC-RAM device; the driver is in mainline, our DKMS 0.13
+matches, and `fan_mode` (0xD4) writes are already proven on this firmware —
+curve-register writability still needs a read-only capture first (§5 gates).
+
 ## 2. Concept separation (AGENTS §23)
 
 The feature must keep these distinct and never conflate them:
@@ -123,15 +153,26 @@ verification.
 
 1. Read-only EC capture of the current curve tables (GhostDeck diagnostics
    workflow, or `msi-ec` debug) to confirm layout — record as provenance.
+   The `17L5EMS1.111` dump in msi-ec issue #80 gives a public baseline for
+   the same EC family to compare against.
 2. Open/join `msi-ec` discussion about G2 fan-curve support; sketch the driver
-   feature if maintainers are receptive (Option A).
+   feature if maintainers are receptive (Option A). Upstream is mainline and
+   responsive to model-support issues; a curve feature would still need a
+   maintainer review.
 3. Revisit this document with the capture results and decide A/B/C.
 
 ## 8. Sources
 
-- GhostDeck README / `Devices.cs` / FAQ — https://github.com/wygodad/ghostdeck
-- `msi-ec` (BeardOverflow) — https://github.com/BeardOverflow/msi-ec (local
-  DKMS source `/usr/src/msi_ec-0.13/msi-ec.c`, v0.13)
+- GhostDeck README / `Devices.cs` / FAQ / `docs/MSI-WMI-SCHEMA.md` —
+  https://github.com/wygodad/ghostdeck
+- `msi-ec` (BeardOverflow; mainline ≥ 6.4) —
+  https://github.com/BeardOverflow/msi-ec (local DKMS source
+  `/usr/src/msi_ec-0.13/msi-ec.c`, v0.13); issues #80 (17L5EMS1.111 EC
+  memory dump), #249 (Katana fan-curve register map), #288 (GF66 register
+  map)
 - MControlCenter — https://github.com/mutchiko/MControlCenter
-- `msi-wmi-platform` fan-curve patch series (lkml, WMI devices)
+- MsiController fork with CONF0–CONF55 firmware configs —
+  https://github.com/AcNasDev/MsiController
+- `msi-wmi-platform` fan-curve patch series (2025, WMI-native devices) —
+  https://lore.kernel.org (LKML)
 - `MSI-Linux-Center-AGENTS.md` §23, §5.3, §35, §34
