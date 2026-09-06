@@ -400,6 +400,7 @@ void CenterClient::parseBattery(const QJsonObject &battery) {
                          QString::number(battery.value("capacity_percent").toInt()),
                          QString::number(battery.value("charge_start_percent").toInt(-1)),
                          QString::number(battery.value("charge_end_percent").toInt(-1)));
+    m_capacity = battery.value("capacity_percent").toInt(-1);
     m_chargeStart = battery.value("charge_start_percent").toInt(-1);
     m_chargeEnd = battery.value("charge_end_percent").toInt(-1);
 }

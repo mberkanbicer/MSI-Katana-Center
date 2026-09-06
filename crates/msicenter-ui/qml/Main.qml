@@ -1,284 +1,163 @@
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
+import QtQuick.Layouts
 
-Window {
+ApplicationWindow {
+    id: root
     visible: true
-    width: 640
-    height: 860
-    minimumWidth: 520
-    minimumHeight: 600
+    width: 1000
+    height: 680
+    minimumWidth: 860
+    minimumHeight: 580
     title: "MSI Linux Center"
-    color: "#181825"
+    Material.theme: Material.Dark
+    Material.accent: "#7aa2f7"
+    Material.background: "#16161e"
 
-    Flickable {
-        anchors.fill: parent
-        contentWidth: parent.width
-        contentHeight: column.implicitHeight + 32
-        clip: true
+    property int currentPage: 0
 
-        Column {
-            id: column
-            x: 16
-            y: 16
-            width: parent.parent.width - 32
-            spacing: 8
-            property int rgbZones: 15
+    // ---- Top bar ----
+    header: ToolBar {
+        Material.background: "#1a1b26"
+        implicitHeight: 56
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 20
+            anchors.rightMargin: 12
+            spacing: 12
 
-            Text {
+            Rectangle {
+                width: 10
+                height: 10
+                radius: 5
+                color: center.lastError !== ""
+                           ? "#f7768e"
+                           : (center.profileText !== ""
+                                  ? "#9ece6a"
+                                  : "#565f89")
+            }
+            Label {
                 text: "MSI Linux Center"
-                color: "#cdd6f4"
-                font.pointSize: 16
+                font.pixelSize: 16
                 font.bold: true
+                color: "#c0caf5"
             }
-            Text {
-                text: "Hardware status and gated write controls — 2 s refresh"
-                color: "#a6adc8"
-                font.pointSize: 9
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
+            Label {
+                text: "hardware management"
+                color: "#565f89"
+                font.pixelSize: 11
+                visible: root.width > 900
             }
-            Text {
-                visible: center.lastError !== ""
-                text: "Error: " + center.lastError
-                color: "#f38ba8"
-                font.pointSize: 9
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
+            Item { Layout.fillWidth: true }
 
-            // ---- Device ----
-            SectionLabel { text: "Device" }
-            KV { label: "Profile"; value: center.profileText }
-            KV { label: "Support"; value: center.supportText }
-
-            // ---- EC ----
-            SectionLabel { text: "EC" }
-            KV { label: "Firmware"; value: center.ecFirmware }
-            KV { label: "Shift mode"; value: center.ecShift }
-            KV { label: "Fan mode"; value: center.ecFanMode }
-            KV { label: "Temps"; value: center.ecTemps }
-
-            // ---- Fan RPM ----
-            SectionLabel { text: "Fan RPM" }
-            Text {
-                text: center.fanText
-                color: "#cdd6f4"
-                font.pointSize: 10
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
-
-            // ---- Battery ----
-            SectionLabel { text: "Battery" }
-            KV { label: "State"; value: center.batteryState }
-
-            // ---- Controls (write) ----
-            SectionLabel { text: "Controls (write)" }
-            Text {
-                text: "Write controls call the daemon's Polkit-gated methods. If a feature is disabled in the daemon, the refusal message appears below."
-                color: "#a6adc8"
-                font.pointSize: 9
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
-
-            KV { label: "Fan mode"; value: center.ecFanMode }
-            Row {
-                spacing: 8
-                Repeater {
-                    model: center.fanModes
-                    ActionButton {
-                        label: modelData
-                        highlighted: modelData === center.ecFanMode
-                        onClicked: center.setFanMode(modelData)
-                    }
+            Rectangle {
+                visible: center.supportText !== ""
+                radius: 9
+                color: "#7aa2f7"
+                implicitHeight: 20
+                implicitWidth: supportLabel.implicitWidth + 18
+                Label {
+                    id: supportLabel
+                    anchors.centerIn: parent
+                    text: center.supportText
+                    font.pixelSize: 11
+                    font.bold: true
+                    color: "#16161e"
                 }
             }
-
-            ActionButton {
-                label: !center.coolerBoostValid
-                           ? "Cooler Boost: unavailable"
-                           : (center.coolerBoostOn ? "Cooler Boost: turn off"
-                                                   : "Cooler Boost: turn on")
-                onClicked: center.setCoolerBoost(!center.coolerBoostOn)
+            Button {
+                text: qsTr("Refresh")
+                onClicked: center.refreshNow()
             }
-            ActionButton {
-                label: !center.superBatteryValid
-                           ? "Super Battery: unavailable"
-                           : (center.superBatteryOn ? "Super Battery: turn off"
-                                                    : "Super Battery: turn on")
-                onClicked: center.setSuperBattery(!center.superBatteryOn)
-            }
+        }
+    }
 
-            Row {
-                spacing: 8
-                Rectangle {
-                    width: 60
-                    height: 28
-                    radius: 4
-                    color: "#313244"
-                    border.color: "#585b70"
-                    TextInput {
-                        id: limitStart
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        color: "#cdd6f4"
-                        font.pointSize: 10
-                        inputMethodHints: Qt.ImhDigitsOnly
-                        text: center.chargeStartPercent >= 0
-                                  ? center.chargeStartPercent : ""
+    // ---- Global action banner ----
+    Rectangle {
+        id: banner
+        visible: center.actionMessage !== ""
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: visible ? 34 : 0
+        color: center.actionError ? "#3b1d24" : "#1c3526"
+        Label {
+            anchors.fill: parent
+            anchors.margins: 8
+            text: (center.actionError ? "✗ " : "✓ ") + center.actionMessage
+            color: center.actionError ? "#f7768e" : "#9ece6a"
+            font.pixelSize: 12
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+    }
+
+    // ---- Body ----
+    RowLayout {
+        anchors.fill: parent
+        anchors.topMargin: banner.height
+        spacing: 0
+
+        // Sidebar
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 210
+            color: "#1a1b26"
+            ListView {
+                id: nav
+                anchors.fill: parent
+                anchors.topMargin: 10
+                anchors.bottomMargin: 10
+                model: ["Overview", "Power & Fans", "Battery",
+                        "Keyboard RGB", "Scenes", "Diagnostics"]
+                currentIndex: root.currentPage
+                onCurrentIndexChanged: root.currentPage = currentIndex
+                delegate: ItemDelegate {
+                    required property string modelData
+                    required property int index
+                    width: nav.width - 12
+                    height: 40
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    highlighted: ListView.isCurrentItem
+                    text: modelData
+                    onClicked: nav.currentIndex = index
+                    contentItem: Label {
+                        text: parent.text
+                        color: parent.highlighted ? "#7aa2f7" : "#a9b1d6"
+                        font.pixelSize: 13
+                        font.bold: parent.highlighted
                         verticalAlignment: Text.AlignVCenter
+                        leftPadding: 14
+                    }
+                    background: Rectangle {
+                        radius: 6
+                        color: parent.highlighted ? "#24283b" : "transparent"
                     }
                 }
-                Text {
-                    text: "to"
-                    color: "#a6adc8"
-                    font.pointSize: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Rectangle {
-                    width: 60
-                    height: 28
-                    radius: 4
-                    color: "#313244"
-                    border.color: "#585b70"
-                    TextInput {
-                        id: limitEnd
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        color: "#cdd6f4"
-                        font.pointSize: 10
-                        inputMethodHints: Qt.ImhDigitsOnly
-                        text: center.chargeEndPercent >= 0
-                                  ? center.chargeEndPercent : ""
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-                ActionButton {
-                    label: "Apply limits"
-                    onClicked: center.setBatteryThresholds(
-                                   parseInt(limitStart.text, 10),
-                                   parseInt(limitEnd.text, 10))
-                }
             }
+        }
 
-            // ---- RGB (non-persistent) ----
-            SectionLabel { text: "RGB keyboard" }
-            KV { label: "Controller"; value: center.rgbControllerText }
-            Row {
-                spacing: 6
-                ActionButton {
-                    label: "All zones"
-                    highlighted: column.rgbZones === 15
-                    onClicked: column.rgbZones = 15
-                }
-                ActionButton {
-                    label: "Zone 1"
-                    highlighted: column.rgbZones === 1
-                    onClicked: column.rgbZones = 1
-                }
-                ActionButton {
-                    label: "Zone 2"
-                    highlighted: column.rgbZones === 2
-                    onClicked: column.rgbZones = 2
-                }
-                ActionButton {
-                    label: "Zone 3"
-                    highlighted: column.rgbZones === 4
-                    onClicked: column.rgbZones = 4
-                }
-                ActionButton {
-                    label: "Zone 4"
-                    highlighted: column.rgbZones === 8
-                    onClicked: column.rgbZones = 8
-                }
-            }
-            Text {
-                text: "Colors (steady, non-persistent)"
-                color: "#a6adc8"
-                font.pointSize: 9
-            }
-            Row {
-                spacing: 6
-                ActionButton {
-                    label: "Red"
-                    onClicked: center.setRgbColorFromHex(column.rgbZones, "ff0000")
-                }
-                ActionButton {
-                    label: "Green"
-                    onClicked: center.setRgbColorFromHex(column.rgbZones, "00ff00")
-                }
-                ActionButton {
-                    label: "Blue"
-                    onClicked: center.setRgbColorFromHex(column.rgbZones, "0000ff")
-                }
-                ActionButton {
-                    label: "Yellow"
-                    onClicked: center.setRgbColorFromHex(column.rgbZones, "ffff00")
-                }
-                ActionButton {
-                    label: "White"
-                    onClicked: center.setRgbColorFromHex(column.rgbZones, "ffffff")
-                }
-                ActionButton {
-                    label: "Off"
-                    onClicked: center.setRgbColorFromHex(column.rgbZones, "000000")
-                }
-            }
-            Text {
-                text: "Effects: use 'msicenter rgb-effect' in a terminal for now"
-                color: "#585b70"
-                font.pointSize: 8
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 1
+            color: "#3b3b4a"
+        }
 
-            // ---- Scenes (Phase 8) ----
-            SectionLabel { text: "Scenes" }
-            Text {
-                text: "From ~/.config/msi-linux-center/scenes.json — sequential gated writes"
-                color: "#a6adc8"
-                font.pointSize: 8
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
-            Row {
-                spacing: 6
-                Repeater {
-                    model: center.sceneNames
-                    ActionButton {
-                        label: modelData
-                        onClicked: center.applyScene(modelData)
-                    }
-                }
-                ActionButton {
-                    label: "Reload"
-                    onClicked: center.reloadScenes()
-                }
-            }
-            Text {
-                visible: center.sceneResultText !== ""
-                text: center.sceneResultText
-                color: "#a6e3a1"
-                font.pointSize: 9
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
-
-            // ---- Action result ----
-            Text {
-                visible: center.actionMessage !== ""
-                text: center.actionError ? "✗ " + center.actionMessage
-                                         : "✓ " + center.actionMessage
-                color: center.actionError ? "#f38ba8" : "#a6e3a1"
-                font.pointSize: 9
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width
-            }
-
-            Item { width: 1; height: 6 }
-            Row {
-                spacing: 8
-                ActionButton { label: "Refresh now"; onClicked: center.refreshNow() }
+        // Pages
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            color: Material.background
+            StackLayout {
+                anchors.fill: parent
+                currentIndex: root.currentPage
+                OverviewPage {}
+                PowerPage {}
+                BatteryPage {}
+                RgbPage {}
+                ScenesPage {}
+                DiagnosticsPage {}
             }
         }
     }

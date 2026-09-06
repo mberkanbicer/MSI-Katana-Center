@@ -31,6 +31,7 @@ class CenterClient : public QObject {
     Q_PROPERTY(QString ecTemps READ ecTemps NOTIFY changed)
     Q_PROPERTY(QString fanText READ fanText NOTIFY changed)
     Q_PROPERTY(QString batteryState READ batteryState NOTIFY changed)
+    Q_PROPERTY(int capacityPercent READ capacityPercent NOTIFY changed)
     Q_PROPERTY(int chargeStartPercent READ chargeStartPercent NOTIFY changed)
     Q_PROPERTY(int chargeEndPercent READ chargeEndPercent NOTIFY changed)
     Q_PROPERTY(QString capsText READ capsText NOTIFY changed)
@@ -58,6 +59,7 @@ public:
     QString ecTemps() const { return m_ecTemps; }
     QString fanText() const { return m_fanText; }
     QString batteryState() const { return m_battery; }
+    int capacityPercent() const { return m_capacity; }
     int chargeStartPercent() const { return m_chargeStart; }
     int chargeEndPercent() const { return m_chargeEnd; }
     QString capsText() const { return m_caps; }
@@ -122,6 +124,7 @@ private:
     QString m_ecTemps;
     QString m_fanText;
     QString m_battery;
+    int m_capacity = -1;
     int m_chargeStart = -1;
     int m_chargeEnd = -1;
     QString m_caps;
