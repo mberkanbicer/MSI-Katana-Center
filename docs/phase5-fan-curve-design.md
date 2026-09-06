@@ -411,3 +411,41 @@ writes for a curve, including any trailing/checksum bytes) and the msi-ec
 issue #80 comments (maintainer's row annotations). Only after that and an
 explicit user go-ahead does a minimal one-point write test (§35 gates)
 become eligible.
+
+## 10.10 GhostDeck per-model spec (same laptop) — speed tables only
+
+GhostDeck `data/models.json` model 12 covers this laptop (Pulse/Katana 17
+B13V/GK, prefix `17L5EMS1`, tier Tested, credit eaglent1, issue #38):
+
+- `fanCurve`: `cpuTempBase 0x69`, `cpuSpeedBase 0x72`, `gpuTempBase 0x81`,
+  `gpuSpeedBase 0x8A`, `points 6`, `verified true`, `singleFan false`,
+  `advancedModeValue 0x8D`.
+- Applying a curve writes the **two 6-point speed tables** and sets
+  `0xD4 = 0x8D` (Advanced); temperature nodes stay at the EC's fixed
+  defaults (docs/FAN-CURVE.md: "Temperature nodes are fixed the way MSI
+  Center fixes them; the page edits speeds").
+- Speed values clamp to the model's `MaxFanPct` (150 on the modern
+  family) and must be non-decreasing; no dips allowed.
+- No checksum/trailer byte is documented for the curve write, and
+  GhostDeck does no read-back verification (profile bytes are dynamic).
+- Extra per-model facts: tachometer words `cpuRpmAddr16 0xC8` /
+  `gpuRpmAddr16 0xCA`; recipes: Balanced `0xD4=0x0D`, Silent `0xD4=0x1D`,
+  Extreme shift `0xD2=0xC4`, SuperBattery `0xEB=0x0F`.
+
+Alignment with our dumps (6-point read, values in decimal):
+
+    CPU temps 0x69-0x6E:  0, 55, 64, 73, 76, 82   (0x69=0 slot unused?)
+    CPU speeds 0x72-0x77: 0, 43, 48, 54, 60, 75   (0x72=0 slot unused?)
+    GPU temps 0x81-0x86:  0, 55, 61, 67, 73, 79
+    GPU speeds 0x8A-0x8F: 0, 43, 48, 54, 60, 75
+    Trailing bytes (0x6F/0x70 = 88,100; 0x78/0x79 = 85,100; 0x87/0x88 =
+    83,99; 0x90/0x91 = 85,100) hold what look like the same families'
+    next nodes / terminal values.
+
+Status of the write gates: the remaining unknowns for a *direct EC byte*
+write are the role of the 0-byte first slots (0x69/0x72/0x81/0x8A), the
+trailing nodes, and `0x9E`. GhostDeck writes through the WMI `Set_Data`
+channel, where the EC itself applies the tables, so those unknowns never
+surface there; any msi-ec (raw EC) implementation must resolve them first
+or restrict itself to byte ranges proven by read-back after a consent-
+gated single-point experiment (§35).
