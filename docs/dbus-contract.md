@@ -34,6 +34,7 @@ Methods:
 - `SetFanMode(mode)` requires exact verified firmware and the `msi-ec` backend, restricts `mode` to the driver's `available_fan_modes`, obtains Polkit authorization, writes, reads back the applied value, and restores the previous mode on write or verification failure.
 - `SetCoolerBoost(enabled)` requires exact verified firmware and the `msi-ec` backend, obtains Polkit authorization, writes `on`/`off`, reads back the applied value, and restores the previous state on write or verification failure.
 - `SetSuperBattery(enabled)` requires exact verified firmware and the `msi-ec` backend, obtains Polkit authorization, writes `on`/`off`, reads back the applied value, and restores the previous state on write or verification failure.
+- `SetRgbColor(zones, r, g, b)` requires a profile with a declared RGB controller and the detected USB backend, obtains Polkit authorization, and sends a **non-persistent** steady color (zone select + effect feature reports). No flash-save is ever sent; there is no read-back on this device, so verification is visual.
 
 Signals:
 
@@ -54,6 +55,11 @@ Fan-mode writes follow the same pattern with `MSI_LINUX_CENTER_ENABLE_FAN_MODE_W
 Cooler Boost follows the same pattern with `MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1` and the Polkit action `org.msilinux.Center.set-cooler-boost`. The daemon restores the previous state on write or verification failure. Physically verified on 2026-09-05.
 
 Super Battery follows the same pattern with `MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES=1` and the Polkit action `org.msilinux.Center.set-super-battery`. The daemon restores the previous state on write or verification failure. Physically verified on 2026-09-05.
+
+RGB color follows the Phase 7 pattern with `MSI_LINUX_CENTER_ENABLE_RGB_WRITES=1`
+and the Polkit action `org.msilinux.Center.set-rgb-color`. It sends a
+non-persistent steady color to the declared MysticLight controller over
+usbfs; flash-save (0xA0) is never sent. Physical verification is pending.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 

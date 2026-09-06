@@ -1213,7 +1213,10 @@ hidapi with libusb backend from the root daemon (no hidraw on this kernel;
 system libusb/hidapi present; same path OpenRGB uses). Protocol notes:
 `docs/phase7-rgb-protocol.md`. Packet builder implemented and unit-tested
 (no device writes): `msi-hardware::rgb` (zone-select + set-effect packets,
-validation, keyframe cap 10).
+validation, keyframe cap 10). Daemon usbfs probe verified on hardware
+2026-09-06 (serial 4062C8A28000). Gated non-persistent `SetRgbColor` write
+path implemented; physical validation pending
+(`docs/phase7-rgb-validation.md`).
 
 ## Phase 8
 

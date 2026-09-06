@@ -97,6 +97,86 @@ pub struct RgbControllerInfo {
     pub serial: Option<String>,
 }
 
+#[derive(Debug)]
+pub enum RgbSendError {
+    InvalidZones(u8),
+    NotFound,
+    Open(hidapi::HidError),
+    Send(hidapi::HidError),
+}
+
+impl std::fmt::Display for RgbSendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidZones(zones) => {
+                write!(
+                    f,
+                    "invalid RGB zone mask {zones:#04x}; only bits 0-3 are valid"
+                )
+            }
+            Self::NotFound => write!(f, "RGB controller not found"),
+            Self::Open(error) => write!(f, "RGB controller open error: {error}"),
+            Self::Send(error) => write!(f, "RGB feature report send error: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for RgbSendError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Open(error) | Self::Send(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+/// Opens the HID controller with the given vendor/product ids.
+fn open_rgb_controller(vendor_id: u16, product_id: u16) -> Result<hidapi::HidDevice, RgbSendError> {
+    use hidapi::HidApi;
+
+    let api = HidApi::new().map_err(RgbSendError::Open)?;
+    for device in api.device_list() {
+        if device.vendor_id() == vendor_id && device.product_id() == product_id {
+            return device.open_device(&api).map_err(RgbSendError::Open);
+        }
+    }
+    Err(RgbSendError::NotFound)
+}
+
+/// Sends a **non-persistent** steady color to the selected zones.
+///
+/// Two 64-byte feature reports: zone select, then a steady effect with a
+/// single color keyframe. No flash-save (0xA0) is ever sent (AGENTS §24).
+/// There is no read-back for this device; physical verification is visual.
+pub fn send_steady_color(
+    vendor_id: u16,
+    product_id: u16,
+    zones: u8,
+    r: u8,
+    g: u8,
+    b: u8,
+) -> Result<(), RgbSendError> {
+    let select = zone_select_packet(zones).map_err(|error| match error {
+        RgbPacketError::InvalidZones(zones) => RgbSendError::InvalidZones(zones),
+        _ => unreachable!("zone_select_packet only fails on invalid zones"),
+    })?;
+    let effect = effect_packet(
+        EFFECT_STEADY,
+        300,
+        WAVE_LEFT_TO_RIGHT,
+        &[RgbKeyframe { time: 0, r, g, b }],
+    )
+    .expect("steady single-keyframe packet is always valid");
+
+    let device = open_rgb_controller(vendor_id, product_id)?;
+    device
+        .send_feature_report(&select)
+        .map_err(RgbSendError::Send)?;
+    device
+        .send_feature_report(&effect)
+        .map_err(RgbSendError::Send)
+}
+
 /// Opens the HID controller with the given vendor/product ids and reads its
 /// product and serial strings. Read-only: no feature report is sent.
 /// Requires usbfs access (root, or udev rules) — the daemon runs as root.

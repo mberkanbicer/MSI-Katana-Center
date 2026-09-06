@@ -1,7 +1,7 @@
 use msi_core::SystemStatus;
 use msi_dbus::{
     collect_status, request_battery_thresholds, request_cooler_boost, request_fan_mode,
-    request_super_battery,
+    request_rgb_color, request_super_battery,
 };
 use std::process::ExitCode;
 
@@ -66,6 +66,24 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             };
             println!("{}", request_super_battery(enabled)?);
         }
+        "rgb-color" => {
+            if args.len() != 3 {
+                return Err("usage: msicenter rgb-color ZONE_MASK RRGGBB (non-persistent)".into());
+            }
+            let zones = u8::from_str_radix(&args[1], 16)
+                .map_err(|_| format!("invalid zone mask: {}", args[1]))?;
+            let color = args[2].as_bytes();
+            if color.len() != 6 || !color.iter().all(u8::is_ascii_hexdigit) {
+                return Err(format!("invalid color: {} (expected RRGGBB)", args[2]).into());
+            }
+            let channel = |range: std::ops::Range<usize>| {
+                u8::from_str_radix(&args[2][range], 16).expect("validated hex")
+            };
+            println!(
+                "{}",
+                request_rgb_color(zones, channel(0..2), channel(2..4), channel(4..6))?
+            );
+        }
         "version" | "--version" | "-V" => {
             println!("msicenter {}", env!("CARGO_PKG_VERSION"));
         }
@@ -86,6 +104,7 @@ fn print_help() {
     println!("  msicenter fan-mode MODE");
     println!("  msicenter cooler-boost on|off");
     println!("  msicenter super-battery on|off");
+    println!("  msicenter rgb-color ZONE_MASK RRGGBB  (non-persistent)");
     println!("  msicenter --version");
     println!();
     println!("Testing:");
