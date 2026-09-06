@@ -33,7 +33,32 @@ static QIcon makeTrayIcon() {
 
 // Quick actions below only trigger the same Polkit-gated daemon methods as
 // the UI pages; opt-in/firmware gates and Polkit prompts still apply.
-struct QuickActions {
+struct TrayStatus {
+    QAction *line = nullptr;
+
+    void refresh(CenterClient *client) {
+        if (!line)
+            return;
+        const QStringList parts = {
+            QStringLiteral("fan %1").arg(client->ecFanMode()),
+            QStringLiteral("cb %1").arg(client->coolerBoostValid()
+                                            ? (client->coolerBoostOn()
+                                                   ? QStringLiteral("on")
+                                                   : QStringLiteral("off"))
+                                            : QStringLiteral("n/a")),
+            QStringLiteral("sb %1").arg(client->superBatteryValid()
+                                            ? (client->superBatteryOn()
+                                                   ? QStringLiteral("on")
+                                                   : QStringLiteral("off"))
+                                            : QStringLiteral("n/a"))};
+        QString battery = QStringLiteral("bat n/a");
+        if (client->capacityPercent() >= 0)
+            battery = QStringLiteral("bat %1%").arg(client->capacityPercent());
+        line->setText(parts.join(QStringLiteral(" · ")) + QStringLiteral(" · ") + battery);
+    }
+};
+
+    struct QuickActions {
     QMenu *fanMenu = nullptr;
     QAction *coolerBoostOn = nullptr;
     QAction *coolerBoostOff = nullptr;
@@ -91,6 +116,10 @@ int main(int argc, char *argv[]) {
         tray.setIcon(makeTrayIcon());
         tray.setToolTip(QStringLiteral("MSI Linux Center"));
         QMenu *menu = new QMenu();
+        TrayStatus trayStatus;
+        trayStatus.line = menu->addAction(QStringLiteral("connecting…"));
+        trayStatus.line->setEnabled(false);
+        menu->addSeparator();
         QAction *toggleAction = menu->addAction(QStringLiteral("Show / Hide"));
         QAction *refreshAction = menu->addAction(QStringLiteral("Refresh"));
 
@@ -114,7 +143,11 @@ int main(int argc, char *argv[]) {
                              [&client, enabled] { client.setSuperBattery(enabled); });
         }
         QObject::connect(&client, &CenterClient::changed, &client,
-                         [&quick, &client] { quick.refresh(&client); });
+                         [&quick, &client, &trayStatus, &tray] {
+                             trayStatus.refresh(&client);
+                             tray.setToolTip(trayStatus.line->text());
+                             quick.refresh(&client);
+                         });
 
         menu->addSeparator();
         QAction *quitAction = menu->addAction(QStringLiteral("Quit"));
