@@ -16,21 +16,21 @@ ScrollView {
             text: "Power & Fans"
             font.pixelSize: 22
             font.bold: true
-            color: "#c0caf5"
+            color: "#E8DCCB"
         }
 
         Rectangle {
             width: parent.width
             radius: 10
-            color: "#1f2335"
-            border.color: "#2a2f45"
+            color: "#292420"
+            border.color: "#3A332B"
             border.width: 1
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 18
                 spacing: 14
 
-                Label { text: "Fan mode"; color: "#565f89"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Fan mode"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
                 Row {
                     spacing: 8
                     ButtonGroup { id: fanGroup }
@@ -49,7 +49,7 @@ ScrollView {
                 Label {
                     text: "Currently: " + (center.ecFanMode !== "" ? center.ecFanMode
                                                                   : "unavailable")
-                    color: "#a9b1d6"
+                    color: "#B5A896"
                     font.pixelSize: 12
                 }
             }
@@ -59,8 +59,8 @@ ScrollView {
         Rectangle {
             width: parent.width
             radius: 10
-            color: "#1f2335"
-            border.color: "#2a2f45"
+            color: "#292420"
+            border.color: "#3A332B"
             border.width: 1
             ColumnLayout {
                 anchors.fill: parent
@@ -75,7 +75,7 @@ ScrollView {
                 }
                 Label {
                     text: "Maximum fan speed on request. Polkit prompt follows."
-                    color: "#565f89"; font.pixelSize: 10
+                    color: "#8C7F6F"; font.pixelSize: 10
                 }
                 Switch {
                     text: "Super Battery"
@@ -85,7 +85,7 @@ ScrollView {
                 }
                 Label {
                     text: "Battery preservation mode. Polkit prompt follows."
-                    color: "#565f89"; font.pixelSize: 10
+                    color: "#8C7F6F"; font.pixelSize: 10
                 }
             }
             implicitHeight: 170
@@ -94,7 +94,7 @@ ScrollView {
         Label {
             text: "Every write is gated daemon-side: per-feature opt-in, exact verified firmware and Polkit. "
                   + "When an opt-in is off, the refusal appears in the banner above."
-            color: "#565f89"
+            color: "#8C7F6F"
             font.pixelSize: 11
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             width: parent.width

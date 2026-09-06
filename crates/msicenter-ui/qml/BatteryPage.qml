@@ -16,14 +16,14 @@ ScrollView {
             text: "Battery"
             font.pixelSize: 22
             font.bold: true
-            color: "#c0caf5"
+            color: "#E8DCCB"
         }
 
         Rectangle {
             width: parent.width
             radius: 10
-            color: "#1f2335"
-            border.color: "#2a2f45"
+            color: "#292420"
+            border.color: "#3A332B"
             border.width: 1
             ColumnLayout {
                 anchors.fill: parent
@@ -32,7 +32,7 @@ ScrollView {
 
                 Label {
                     text: center.batteryState !== "" ? center.batteryState : "unavailable"
-                    color: "#c0caf5"
+                    color: "#E8DCCB"
                     font.pixelSize: 15
                     font.bold: true
                 }
@@ -50,15 +50,15 @@ ScrollView {
         Rectangle {
             width: parent.width
             radius: 10
-            color: "#1f2335"
-            border.color: "#2a2f45"
+            color: "#292420"
+            border.color: "#3A332B"
             border.width: 1
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 18
                 spacing: 14
 
-                Label { text: "Charge limits"; color: "#565f89"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Charge limits"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
 
                 RowLayout {
                     width: parent.width
@@ -71,7 +71,7 @@ ScrollView {
                         value: center.chargeStartPercent >= 0 ? center.chargeStartPercent : 80
                         editable: true
                     }
-                    Label { text: "to"; color: "#565f89" }
+                    Label { text: "to"; color: "#8C7F6F" }
                     SpinBox {
                         id: endBox
                         from: startBox.value + 1
@@ -94,7 +94,7 @@ ScrollView {
                                  ? center.chargeEndPercent
                                  : "?")
                           + "%"
-                    color: "#a9b1d6"
+                    color: "#B5A896"
                     font.pixelSize: 12
                 }
             }

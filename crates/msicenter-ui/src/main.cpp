@@ -4,11 +4,13 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QGuiApplication>
+#include <QQuickStyle>
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("msicenter-ui"));
     app.setApplicationDisplayName(QStringLiteral("MSI Linux Center"));
+    QQuickStyle::setStyle(QStringLiteral("Material"));
 
     CenterClient client;
     qInfo().noquote() << "msicenter-ui starting";

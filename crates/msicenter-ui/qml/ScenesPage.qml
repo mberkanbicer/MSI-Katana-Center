@@ -18,15 +18,15 @@ ScrollView {
             text: "Scenes"
             font.pixelSize: 22
             font.bold: true
-            color: "#c0caf5"
+            color: "#E8DCCB"
         }
 
         Rectangle {
             width: parent.width
             Layout.preferredHeight: Math.min(280, 48 * Math.max(center.sceneNames.length, 1))
             radius: 10
-            color: "#1f2335"
-            border.color: "#2a2f45"
+            color: "#292420"
+            border.color: "#3A332B"
             border.width: 1
             clip: true
 
@@ -47,7 +47,7 @@ ScrollView {
                     onClicked: sceneList.currentIndex = index
                     contentItem: Label {
                         text: parent.text
-                        color: parent.highlighted ? "#7aa2f7" : "#c0caf5"
+                        color: parent.highlighted ? "#E2A35B" : "#E8DCCB"
                         font.pixelSize: 13
                         font.bold: parent.highlighted
                         verticalAlignment: Text.AlignVCenter
@@ -55,7 +55,7 @@ ScrollView {
                     }
                     background: Rectangle {
                         radius: 6
-                        color: parent.highlighted ? "#2a2f45" : "transparent"
+                        color: parent.highlighted ? "#3A332B" : "transparent"
                     }
                 }
                 Label {
@@ -63,7 +63,7 @@ ScrollView {
                     visible: sceneList.count === 0
                     text: "No scenes yet — create ~/.config/msi-linux-center/scenes.json\n"
                           + "and press Reload. See docs/phase8-scenes-design.md."
-                    color: "#565f89"
+                    color: "#8C7F6F"
                     horizontalAlignment: Text.AlignHCenter
                 }
             }
@@ -91,7 +91,7 @@ ScrollView {
             visible: center.sceneResultText !== ""
             width: parent.width
             radius: 10
-            color: "#1c3526"
+            color: "#2C3220"
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 14
@@ -101,7 +101,7 @@ ScrollView {
                     Label {
                         required property string modelData
                         text: modelData
-                        color: modelData.startsWith("FAIL") ? "#f7768e" : "#9ece6a"
+                        color: modelData.startsWith("FAIL") ? "#DD6B58" : "#A9BA7C"
                         font.pixelSize: 12
                         font.family: "monospace"
                     }
@@ -114,7 +114,7 @@ ScrollView {
             text: "Scenes apply the same daemon-gated writes as the individual controls; "
                   + "settings whose opt-in is off are reported and skipped. RGB is never "
                   + "persisted by a scene."
-            color: "#565f89"
+            color: "#8C7F6F"
             font.pixelSize: 11
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             width: parent.width

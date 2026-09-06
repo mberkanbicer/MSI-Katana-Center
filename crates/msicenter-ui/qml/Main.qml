@@ -12,14 +12,15 @@ ApplicationWindow {
     minimumHeight: 580
     title: "MSI Linux Center"
     Material.theme: Material.Dark
-    Material.accent: "#7aa2f7"
-    Material.background: "#16161e"
+    Material.primary: "#E2A35B"
+    Material.accent: "#E2A35B"
+    Material.background: "#1B1815"
 
     property int currentPage: 0
 
     // ---- Top bar ----
     header: ToolBar {
-        Material.background: "#1a1b26"
+        Material.background: "#201C17"
         implicitHeight: 56
         RowLayout {
             anchors.fill: parent
@@ -32,20 +33,20 @@ ApplicationWindow {
                 height: 10
                 radius: 5
                 color: center.lastError !== ""
-                           ? "#f7768e"
+                           ? "#DD6B58"
                            : (center.profileText !== ""
-                                  ? "#9ece6a"
-                                  : "#565f89")
+                                  ? "#A9BA7C"
+                                  : "#8C7F6F")
             }
             Label {
                 text: "MSI Linux Center"
                 font.pixelSize: 16
                 font.bold: true
-                color: "#c0caf5"
+                color: "#E8DCCB"
             }
             Label {
                 text: "hardware management"
-                color: "#565f89"
+                color: "#8C7F6F"
                 font.pixelSize: 11
                 visible: root.width > 900
             }
@@ -54,7 +55,7 @@ ApplicationWindow {
             Rectangle {
                 visible: center.supportText !== ""
                 radius: 9
-                color: "#7aa2f7"
+                color: "#E2A35B"
                 implicitHeight: 20
                 implicitWidth: supportLabel.implicitWidth + 18
                 Label {
@@ -63,7 +64,7 @@ ApplicationWindow {
                     text: center.supportText
                     font.pixelSize: 11
                     font.bold: true
-                    color: "#16161e"
+                    color: "#1B1815"
                 }
             }
             Button {
@@ -81,12 +82,12 @@ ApplicationWindow {
         anchors.left: parent.left
         anchors.right: parent.right
         height: visible ? 34 : 0
-        color: center.actionError ? "#3b1d24" : "#1c3526"
+        color: center.actionError ? "#3B241D" : "#2C3220"
         Label {
             anchors.fill: parent
             anchors.margins: 8
             text: (center.actionError ? "✗ " : "✓ ") + center.actionMessage
-            color: center.actionError ? "#f7768e" : "#9ece6a"
+            color: center.actionError ? "#DD6B58" : "#A9BA7C"
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -103,7 +104,7 @@ ApplicationWindow {
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 210
-            color: "#1a1b26"
+            color: "#201C17"
             ListView {
                 id: nav
                 anchors.fill: parent
@@ -124,7 +125,7 @@ ApplicationWindow {
                     onClicked: nav.currentIndex = index
                     contentItem: Label {
                         text: parent.text
-                        color: parent.highlighted ? "#7aa2f7" : "#a9b1d6"
+                        color: parent.highlighted ? "#E2A35B" : "#B5A896"
                         font.pixelSize: 13
                         font.bold: parent.highlighted
                         verticalAlignment: Text.AlignVCenter
@@ -132,7 +133,7 @@ ApplicationWindow {
                     }
                     background: Rectangle {
                         radius: 6
-                        color: parent.highlighted ? "#24283b" : "transparent"
+                        color: parent.highlighted ? "#332D26" : "transparent"
                     }
                 }
             }
@@ -141,7 +142,7 @@ ApplicationWindow {
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            color: "#3b3b4a"
+            color: "#4A4237"
         }
 
         // Pages

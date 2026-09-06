@@ -11,8 +11,8 @@ Rectangle {
     Layout.fillWidth: true
     implicitHeight: 96
     radius: 10
-    color: "#1f2335"
-    border.color: "#2a2f45"
+    color: "#292420"
+    border.color: "#3A332B"
     border.width: 1
 
     ColumnLayout {
@@ -22,13 +22,13 @@ Rectangle {
 
         Label {
             text: card.title
-            color: "#565f89"
+            color: "#8C7F6F"
             font.pixelSize: 11
             font.bold: true
         }
         Label {
             text: card.value
-            color: "#c0caf5"
+            color: "#E8DCCB"
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -37,7 +37,7 @@ Rectangle {
         Label {
             visible: card.footnote !== ""
             text: card.footnote
-            color: "#565f89"
+            color: "#8C7F6F"
             font.pixelSize: 10
             elide: Text.ElideRight
             Layout.fillWidth: true

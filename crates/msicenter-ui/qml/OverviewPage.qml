@@ -16,33 +16,33 @@ ScrollView {
             text: "Overview"
             font.pixelSize: 22
             font.bold: true
-            color: "#c0caf5"
+            color: "#E8DCCB"
         }
 
         // Device card
         Rectangle {
             width: parent.width
             radius: 10
-            color: "#1f2335"
-            border.color: "#2a2f45"
+            color: "#292420"
+            border.color: "#3A332B"
             border.width: 1
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 4
-                Label { text: "Device"; color: "#565f89"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Device"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
                 Label {
                     text: center.profileText !== ""
                               ? "Matched: " + center.profileText
                               : "No device profile matched"
-                    color: "#c0caf5"; font.pixelSize: 14; font.bold: true
+                    color: "#E8DCCB"; font.pixelSize: 14; font.bold: true
                 }
                 Label {
                     text: "EC firmware: " + (center.ecFirmware !== ""
                                              ? center.ecFirmware
                                              : "unavailable")
                           + (center.ecShift !== "" ? "   ·   shift: " + center.ecShift : "")
-                    color: "#a9b1d6"; font.pixelSize: 12
+                    color: "#B5A896"; font.pixelSize: 12
                 }
             }
             implicitHeight: 92
