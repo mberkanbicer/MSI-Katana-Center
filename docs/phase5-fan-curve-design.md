@@ -332,3 +332,39 @@ If the candidate runs at `0x6A-0x70` / `0x82-0x88` (and/or
 `0x73-0x79` / `0x8B-0x91`) change per mode, Option A must model
 per-mode tables; if they stay constant, a single curve family is active
 in `auto`/`advanced` and the design simplifies accordingly.
+
+## 10.7 Driver config cross-check (msi-ec 0.13 source, /usr/src/msi_ec-0.13)
+
+`CONF_G2_10` in `msi-ec.c` covers `17L5EMS1.111/.113/.115` (+ G2_10
+family) and declares exactly the live registers observed:
+
+- CPU `rt_temp_address = 0x68`, `rt_fan_speed_address = 0x71`
+- GPU `rt_temp_address = 0x80`, `rt_fan_speed_address = 0x89`
+- `fan_mode.address = 0xd4`, modes `auto 0x0d`, `silent 0x1d`,
+  `advanced 0x8d` (matches the values seen in earlier status runs)
+- `cooler_boost.address = 0x98` (bit 7) — note: 0x98 sits inside the
+  GPU-region dump; our captures show `0x98 = 0x06` (bit 7 clear, CB off)
+
+So the live-byte map of §10.3 is the driver's own map, not a guess.
+Open follow-up from the last capture: status reported `gpu_fan_level
+48` while the paired dump (taken a few seconds earlier) still showed
+`0x89 = 0x00` — plausibly a timing ramp, but it must be confirmed with a
+same-instant dump+status pair (and once more under load) before 0x89 is
+trusted as the GPU fan byte on this firmware.
+
+## 10.8 Next capture round (single combined command)
+
+Run this twice — (a) idle now, (b) under a light CPU load for ~30-60 s
+(e.g. `cargo build` or a `yes > /dev/null` background job) — while the
+fan-mode opt-in override of §10.6 is active, then again after switching
+`advanced` and `silent`:
+
+    sudo dd if=/sys/kernel/debug/ec/ec0/io bs=1 skip=$((0x60)) count=$((0x20)) status=none | xxd -g1
+    sudo dd if=/sys/kernel/debug/ec/ec0/io bs=1 skip=$((0x80)) count=$((0x20)) status=none | xxd -g1
+    msicenter status --json
+
+Same-instant pairs answer: (1) does `0x89` track `gpu_fan_level`
+(including the 0→48 case); (2) do the candidate table runs swap between
+`auto` / `advanced` / `silent`; (3) how do `0x68`/`0x71`/`0x80`/`0x89`
+move under load (load soak for the write-verification protocol later).
+Remove the override and restart the daemon afterwards (§10.6).
