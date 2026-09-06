@@ -25,6 +25,7 @@ Rectangle {
             color: "#8C7F6F"
             font.pixelSize: 11
             font.bold: true
+            Layout.minimumWidth: 0
         }
         Label {
             text: card.value
@@ -33,6 +34,7 @@ Rectangle {
             font.bold: true
             elide: Text.ElideRight
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
         }
         Label {
             visible: card.footnote !== ""
@@ -41,6 +43,7 @@ Rectangle {
             font.pixelSize: 10
             elide: Text.ElideRight
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
         }
     }
 }

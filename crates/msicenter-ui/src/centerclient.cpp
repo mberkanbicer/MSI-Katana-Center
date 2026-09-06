@@ -377,9 +377,13 @@ void CenterClient::parseEc(const QJsonObject &ec) {
     m_superBattery = superBattery.toBool(false);
     const int cpu = ec.value("cpu_temperature_c").toInt(-1);
     const int gpu = ec.value("gpu_temperature_c").toInt(-1);
-    m_ecTemps = QStringLiteral("%1 °C / %2 °C (cpu/gpu)")
-                    .arg(cpu >= 0 ? QString::number(cpu) : QStringLiteral("?"),
-                         gpu >= 0 ? QString::number(gpu) : QStringLiteral("?"));
+    // 0 or missing means the sensor is not readable (e.g. the dGPU is
+    // powered off); show n/a instead of an impossible 0 C.
+    auto temp = [](int value) {
+        return value > 0 ? QStringLiteral("%1 °C").arg(value)
+                         : QStringLiteral("n/a");
+    };
+    m_ecTemps = QStringLiteral("%1 / %2 (cpu / gpu)").arg(temp(cpu), temp(gpu));
 }
 
 void CenterClient::parseFans(const QJsonArray &fans) {

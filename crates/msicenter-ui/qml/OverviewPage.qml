@@ -49,7 +49,7 @@ ScrollView {
         }
 
         GridLayout {
-            columns: 2
+            columns: page.availableWidth > 520 ? 2 : 1
             columnSpacing: 14
             rowSpacing: 14
             width: parent.width

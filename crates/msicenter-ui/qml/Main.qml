@@ -103,7 +103,7 @@ ApplicationWindow {
         // Sidebar
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: 210
+            Layout.preferredWidth: 190
             color: "#201C17"
             ListView {
                 id: nav
