@@ -1224,6 +1224,9 @@ flash-save physical verification pending.
 
 Scenes/profiles.
 
+Design study (no code): `docs/phase8-scenes-design.md` — user-owned scene
+file, sequential per-setting gated writes, no new daemon surface.
+
 ## Phase 9
 
 Community diagnostics and unsupported-model workflow.
