@@ -26,6 +26,14 @@ qt_add_resources(msicenter-ui "qml"
         qml/ScenesPage.qml
         qml/DiagnosticsPage.qml
         qml/OSD.qml
+        qml/Sparkline.qml
+)
+
+qt_add_resources(msicenter-ui "examples"
+    PREFIX "/examples"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../../data"
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../data/scenes.example.json"
 )
 
 target_link_libraries(msicenter-ui PRIVATE

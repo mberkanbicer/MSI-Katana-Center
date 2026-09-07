@@ -1,0 +1,38 @@
+{
+  "scenes": [
+    {
+      "name": "Quiet",
+      "settings": {
+        "fan_mode": "silent",
+        "cooler_boost": false,
+        "super_battery": false
+      }
+    },
+    {
+      "name": "Cool",
+      "settings": {
+        "fan_mode": "auto",
+        "cooler_boost": true
+      }
+    },
+    {
+      "name": "Battery saver",
+      "settings": {
+        "fan_mode": "auto",
+        "super_battery": true
+      }
+    },
+    {
+      "name": "Gaming lights",
+      "settings": {
+        "rgb": {
+          "zones": 15,
+          "color": "ff0000",
+          "mode": "wave",
+          "speed": 3,
+          "wave_direction": 1
+        }
+      }
+    }
+  ]
+}

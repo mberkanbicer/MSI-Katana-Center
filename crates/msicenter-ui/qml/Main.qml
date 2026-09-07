@@ -48,6 +48,12 @@ ApplicationWindow {
         enabled: !trayAvailable
         onActivated: center.setRgbColorFromHex(15, "000000")
     }
+    Shortcut {
+        sequences: ["Ctrl+Shift+P"]
+        context: Shortcut.ApplicationShortcut
+        enabled: !trayAvailable
+        onActivated: center.panicReset()
+    }
 
     // ---- Top bar ----
     header: ToolBar {

@@ -36,36 +36,53 @@ static QIcon makeTrayIcon() {
 // the UI pages; opt-in/firmware gates and Polkit prompts still apply.
 struct TrayStatus {
     QAction *line = nullptr;
+    QString tooltip;
 
     void refresh(CenterClient *client) {
         if (!line)
             return;
-        const QStringList parts = {
-            QStringLiteral("fan %1").arg(client->ecFanMode()),
-            QStringLiteral("cb %1").arg(client->coolerBoostValid()
-                                            ? (client->coolerBoostOn()
-                                                   ? QStringLiteral("on")
-                                                   : QStringLiteral("off"))
-                                            : QStringLiteral("n/a")),
-            QStringLiteral("sb %1").arg(client->superBatteryValid()
-                                            ? (client->superBatteryOn()
-                                                   ? QStringLiteral("on")
-                                                   : QStringLiteral("off"))
-                                            : QStringLiteral("n/a"))};
-        QStringList text = parts;
+        const QString cb = client->coolerBoostValid()
+                               ? (client->coolerBoostOn()
+                                      ? (client->coolerBoostRemainingSeconds() > 0
+                                             ? QStringLiteral("on (%1s)").arg(
+                                                   client->coolerBoostRemainingSeconds())
+                                             : QStringLiteral("on"))
+                                      : QStringLiteral("off"))
+                               : QStringLiteral("n/a");
+        QStringList text;
+        if (client->cpuTempC() > 0)
+            text << QStringLiteral("cpu %1 °C").arg(client->cpuTempC());
+        if (!client->fanRpmShort().isEmpty())
+            text << client->fanRpmShort();
+        text << QStringLiteral("cb %1").arg(cb);
+        text << QStringLiteral("fan %1").arg(client->ecFanMode());
+        text << QStringLiteral("sb %1").arg(client->superBatteryValid()
+                                                ? (client->superBatteryOn()
+                                                       ? QStringLiteral("on")
+                                                       : QStringLiteral("off"))
+                                                : QStringLiteral("n/a"));
         if (!client->webcamText().isEmpty()
             && client->webcamText() != QStringLiteral("unavailable")) {
             text << QStringLiteral("cam %1").arg(client->webcamText());
         }
-        if (client->cpuTempC() > 0) {
-            text << QStringLiteral("cpu %1 °C").arg(client->cpuTempC());
-            if (client->gpuTempC() > 0)
-                text << QStringLiteral("gpu %1 °C").arg(client->gpuTempC());
-        }
+        if (client->gpuTempC() > 0)
+            text << QStringLiteral("gpu %1 °C").arg(client->gpuTempC());
         text << (client->capacityPercent() >= 0
                      ? QStringLiteral("bat %1%").arg(client->capacityPercent())
                      : QStringLiteral("bat n/a"));
         line->setText(text.join(QStringLiteral(" · ")));
+
+        QStringList tip;
+        if (client->cpuTempC() > 0)
+            tip << QStringLiteral("CPU %1 °C").arg(client->cpuTempC());
+        if (!client->fanRpmShort().isEmpty())
+            tip << client->fanRpmShort();
+        tip << QStringLiteral("CB %1").arg(cb);
+        if (!client->ecFanMode().isEmpty())
+            tip << QStringLiteral("fan %1").arg(client->ecFanMode());
+        if (client->capacityPercent() >= 0)
+            tip << QStringLiteral("bat %1%").arg(client->capacityPercent());
+        tooltip = tip.join(QStringLiteral(" · "));
     }
 };
 
@@ -229,14 +246,21 @@ int main(int argc, char *argv[]) {
                        QStringLiteral("Ctrl+Shift+L"), [&client] {
                            client.setRgbColorFromHex(15, QStringLiteral("000000"));
                        });
+        addAppShortcut(QStringLiteral("Panic reset"),
+                       QStringLiteral("Ctrl+Shift+P"),
+                       [&client] { client.panicReset(); });
 
         QObject::connect(&client, &CenterClient::changed, &client,
                          [&quick, &client, &trayStatus, &tray] {
                              trayStatus.refresh(&client);
-                             tray.setToolTip(trayStatus.line->text());
+                             tray.setToolTip(trayStatus.tooltip);
                              quick.refresh(&client);
                          });
 
+        menu->addSeparator();
+        QAction *panicAction = menu->addAction(QStringLiteral("Panic reset"));
+        QObject::connect(panicAction, &QAction::triggered, &client,
+                         &CenterClient::panicReset);
         menu->addSeparator();
         QAction *quitAction = menu->addAction(QStringLiteral("Quit"));
         tray.setContextMenu(menu);

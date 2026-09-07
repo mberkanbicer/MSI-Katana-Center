@@ -20,8 +20,8 @@ verification on the reference laptop. See
 | 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) — no writes until §11 experiment |
 | 6 | Qt/QML desktop UI | Material/warm desktop client with sidebar navigation, write controls, RGB color+effect pickers, system tray: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
 | 7 | RGB (MysticLight MS-1565) | non-persistent `SetRgbColor` physically verified 2026-09-06; effect modes via `SetRgbPresetEffect` implemented (desktop test pending); flash-save implemented, physical test pending |
-| 8 | scenes | CLI physically validated; UI apply/import/export |
-| 9 | community diagnostics | `msicenter report` + UI copy; unmatched-model JSON, no serials: [`docs/phase9-diagnostics.md`](docs/phase9-diagnostics.md) |
+| 8 | scenes | CLI physically validated; UI apply/import/export; starter examples (Quiet / Cool / Battery saver / Gaming lights) |
+| 9 | community diagnostics | `msicenter report` + UI copy; client write log on Diagnostics; unmatched-model JSON, no serials: [`docs/phase9-diagnostics.md`](docs/phase9-diagnostics.md) |
 | 10 | MUX | research only; see [`docs/deferred-features-research.md`](docs/deferred-features-research.md) |
 
 ## Current scope
@@ -47,6 +47,19 @@ opt-in but not yet physically tested). Performance-mode writes are
 deferred (current EC state `0xc0` is not writable by `msi-ec`; see
 `MSI-Linux-Center-AGENTS.md` §6.1).
 
+## Install / uninstall
+
+Builds the release daemon, CLI, and Qt UI, then installs systemd, Polkit,
+D-Bus policy, desktop file, and (by default) session autostart. Write
+opt-ins stay off.
+
+    ./scripts/setup.sh install
+    ./scripts/setup.sh install --no-autostart
+    ./scripts/setup.sh uninstall
+
+`uninstall` does not delete `~/.config/msi-linux-center`. Prefix defaults
+to `/usr` (`PREFIX`, `SYSCONFDIR`).
+
 ## Requirements
 
 Rust toolchain for the core/daemon/CLI; Qt 6 (Core, QML, Quick, DBus) +
@@ -71,13 +84,15 @@ the daemon after Polkit authorization.
 Each command requires the daemon to run with the matching opt-in
 (`MSI_LINUX_CENTER_ENABLE_*_WRITES=1`) and completes a Polkit prompt:
 
-    msicenter battery-thresholds START END      # e.g. 80 90
+    msicenter battery-thresholds START END      # e.g. 80 90 (UI also has 50–60 / 70–80 / 90–100 presets and travel-to-100%)
     msicenter fan-mode auto|silent|advanced
     msicenter cooler-boost on|off
     msicenter super-battery on|off
     msicenter webcam on|off
     msicenter webcam-block on|off
     msicenter fn-key left|right
+    msicenter panic-reset                       # Cooler Boost off, Super Battery off, fan auto
+    msicenter scene examples                    # add Quiet/Cool/Battery saver/Gaming lights
 
 With the opt-in disabled the daemon refuses with `NotSupported`. The exact
 support scope, gates, and physical verification records live in
@@ -90,12 +105,29 @@ support scope, gates, and physical verification records live in
     ./build/msicenter-ui
 
 Pure D-Bus client: never root, no direct `/sys` access; write controls go
-through the daemon's Polkit-gated methods. The tray menu can set a steady
+through the daemon's Polkit-gated methods. Overview keeps an in-memory sparkline of CPU temperature and fan RPM
+(last 15–60 minutes; Copy CSV). The tray tooltip shows CPU temperature, fan RPM, and Cooler Boost.
+The tray menu can set a steady
 keyboard color or an amber breathing/cycle/wave effect, apply a saved
 scene, and (while the app is running) Ctrl+Shift+C / B / L toggles
-Cooler Boost, Super Battery, and keyboard RGB off. Compositor-level
+Cooler Boost, Super Battery, and keyboard RGB off; Ctrl+Shift+P runs
+panic reset (Cooler Boost off, Super Battery off, fan auto — not a
+shift-mode change). Cooler Boost can
+auto-off after 30 s–15 min; Battery has 50–60 / 70–80 / 90–100 presets
+and a travel-to-100% that restores the previous pair after 3–30 days
+(UI-owned state in `~/.config/msi-linux-center/ui.json`; lasts only
+while the app is running, or on the next launch after the date).
+An opt-in on the Scenes page can re-apply a scene at app start
+(default off — cold boot stays firmware stock), and another can switch
+scenes when you plug or unplug (edge-triggered; default off). Battery-level
+rules can apply a scene when capacity crosses a low % while discharging
+or a high % while charging (once per crossing; default off). A scene
+schedule can apply the first matching weekday/time window when that
+window starts (overnight ranges allowed; needs the UI running). An
+opt-in CPU temperature alert shows an OSD if the CPU stays over a
+threshold for several seconds. Compositor-level
 bindings can call the same CLI commands (`msicenter cooler-boost on`,
-`msicenter rgb-color f 000000`).
+`msicenter rgb-color f 000000`, `msicenter panic-reset`).
 
 ## Sysroot override
 

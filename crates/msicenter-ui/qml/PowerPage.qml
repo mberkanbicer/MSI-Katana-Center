@@ -73,11 +73,65 @@ ScrollView {
                     text: "Cooler Boost"
                     checked: center.coolerBoostOn
                     enabled: center.coolerBoostValid
-                    onToggled: center.setCoolerBoost(checked)
+                    onToggled: {
+                        if (checked === center.coolerBoostOn)
+                            return
+                        center.setCoolerBoost(checked)
+                    }
                 }
                 Label {
                     text: "Maximum fan speed on request. Polkit prompt follows."
                     color: "#8C7F6F"; font.pixelSize: 10
+                }
+                Row {
+                    spacing: 10
+                    Label {
+                        text: "Auto-off"
+                        color: "#8C7F6F"
+                        font.pixelSize: 11
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    ComboBox {
+                        id: autoOffBox
+                        implicitWidth: 180
+                        textRole: "label"
+                        model: ListModel {
+                            ListElement { label: "Off (manual only)"; seconds: 0 }
+                            ListElement { label: "30 seconds"; seconds: 30 }
+                            ListElement { label: "1 minute"; seconds: 60 }
+                            ListElement { label: "2 minutes"; seconds: 120 }
+                            ListElement { label: "5 minutes"; seconds: 300 }
+                            ListElement { label: "10 minutes"; seconds: 600 }
+                            ListElement { label: "15 minutes"; seconds: 900 }
+                        }
+                        Component.onCompleted: {
+                            const current = center.coolerBoostAutoOffSeconds
+                            for (let i = 0; i < count; i++) {
+                                if (Number(model.get(i).seconds) === current) {
+                                    currentIndex = i
+                                    break
+                                }
+                            }
+                        }
+                        onActivated: (index) =>
+                            center.setCoolerBoostAutoOffSeconds(
+                                Number(model.get(index).seconds))
+                    }
+                }
+                Label {
+                    visible: center.coolerBoostRemainingSeconds > 0
+                    text: {
+                        const s = center.coolerBoostRemainingSeconds
+                        const m = Math.floor(s / 60)
+                        const r = s % 60
+                        const clock = m > 0
+                            ? (m + ":" + (r < 10 ? "0" : "") + r)
+                            : (s + "s")
+                        return "Turns off in " + clock + " (while this app is running)."
+                    }
+                    color: "#E2A35B"
+                    font.pixelSize: 12
                 }
                 Switch {
                     text: "Super Battery"
@@ -131,7 +185,100 @@ ScrollView {
                     color: "#8C7F6F"; font.pixelSize: 10
                 }
             }
-            implicitHeight: 360
+            implicitHeight: 450
+        }
+
+        Rectangle {
+            width: parent.width
+            radius: 10
+            color: "#292420"
+            border.color: "#3A332B"
+            border.width: 1
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 8
+                Button {
+                    text: "Panic reset"
+                    enabled: !center.sceneApplying
+                    onClicked: center.panicReset()
+                }
+                Label {
+                    text: "Cooler Boost off, Super Battery off, fan auto. "
+                          + "Does not change shift/performance mode (now: "
+                          + (center.ecShift !== "" ? center.ecShift : "unknown")
+                          + "). Ctrl+Shift+P. Polkit + opt-ins still apply."
+                    color: "#8C7F6F"
+                    font.pixelSize: 11
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    Layout.fillWidth: true
+                }
+            }
+            implicitHeight: 110
+        }
+
+        Rectangle {
+            width: parent.width
+            radius: 10
+            color: "#292420"
+            border.color: "#3A332B"
+            border.width: 1
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 10
+                Switch {
+                    text: "CPU temperature alert"
+                    checked: center.tempAlert
+                    onToggled: {
+                        if (checked === center.tempAlert)
+                            return
+                        center.setTempAlert(checked)
+                    }
+                }
+                RowLayout {
+                    spacing: 8
+                    Label { text: "Above"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    SpinBox {
+                        from: 70
+                        to: 100
+                        value: center.tempAlertCelsius
+                        enabled: center.tempAlert
+                        onValueModified: center.setTempAlertCelsius(value)
+                    }
+                    Label { text: "°C for"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    SpinBox {
+                        from: 5
+                        to: 60
+                        value: center.tempAlertHoldSeconds
+                        enabled: center.tempAlert
+                        onValueModified: center.setTempAlertHoldSeconds(value)
+                    }
+                    Label { text: "s"; color: "#8C7F6F"; font.pixelSize: 11 }
+                }
+                RowLayout {
+                    spacing: 8
+                    Label { text: "Cooldown"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    SpinBox {
+                        from: 30
+                        to: 600
+                        stepSize: 30
+                        value: center.tempAlertCooldownSeconds
+                        enabled: center.tempAlert
+                        onValueModified: center.setTempAlertCooldownSeconds(value)
+                    }
+                    Label { text: "s between alerts"; color: "#8C7F6F"; font.pixelSize: 11 }
+                }
+                Label {
+                    text: "OSD only, no hardware write. Needs this app running. Current CPU: "
+                          + (center.ecTemps !== "" ? center.ecTemps : "n/a")
+                    color: "#8C7F6F"
+                    font.pixelSize: 10
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    Layout.fillWidth: true
+                }
+            }
+            implicitHeight: 190
         }
 
         Label {

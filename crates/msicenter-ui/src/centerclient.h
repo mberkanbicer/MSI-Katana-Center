@@ -1,11 +1,13 @@
 #pragma once
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
 #include <QVariantList>
+#include <QVariantMap>
 #include <functional>
 #include <QVector>
 
@@ -26,6 +28,10 @@ class CenterClient : public QObject {
     Q_PROPERTY(QStringList fanModes READ fanModes NOTIFY changed)
     Q_PROPERTY(bool coolerBoostOn READ coolerBoostOn NOTIFY changed)
     Q_PROPERTY(bool coolerBoostValid READ coolerBoostValid NOTIFY changed)
+    Q_PROPERTY(int coolerBoostAutoOffSeconds READ coolerBoostAutoOffSeconds
+                   WRITE setCoolerBoostAutoOffSeconds NOTIFY changed)
+    Q_PROPERTY(int coolerBoostRemainingSeconds READ coolerBoostRemainingSeconds
+                   NOTIFY changed)
     Q_PROPERTY(bool superBatteryOn READ superBatteryOn NOTIFY changed)
     Q_PROPERTY(bool superBatteryValid READ superBatteryValid NOTIFY changed)
     Q_PROPERTY(QString webcamText READ webcamText NOTIFY changed)
@@ -42,6 +48,9 @@ class CenterClient : public QObject {
     Q_PROPERTY(int capacityPercent READ capacityPercent NOTIFY changed)
     Q_PROPERTY(int chargeStartPercent READ chargeStartPercent NOTIFY changed)
     Q_PROPERTY(int chargeEndPercent READ chargeEndPercent NOTIFY changed)
+    Q_PROPERTY(int travelDays READ travelDays WRITE setTravelDays NOTIFY changed)
+    Q_PROPERTY(bool travelActive READ travelActive NOTIFY changed)
+    Q_PROPERTY(QString travelRestoreText READ travelRestoreText NOTIFY changed)
     Q_PROPERTY(QString capsText READ capsText NOTIFY changed)
     Q_PROPERTY(QString rgbControllerText READ rgbControllerText NOTIFY changed)
     Q_PROPERTY(QString diagnosticReport READ diagnosticReport NOTIFY changed)
@@ -51,6 +60,44 @@ class CenterClient : public QObject {
     Q_PROPERTY(QStringList sceneNames READ sceneNames NOTIFY changed)
     Q_PROPERTY(QString sceneResultText READ sceneResultText NOTIFY changed)
     Q_PROPERTY(bool sceneApplying READ sceneApplying NOTIFY changed)
+    Q_PROPERTY(bool restoreSceneOnStart READ restoreSceneOnStart
+                   WRITE setRestoreSceneOnStart NOTIFY changed)
+    Q_PROPERTY(QString restoreSceneName READ restoreSceneName
+                   WRITE setRestoreSceneName NOTIFY changed)
+    Q_PROPERTY(QString lastAppliedScene READ lastAppliedScene NOTIFY changed)
+    Q_PROPERTY(QStringList restoreSceneChoices READ restoreSceneChoices NOTIFY changed)
+    Q_PROPERTY(int restoreSceneChoiceIndex READ restoreSceneChoiceIndex NOTIFY changed)
+    Q_PROPERTY(bool powerSceneSwitch READ powerSceneSwitch
+                   WRITE setPowerSceneSwitch NOTIFY changed)
+    Q_PROPERTY(QString acSceneName READ acSceneName NOTIFY changed)
+    Q_PROPERTY(QString batterySceneName READ batterySceneName NOTIFY changed)
+    Q_PROPERTY(QString powerSourceText READ powerSourceText NOTIFY changed)
+    Q_PROPERTY(QStringList sceneChoicesWithNone READ sceneChoicesWithNone NOTIFY changed)
+    Q_PROPERTY(int acSceneChoiceIndex READ acSceneChoiceIndex NOTIFY changed)
+    Q_PROPERTY(int batterySceneChoiceIndex READ batterySceneChoiceIndex NOTIFY changed)
+    Q_PROPERTY(bool batteryLevelRules READ batteryLevelRules
+                   WRITE setBatteryLevelRules NOTIFY changed)
+    Q_PROPERTY(int batteryLowPercent READ batteryLowPercent
+                   WRITE setBatteryLowPercent NOTIFY changed)
+    Q_PROPERTY(int batteryHighPercent READ batteryHighPercent
+                   WRITE setBatteryHighPercent NOTIFY changed)
+    Q_PROPERTY(int batteryLowSceneChoiceIndex READ batteryLowSceneChoiceIndex NOTIFY changed)
+    Q_PROPERTY(int batteryHighSceneChoiceIndex READ batteryHighSceneChoiceIndex NOTIFY changed)
+    Q_PROPERTY(bool sceneSchedule READ sceneSchedule WRITE setSceneSchedule NOTIFY changed)
+    Q_PROPERTY(QVariantList scheduleRules READ scheduleRules NOTIFY changed)
+    Q_PROPERTY(bool tempAlert READ tempAlert WRITE setTempAlert NOTIFY changed)
+    Q_PROPERTY(int tempAlertCelsius READ tempAlertCelsius
+                   WRITE setTempAlertCelsius NOTIFY changed)
+    Q_PROPERTY(int tempAlertHoldSeconds READ tempAlertHoldSeconds
+                   WRITE setTempAlertHoldSeconds NOTIFY changed)
+    Q_PROPERTY(int tempAlertCooldownSeconds READ tempAlertCooldownSeconds
+                   WRITE setTempAlertCooldownSeconds NOTIFY changed)
+    Q_PROPERTY(int historyWindowMinutes READ historyWindowMinutes
+                   WRITE setHistoryWindowMinutes NOTIFY changed)
+    Q_PROPERTY(QVariantList historyCpu READ historyCpu NOTIFY changed)
+    Q_PROPERTY(QVariantList historyRpm READ historyRpm NOTIFY changed)
+    Q_PROPERTY(int historyMaxRpm READ historyMaxRpm NOTIFY changed)
+    Q_PROPERTY(QString writeLogText READ writeLogText NOTIFY changed)
 
 public:
     explicit CenterClient(QObject *parent = nullptr);
@@ -63,6 +110,8 @@ public:
     QStringList fanModes() const { return m_fanModes; }
     bool coolerBoostOn() const { return m_coolerBoost; }
     bool coolerBoostValid() const { return m_hasCoolerBoost; }
+    int coolerBoostAutoOffSeconds() const { return m_coolerBoostAutoOffSeconds; }
+    int coolerBoostRemainingSeconds() const;
     bool superBatteryOn() const { return m_superBattery; }
     bool superBatteryValid() const { return m_hasSuperBattery; }
     QString webcamText() const { return m_webcamText; }
@@ -75,10 +124,14 @@ public:
     QString ecFirmwareDate() const { return m_ecFirmwareDate; }
     QString ecTemps() const { return m_ecTemps; }
     QString fanText() const { return m_fanText; }
+    QString fanRpmShort() const { return m_fanRpmShort; }
     QString batteryState() const { return m_battery; }
     int capacityPercent() const { return m_capacity; }
     int chargeStartPercent() const { return m_chargeStart; }
     int chargeEndPercent() const { return m_chargeEnd; }
+    int travelDays() const { return m_travelDays; }
+    bool travelActive() const { return m_travelActive; }
+    QString travelRestoreText() const;
     QString capsText() const { return m_caps; }
     QString rgbControllerText() const { return m_rgbController; }
     QString diagnosticReport() const { return m_diagnosticReport; }
@@ -88,6 +141,34 @@ public:
     QStringList sceneNames() const { return m_sceneNames; }
     QString sceneResultText() const { return m_sceneResultText; }
     bool sceneApplying() const { return m_sceneApplying; }
+    bool restoreSceneOnStart() const { return m_restoreSceneOnStart; }
+    QString restoreSceneName() const { return m_restoreSceneName; }
+    QString lastAppliedScene() const { return m_lastAppliedScene; }
+    QStringList restoreSceneChoices() const;
+    int restoreSceneChoiceIndex() const;
+    bool powerSceneSwitch() const { return m_powerSceneSwitch; }
+    QString acSceneName() const { return m_acSceneName; }
+    QString batterySceneName() const { return m_batterySceneName; }
+    QString powerSourceText() const;
+    QStringList sceneChoicesWithNone() const;
+    int acSceneChoiceIndex() const;
+    int batterySceneChoiceIndex() const;
+    bool batteryLevelRules() const { return m_batteryLevelRules; }
+    int batteryLowPercent() const { return m_batteryLowPercent; }
+    int batteryHighPercent() const { return m_batteryHighPercent; }
+    int batteryLowSceneChoiceIndex() const;
+    int batteryHighSceneChoiceIndex() const;
+    bool sceneSchedule() const { return m_sceneSchedule; }
+    QVariantList scheduleRules() const;
+    bool tempAlert() const { return m_tempAlert; }
+    int tempAlertCelsius() const { return m_tempAlertCelsius; }
+    int tempAlertHoldSeconds() const { return m_tempAlertHoldSeconds; }
+    int tempAlertCooldownSeconds() const { return m_tempAlertCooldownSeconds; }
+    int historyWindowMinutes() const { return m_historyWindowMinutes; }
+    QVariantList historyCpu() const;
+    QVariantList historyRpm() const;
+    int historyMaxRpm() const;
+    QString writeLogText() const { return m_writeLogLines.join(QLatin1Char('\n')); }
     int cpuTempC() const { return m_cpuTemp; }
     int gpuTempC() const { return m_gpuTemp; }
 
@@ -103,16 +184,47 @@ public slots:
     void fetchAll();
     void setFanMode(const QString &mode);
     void setCoolerBoost(bool enabled);
+    void setCoolerBoostAutoOffSeconds(int seconds);
     void setSuperBattery(bool enabled);
     void setWebcam(bool enabled);
     void setWebcamBlock(bool enabled);
     void setFnKey(const QString &position);
     void setBatteryThresholds(int start, int end);
+    void setTravelDays(int days);
+    void startTravel(int days);
+    void cancelTravel();
     void setRgbColorFromHex(int zones, const QString &hex);
     void setRgbEffectPreset(int zones, int mode, int speedSeconds,
                             const QString &hex, int waveDirection = 1);
     void reloadScenes();
     void applyScene(const QString &name);
+    void setRestoreSceneOnStart(bool enabled);
+    void setRestoreSceneName(const QString &name);
+    void setRestoreSceneChoiceIndex(int index);
+    void setPowerSceneSwitch(bool enabled);
+    void setAcSceneChoiceIndex(int index);
+    void setBatterySceneChoiceIndex(int index);
+    void setBatteryLevelRules(bool enabled);
+    void setBatteryLowPercent(int percent);
+    void setBatteryHighPercent(int percent);
+    void setBatteryLowSceneChoiceIndex(int index);
+    void setBatteryHighSceneChoiceIndex(int index);
+    void setSceneSchedule(bool enabled);
+    void addScheduleRule();
+    void removeScheduleRule(int index);
+    void toggleScheduleDay(int index, int dayBit);
+    void setScheduleRuleStart(int index, int hour, int minute);
+    void setScheduleRuleEnd(int index, int hour, int minute);
+    void setScheduleRuleScene(int index, int sceneChoiceIndex);
+    void setTempAlert(bool enabled);
+    void setTempAlertCelsius(int celsius);
+    void setTempAlertHoldSeconds(int seconds);
+    void setTempAlertCooldownSeconds(int seconds);
+    void setHistoryWindowMinutes(int minutes);
+    void copyHistoryCsv();
+    void copyWriteLog();
+    void panicReset();
+    void addExampleScenes();
     Q_INVOKABLE void importScenes();
     Q_INVOKABLE void exportScenes();
     Q_INVOKABLE void copyDiagnosticReport();
@@ -134,7 +246,33 @@ private:
     void fetchProperty(const QString &iface, const QString &property);
     void handleJson(const QString &property, const QString &json);
     void callMethod(const QString &method, const QVariantList &args);
+    QString configDir() const;
     QString scenesFilePath() const;
+    bool mergeExampleScenes(bool announce);
+    QString uiSettingsFilePath() const;
+    QString writeLogFilePath() const;
+    void loadWriteLog();
+    void appendWriteLog(bool ok, const QString &title, const QString &detail);
+    void loadUiSettings();
+    void saveUiSettings();
+    void armCoolerBoostAutoOff();
+    void cancelCoolerBoostAutoOff();
+    void onCoolerBoostAutoOffTimeout();
+    void maybeRestoreTravel();
+    void clearTravel();
+    void maybeApplyStartupScene();
+    void maybeSwitchPowerScene(bool onAc);
+    void maybeBatteryLevelRules(int capacity, bool discharging, bool charging);
+    void applyNamedAutoScene(const QString &name);
+    void maybeApplySchedule();
+    void maybeTemperatureAlert();
+    void maybeRecordHistory();
+    void trimHistory(qint64 nowMs);
+    int matchingScheduleRule(const QDateTime &when) const;
+    void loadScheduleRules(const QJsonArray &rules);
+    QJsonArray scheduleRulesJson() const;
+    int sceneChoiceIndex(const QString &name) const;
+    void setSceneChoiceName(QString *dest, int index);
     void handleAction(const QString &method, const QVariantList &args,
                       const QDBusMessage &reply);
     QString actionTitle(const QString &method) const;
@@ -166,6 +304,7 @@ private:
     QString m_ecFirmwareDate;
     QString m_ecTemps;
     QString m_fanText;
+    QString m_fanRpmShort;
     QString m_battery;
     int m_capacity = -1;
     int m_chargeStart = -1;
@@ -179,6 +318,19 @@ private:
     int m_cpuTemp = -1;
     int m_gpuTemp = -1;
     QTimer m_timer;
+    QTimer m_coolerBoostOffTimer;
+    QTimer m_coolerBoostTick;
+    int m_coolerBoostAutoOffSeconds = 0;
+    bool m_coolerBoostAutoOffFiring = false;
+    bool m_coolerBoostSeenOnDuringTimer = false;
+    int m_travelDays = 7;
+    bool m_travelActive = false;
+    int m_travelRestoreStart = -1;
+    int m_travelRestoreEnd = -1;
+    QDateTime m_travelRestoreAt;
+    bool m_travelArming = false;
+    bool m_travelRestoreInFlight = false;
+    bool m_travelRestoreFailed = false;
     int m_inFlight = 0;
     bool m_loggedFirstSummary = false;
     QJsonArray m_scenes;
@@ -189,5 +341,50 @@ private:
     int m_sceneStepIndex = 0;
     bool m_sceneApplying = false;
     QString m_sceneName;
+    QString m_batchTitle;
+    bool m_restoreSceneOnStart = false;
+    QString m_restoreSceneName;
+    QString m_lastAppliedScene;
+    bool m_startupRestoreDone = false;
+    int m_startupRestoreDeferrals = 0;
+    bool m_powerSceneSwitch = false;
+    QString m_acSceneName;
+    QString m_batterySceneName;
+    bool m_powerOnAc = false;
+    bool m_powerOnAcKnown = false;
+    QString m_pendingPowerScene;
+    bool m_batteryLevelRules = false;
+    int m_batteryLowPercent = 30;
+    int m_batteryHighPercent = 80;
+    QString m_batteryLowScene;
+    QString m_batteryHighScene;
+    int m_lastCapacity = -1;
+    struct ScheduleRule {
+        quint8 days = 0;
+        int startMinute = 9 * 60;
+        int endMinute = 17 * 60;
+        QString scene;
+    };
+    bool m_sceneSchedule = false;
+    QVector<ScheduleRule> m_scheduleRules;
+    int m_activeScheduleRule = -2;
+    static constexpr int kMaxScheduleRules = 8;
+    bool m_tempAlert = false;
+    int m_tempAlertCelsius = 90;
+    int m_tempAlertHoldSeconds = 10;
+    int m_tempAlertCooldownSeconds = 120;
+    QDateTime m_tempOverSince;
+    QDateTime m_tempAlertLast;
+    struct HistorySample {
+        qint64 ms = 0;
+        int cpu = -1;
+        int rpm = 0;
+    };
+    QVector<HistorySample> m_history;
+    qint64 m_lastHistoryMs = 0;
+    int m_fanRpmMax = 0;
+    int m_historyWindowMinutes = 15;
+    QStringList m_writeLogLines;
+    static constexpr int kMaxWriteLogLines = 200;
     std::function<void(bool, const QString &)> m_actionCallback;
 };

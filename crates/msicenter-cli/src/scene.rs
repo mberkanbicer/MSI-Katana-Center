@@ -30,14 +30,23 @@ pub struct RgbScene {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SceneSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fan_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cooler_boost: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub super_battery: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub webcam: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub webcam_block: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fn_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub battery_start: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub battery_end: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rgb: Option<RgbScene>,
 }
 
@@ -64,12 +73,65 @@ pub fn scenes_path() -> PathBuf {
     base.join("msi-linux-center").join("scenes.json")
 }
 
+/// Bundled starter scenes (Quiet / Cool / Battery saver / Gaming lights).
+/// Not MSI Silent/Balanced/Extreme — those need shift writes we do not do.
+pub const EXAMPLE_SCENES_JSON: &str = include_str!("../../../data/scenes.example.json");
+
 /// Loads and parses the scene file.
 pub fn load(path: &Path) -> Result<SceneFile, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
     serde_json::from_str(&text)
         .map_err(|error| format!("invalid scene file {}: {error}", path.display()))
+}
+
+pub fn example_file() -> Result<SceneFile, String> {
+    serde_json::from_str(EXAMPLE_SCENES_JSON)
+        .map_err(|error| format!("invalid bundled example scenes: {error}"))
+}
+
+pub fn save(path: &Path, file: &SceneFile) -> Result<(), String> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
+    }
+    let mut text = serde_json::to_string_pretty(file)
+        .map_err(|error| format!("cannot encode scenes: {error}"))?;
+    text.push('\n');
+    std::fs::write(path, text).map_err(|error| format!("cannot write {}: {error}", path.display()))
+}
+
+/// Appends bundled example scenes whose names are not already present.
+/// Does not overwrite an existing scene of the same name. Returns added names.
+pub fn merge_examples(path: &Path) -> Result<Vec<String>, String> {
+    let examples = example_file()?;
+    let mut file = if path.is_file() {
+        load(path)?
+    } else {
+        SceneFile { scenes: Vec::new() }
+    };
+    let existing: std::collections::HashSet<String> =
+        file.scenes.iter().map(|scene| scene.name.clone()).collect();
+    let mut added = Vec::new();
+    for scene in examples.scenes {
+        let problems = validate_scene(&scene);
+        if !problems.is_empty() {
+            return Err(format!(
+                "invalid bundled example '{}': {}",
+                scene.name,
+                problems.join("; ")
+            ));
+        }
+        if existing.contains(&scene.name) {
+            continue;
+        }
+        added.push(scene.name.clone());
+        file.scenes.push(scene);
+    }
+    if !added.is_empty() || !path.is_file() {
+        save(path, &file)?;
+    }
+    Ok(added)
 }
 
 /// Per-scene validation. Returns human-readable problems; a scene with
@@ -231,5 +293,78 @@ mod tests {
         let problems = validate_scene(&bad);
         assert_eq!(problems.len(), 1);
         assert!(problems[0].contains("invalid rgb mode"));
+    }
+
+    #[test]
+    fn bundled_examples_validate() {
+        let file = example_file().expect("bundled scenes.example.json");
+        let names: Vec<&str> = file
+            .scenes
+            .iter()
+            .map(|scene| scene.name.as_str())
+            .collect();
+        assert_eq!(names, ["Quiet", "Cool", "Battery saver", "Gaming lights"]);
+        for scene in &file.scenes {
+            assert!(
+                validate_scene(scene).is_empty(),
+                "{}: {:?}",
+                scene.name,
+                validate_scene(scene)
+            );
+        }
+        assert_eq!(file.scenes[0].settings.fan_mode.as_deref(), Some("silent"));
+        assert_eq!(file.scenes[2].settings.super_battery, Some(true));
+        assert!(file.scenes[3].settings.fan_mode.is_none());
+        assert_eq!(
+            file.scenes[3]
+                .settings
+                .rgb
+                .as_ref()
+                .unwrap()
+                .mode
+                .as_deref(),
+            Some("wave")
+        );
+    }
+
+    #[test]
+    fn merge_examples_does_not_overwrite_existing_names() {
+        let dir =
+            std::env::temp_dir().join(format!("msicenter-scene-examples-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("scenes.json");
+        std::fs::write(
+            &path,
+            r#"{
+                "scenes": [
+                    {
+                        "name": "Quiet",
+                        "settings": { "fan_mode": "auto" }
+                    },
+                    {
+                        "name": "Gaming",
+                        "settings": { "cooler_boost": false }
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let added = merge_examples(&path).unwrap();
+        assert!(added.contains(&"Cool".to_string()));
+        assert!(added.contains(&"Battery saver".to_string()));
+        assert!(added.contains(&"Gaming lights".to_string()));
+        assert!(!added.iter().any(|name| name == "Quiet"));
+
+        let file = load(&path).unwrap();
+        let quiet = file
+            .scenes
+            .iter()
+            .find(|scene| scene.name == "Quiet")
+            .unwrap();
+        assert_eq!(quiet.settings.fan_mode.as_deref(), Some("auto"));
+        assert!(file.scenes.iter().any(|scene| scene.name == "Gaming"));
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

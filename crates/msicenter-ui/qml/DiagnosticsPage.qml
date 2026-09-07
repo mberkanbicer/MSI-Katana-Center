@@ -93,6 +93,50 @@ ScrollView {
             implicitHeight: 160
         }
 
+        Rectangle {
+            width: parent.width
+            radius: 10
+            color: "#292420"
+            border.color: "#3A332B"
+            border.width: 1
+            clip: true
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 8
+                RowLayout {
+                    Label {
+                        text: "Client write log"
+                        color: "#8C7F6F"
+                        font.pixelSize: 11
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+                    Button {
+                        text: "Copy log"
+                        enabled: center.writeLogText !== ""
+                        onClicked: center.copyWriteLog()
+                    }
+                }
+                Label {
+                    text: center.writeLogText !== ""
+                              ? center.writeLogText
+                              : "No hardware writes yet this install."
+                    color: "#B5A896"
+                    font.family: "monospace"
+                    font.pixelSize: 11
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: "~/.config/msi-linux-center/writes.log  ·  last 200 writes  ·  no EC bytes"
+                    color: "#8C7F6F"
+                    font.pixelSize: 10
+                }
+            }
+            implicitHeight: 180
+        }
+
         Row {
             spacing: 10
             Button {

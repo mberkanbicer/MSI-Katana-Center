@@ -164,14 +164,21 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         }
         "scene" => {
             match args.get(1).map(String::as_str) {
-                None => Err("usage: msicenter scene list|apply NAME".into()),
+                None => Err("usage: msicenter scene list|examples|apply NAME".into()),
                 Some("list") => scene_list(),
+                Some("examples") => scene_examples(),
                 Some("apply") => match args.get(2).map(String::as_str) {
                     Some(name) => scene_apply(name),
                     None => Err("usage: msicenter scene apply NAME".into()),
                 },
                 Some(other) => Err(format!("unknown scene subcommand: {other}").into()),
             }?;
+        }
+        "panic-reset" => {
+            if args.len() != 1 {
+                return Err("usage: msicenter panic-reset".into());
+            }
+            panic_reset()?;
         }
         "version" | "--version" | "-V" => {
             println!("msicenter {}", env!("CARGO_PKG_VERSION"));
@@ -187,7 +194,7 @@ fn scene_list() -> Result<(), Box<dyn std::error::Error>> {
     let path = scene::scenes_path();
     if !path.is_file() {
         println!("no scene file yet at {}", path.display());
-        println!("create one with a 'scenes' array; see docs/phase8-scenes-design.md");
+        println!("add starter scenes with: msicenter scene examples");
         return Ok(());
     }
     let file = scene::load(&path)?;
@@ -204,6 +211,21 @@ fn scene_list() -> Result<(), Box<dyn std::error::Error>> {
             format!("invalid: {}", problems.join("; "))
         };
         println!("  {:<16} {}", entry.name, status);
+    }
+    Ok(())
+}
+
+fn scene_examples() -> Result<(), Box<dyn std::error::Error>> {
+    let path = scene::scenes_path();
+    let added = scene::merge_examples(&path)?;
+    if added.is_empty() {
+        println!("example scenes already present in {}", path.display());
+    } else {
+        println!("Added to {}:", path.display());
+        for name in &added {
+            println!("  {name}");
+        }
+        println!("Quiet is fan silent only — not MSI Silent (no shift/performance write).");
     }
     Ok(())
 }
@@ -273,6 +295,15 @@ fn scene_apply(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn panic_reset() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Panic reset: Cooler Boost off, Super Battery off, fan auto.");
+    println!("Does not change shift/performance mode.");
+    report_step("cooler_boost", request_cooler_boost(false));
+    report_step("super_battery", request_super_battery(false));
+    report_step("fan_mode", request_fan_mode("auto"));
+    Ok(())
+}
+
 fn report_step(label: &str, result: Result<String, msi_dbus::ServiceError>) {
     match result {
         Ok(_) => println!("  ok   {label}"),
@@ -298,7 +329,9 @@ fn print_help() {
     println!("  msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS  (non-persistent)");
     println!("  msicenter rgb-save  (persistent flash save)");
     println!("  msicenter scene list");
+    println!("  msicenter scene examples  (add Quiet/Cool/Battery saver/Gaming lights)");
     println!("  msicenter scene apply NAME");
+    println!("  msicenter panic-reset  (Cooler Boost off, Super Battery off, fan auto)");
     println!("  msicenter --version");
     println!();
     println!("Testing:");

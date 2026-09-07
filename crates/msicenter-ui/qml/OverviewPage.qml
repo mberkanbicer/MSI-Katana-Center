@@ -50,6 +50,83 @@ ScrollView {
             implicitHeight: 92
         }
 
+        Rectangle {
+            width: parent.width
+            radius: 10
+            color: "#292420"
+            border.color: "#3A332B"
+            border.width: 1
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 8
+                RowLayout {
+                    Label {
+                        text: "History (memory only)"
+                        color: "#8C7F6F"
+                        font.pixelSize: 11
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+                    ComboBox {
+                        implicitWidth: 110
+                        textRole: "label"
+                        model: ListModel {
+                            ListElement { label: "15 min"; minutes: 15 }
+                            ListElement { label: "30 min"; minutes: 30 }
+                            ListElement { label: "60 min"; minutes: 60 }
+                        }
+                        Component.onCompleted: {
+                            const current = center.historyWindowMinutes
+                            for (let i = 0; i < count; i++) {
+                                if (Number(model.get(i).minutes) === current) {
+                                    currentIndex = i
+                                    break
+                                }
+                            }
+                        }
+                        onActivated: (index) =>
+                            center.setHistoryWindowMinutes(
+                                Number(model.get(index).minutes))
+                    }
+                    Button {
+                        text: "Copy CSV"
+                        onClicked: center.copyHistoryCsv()
+                    }
+                }
+                Label {
+                    text: "CPU °C"
+                    color: "#8C7F6F"
+                    font.pixelSize: 10
+                }
+                Sparkline {
+                    Layout.fillWidth: true
+                    values: center.historyCpu
+                    maxValue: 100
+                    stroke: "#E2A35B"
+                }
+                Label {
+                    text: "Fan RPM (max channel)"
+                    color: "#8C7F6F"
+                    font.pixelSize: 10
+                }
+                Sparkline {
+                    Layout.fillWidth: true
+                    values: center.historyRpm
+                    maxValue: Math.max(1, center.historyMaxRpm)
+                    stroke: "#A9BA7C"
+                }
+                Label {
+                    text: center.historyCpu.length < 2
+                          ? "Collecting samples (about 2 s apart)…"
+                          : (center.historyCpu.length + " CPU points in this window")
+                    color: "#8C7F6F"
+                    font.pixelSize: 10
+                }
+            }
+            implicitHeight: 220
+        }
+
         GridLayout {
             columns: page.availableWidth > 520 ? 2 : 1
             columnSpacing: 14
