@@ -161,6 +161,35 @@ exact support scope, gates, and physical verification records live in
 - [`docs/reverse-engineering-inventory.md`](docs/reverse-engineering-inventory.md) — RE inventory
 - [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) — safety rules for contributors and agents
 
+## Disclaimer — use at your own risk
+
+This software controls laptop hardware through the embedded controller
+(EC), battery charge interfaces, and a USB HID RGB controller. Incorrect
+writes to these interfaces can cause instability, thermal problems,
+reduced battery life, data loss, or hardware/firmware damage.
+
+**This project is provided "as is", without warranty of any kind, express
+or implied. The authors and contributors accept no liability whatsoever
+for any damage, data loss, or malfunction arising from the use of this
+software — including damage to your laptop, battery, keyboard, or any
+other hardware.**
+
+Mitigations built into the project (firmware gating, per-feature opt-ins,
+Polkit authorization, read-back verification, physical verification on
+the reference device) reduce risk but do not eliminate it. They are
+best-effort engineering measures, not guarantees.
+
+- Hardware write features are **disabled by default**; only enable them
+  if you understand what they do
+- Behavior is physically verified on the **MSI Katana 17 B13VGK**
+  (EC `17L5EMS1.115`) only; other models are gated but unverified
+- Do not use this software on a laptop you cannot afford to damage, and
+  never enable write opt-ins on critical hardware
+- If you are unsure, use the read-only telemetry features only
+
+**Be careful. You are solely responsible for any consequences of using
+this software.**
+
 ## Contributing
 
 Read [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) first.

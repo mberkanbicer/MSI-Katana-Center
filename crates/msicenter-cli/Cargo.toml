@@ -1,5 +1,6 @@
 [package]
 name = "msicenter-cli"
+description = "MSI Katana Center command-line client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,3 +15,18 @@ msi-core = { path = "../msi-core" }
 msi-dbus = { path = "../msi-dbus" }
 serde.workspace = true
 serde_json.workspace = true
+
+[package.metadata.deb]
+maintainer = "MSI Katana Center contributors"
+copyright = "2026, MSI Katana Center contributors"
+depends = "libusb-1.0-0, libhidapi-libusb0"
+section = "admin"
+priority = "optional"
+assets = [
+    ["target/release/msicenter", "usr/bin/", "755"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/msicenter", dest = "/usr/bin/msicenter", mode = "755" },
+]

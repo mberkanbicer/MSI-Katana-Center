@@ -4,6 +4,21 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "MSI Katana Center system daemon (D-Bus, gated EC/hardware writes)"
+
+[package.metadata.deb]
+maintainer = "MSI Katana Center contributors"
+copyright = "2026, MSI Katana Center contributors"
+depends = "libusb-1.0-0, libhidapi-libusb0"
+section = "admin"
+priority = "optional"
+assets = [
+    ["target/release/msi-daemon", "usr/bin/", "755"],
+    ["../../data/systemd/system/msi-linux-center.service", "usr/lib/systemd/system/", "644"],
+    ["../../data/dbus-1/system.d/org.msilinux.Center.conf", "usr/share/dbus-1/system.d/", "644"],
+    ["../../data/polkit-1/actions/org.msilinux.Center.policy", "usr/share/polkit-1/actions/", "644"],
+]
+
 
 [[bin]]
 name = "msi-daemon"
@@ -11,3 +26,11 @@ path = "src/main.rs"
 
 [dependencies]
 msi-dbus = { path = "../msi-dbus" }
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/msi-daemon", dest = "/usr/bin/msi-daemon", mode = "755" },
+    { source = "../../data/systemd/system/msi-linux-center.service", dest = "/usr/lib/systemd/system/msi-linux-center.service", mode = "644" },
+    { source = "../../data/dbus-1/system.d/org.msilinux.Center.conf", dest = "/usr/share/dbus-1/system.d/org.msilinux.Center.conf", mode = "644" },
+    { source = "../../data/polkit-1/actions/org.msilinux.Center.policy", dest = "/usr/share/polkit-1/actions/org.msilinux.Center.policy", mode = "644" },
+]
