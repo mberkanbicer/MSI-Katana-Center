@@ -34,4 +34,43 @@ Do not automate. Record the original `msicenter status` lines first.
    off, then `webcam-block off`.
 6. Remove the override; confirm writes return `NotSupported`.
 
-Provenance `writes_tested` stays false until this run is recorded.
+Provenance `writes_tested` stays false per remaining feature until that run is recorded.
+
+## Verification record — webcam on/off (2026-09-07)
+
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original state: webcam `on`, webcam_block `off`, Fn `right`, Win `left`
+- drop-in `Environment=MSI_LINUX_CENTER_ENABLE_WEBCAM_WRITES=1`; daemon restarted; `systemctl show` reported `WEBCAM_WRITES=1` and `WEBCAM_BLOCK_WRITES=0`
+- `msicenter webcam off` → D-Bus `{"webcam":false}`, sysfs `off`
+- `msicenter webcam on` → D-Bus `{"webcam":true}`, sysfs `on`
+- drop-in removed; daemon restarted
+- negative check: `msicenter webcam off` rejected with `org.freedesktop.DBus.Error.NotSupported` (`webcam writes disabled`)
+
+Outcome: physical webcam on/off write verification passed. `webcam_block` and `fn_key` writes are still untested.
+
+## Verification record — Fn/Win swap (2026-09-07)
+
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original state: Fn `right`, Win `left`
+- drop-in `Environment=MSI_LINUX_CENTER_ENABLE_FN_KEY_WRITES=1`; daemon restarted; `systemctl show` reported `FN_KEY_WRITES=1`
+- `msicenter fn-key left` → D-Bus `{"fn_key":"left","win_key":"right"}`, sysfs `left` / `right`
+- `msicenter fn-key right` → D-Bus `{"fn_key":"right","win_key":"left"}`, sysfs `right` / `left`
+- drop-in removed; daemon restarted
+- negative check: `msicenter fn-key left` rejected with `org.freedesktop.DBus.Error.NotSupported` (`fn-key writes disabled`)
+
+Outcome: physical Fn/Win swap write verification passed.
+
+## Verification record — webcam block (2026-09-07)
+
+Performed on the reference laptop (Katana 17 B13VGK, MS-17L5, EC `17L5EMS1.115`):
+
+- original state: webcam_block `off`
+- drop-in `Environment=MSI_LINUX_CENTER_ENABLE_WEBCAM_BLOCK_WRITES=1`; daemon restarted; `systemctl show` reported `WEBCAM_BLOCK_WRITES=1`
+- `msicenter webcam-block on` → D-Bus `{"webcam_block":true}`, sysfs `on`
+- `msicenter webcam-block off` → D-Bus `{"webcam_block":false}`, sysfs `off`
+- drop-in removed; daemon restarted
+- negative check: `msicenter webcam-block on` rejected with `org.freedesktop.DBus.Error.NotSupported` (`webcam-block writes disabled`)
+
+Outcome: physical webcam-block write verification passed. All three peripheral write paths in this document are now verified.

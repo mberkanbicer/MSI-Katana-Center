@@ -34,10 +34,9 @@ verification on the reference laptop. See
 - runtime capability reporting (model vs backend vs readable)
 - fake-sysroot fixture for hardware-free development
 - gated, verified writes: `SetBatteryThresholds`, `SetFanMode`,
-  `SetCoolerBoost`, `SetSuperBattery` — disabled by default (per-feature
-  daemon opt-ins), exact verified firmware + Polkit required
-- gated peripheral writes (physical test pending): `SetWebcam`,
-  `SetWebcamBlock`, `SetFnKey` through `msi-ec` sysfs
+  `SetCoolerBoost`, `SetSuperBattery`, `SetWebcam`, `SetWebcamBlock`,
+  `SetFnKey` — disabled by default (per-feature daemon opt-ins), exact
+  verified firmware + Polkit required
 - D-Bus daemon (`org.msilinux.Center`) and Qt/QML desktop client
 - all paths redirectable via `MSI_LINUX_CENTER_SYSROOT`
 

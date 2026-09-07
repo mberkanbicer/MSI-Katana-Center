@@ -36,8 +36,8 @@ legal under `MSI-Linux-Center-AGENTS.md` today.
 | Fan auto/silent/advanced | `SetFanMode` verified |
 | Charge limit | `SetBatteryThresholds` start **and** end |
 | 4-zone RGB | HID effects (GhostDeck does not do this on this laptop) |
-| Webcam + hard block | gated; physical test pending |
-| Fn/Win swap | gated; physical test pending |
+| Webcam + hard block | writes verified 2026-09-07 |
+| Fn/Win swap | writes verified 2026-09-07 |
 | Scenes | `scenes.json` + CLI/UI apply (narrower field set) |
 | Tray + OSD toast | tray menu, `OSD.qml` on write completion |
 | Diagnostics | redacted `DiagnosticReport` JSON |
@@ -47,11 +47,10 @@ legal under `MSI-Linux-Center-AGENTS.md` today.
 
 These unblock features we already shipped:
 
-1. Webcam on/off and webcam block physical test (`docs/phase4-peripherals-validation.md`).
-2. Fn/Win swap physical test (same doc).
-3. RGB flash-save physical test (`SaveRgbState`, separate opt-in).
-4. Desktop UI tour: RGB effects, tray apply-scene, Diagnostics copy.
-5. Phase 5 §11 one-byte curve experiment — **only** when the user runs
+1. Webcam on/off, webcam block, and Fn/Win physically verified 2026-09-07 (`docs/phase4-peripherals-validation.md`).
+2. RGB flash-save physical test (`SaveRgbState`, separate opt-in).
+3. Desktop UI tour: RGB effects, tray apply-scene, Diagnostics copy.
+4. Phase 5 §11 one-byte curve experiment — **only** when the user runs
    it in their own terminal. No curve code until then.
 
 ---

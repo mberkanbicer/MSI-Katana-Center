@@ -35,8 +35,9 @@ Methods:
 - `SetFanMode(mode)` requires exact verified firmware and the `msi-ec` backend, restricts `mode` to the driver's `available_fan_modes`, obtains Polkit authorization, writes, reads back the applied value, and restores the previous mode on write or verification failure.
 - `SetCoolerBoost(enabled)` requires exact verified firmware and the `msi-ec` backend, obtains Polkit authorization, writes `on`/`off`, reads back the applied value, and restores the previous state on write or verification failure.
 - `SetSuperBattery(enabled)` requires exact verified firmware and the `msi-ec` backend, obtains Polkit authorization, writes `on`/`off`, reads back the applied value, and restores the previous state on write or verification failure.
-- `SetWebcam(enabled)` / `SetWebcamBlock(enabled)` write `msi-ec` `webcam` / `webcam_block` (`on`/`off`) with the same firmware, Polkit, opt-in, read-back, and rollback pattern. Physical verification pending.
-- `SetFnKey(position)` writes `msi-ec` `fn_key` (`left`/`right`); `win_key` is the other side of the same swap and is re-read after the write. Physical verification pending.
+- `SetWebcam(enabled)` writes `msi-ec` `webcam` (`on`/`off`) with the same firmware, Polkit, opt-in, read-back, and rollback pattern. Physically verified on 2026-09-07.
+- `SetWebcamBlock(enabled)` writes `msi-ec` `webcam_block` (`on`/`off`) with the same gates. Physically verified on 2026-09-07.
+- `SetFnKey(position)` writes `msi-ec` `fn_key` (`left`/`right`); `win_key` is the other side of the same swap and is re-read after the write. Physically verified on 2026-09-07.
 - `SetRgbColor(zones, r, g, b)` requires a profile with a declared RGB controller and the detected USB backend, obtains Polkit authorization, and sends a **non-persistent** steady color (zone select + effect feature reports). No flash-save is ever sent; there is no read-back on this device, so verification is visual.
 - `SetRgbEffect(zones, mode, speed_cs, wave_direction, colors)` — non-persistent effect (off/steady/breathing/color-cycle/wave); colors are distributed as evenly spaced keyframes (max 10). Same gates and action as `SetRgbColor`.
 - `SaveRgbState()` — **persistent**: saves the last sent state to flash. Requires its own opt-in `MSI_LINUX_CENTER_ENABLE_RGB_FLASH_WRITES=1` and Polkit action `org.msilinux.Center.set-rgb-save` (AGENTS §24 keeps flash writes separate and higher-risk).
@@ -83,12 +84,13 @@ Polkit action `org.msilinux.Center.set-rgb-save`. Physical verification
 pending.
 
 Webcam follows the Phase 4 pattern with `MSI_LINUX_CENTER_ENABLE_WEBCAM_WRITES=1`
-and Polkit `org.msilinux.Center.set-webcam`. Webcam block is separate
+and Polkit `org.msilinux.Center.set-webcam`. Physically verified on
+2026-09-07. Webcam block is separate
 (`MSI_LINUX_CENTER_ENABLE_WEBCAM_BLOCK_WRITES=1`,
 `org.msilinux.Center.set-webcam-block`). Fn/Win swap uses
 `MSI_LINUX_CENTER_ENABLE_FN_KEY_WRITES=1` and
-`org.msilinux.Center.set-fn-key`. Physical verification pending; see
-`docs/phase4-peripherals-validation.md`.
+`org.msilinux.Center.set-fn-key`. Fn/Win and webcam block physically
+verified on 2026-09-07; see `docs/phase4-peripherals-validation.md`.
 
 No other write interface becomes part of `Center1` until its hardware-specific acceptance criteria are met and locally verified.
 
