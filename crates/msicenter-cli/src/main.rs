@@ -1,7 +1,8 @@
 use msi_core::SystemStatus;
 use msi_dbus::{
     collect_status, request_battery_thresholds, request_cooler_boost, request_fan_mode,
-    request_rgb_color, request_rgb_effect, request_rgb_save, request_super_battery,
+    request_fn_key, request_rgb_color, request_rgb_effect, request_rgb_preset_effect,
+    request_rgb_save, request_super_battery, request_webcam, request_webcam_block,
 };
 use std::process::ExitCode;
 
@@ -38,7 +39,7 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             if args.iter().any(|arg| arg == "--json") {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&report::report_json(&status))?
+                    serde_json::to_string_pretty(&msi_dbus::report_json_default(&status))?
                 );
             } else {
                 report::print_report(&status);
@@ -62,22 +63,14 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             if args.len() != 2 {
                 return Err("usage: msicenter cooler-boost on|off".into());
             }
-            let enabled = match args[1].as_str() {
-                "on" | "1" | "true" => true,
-                "off" | "0" | "false" => false,
-                other => return Err(format!("invalid cooler-boost value: {other}").into()),
-            };
+            let enabled = parse_on_off(&args[1], "cooler-boost")?;
             println!("{}", request_cooler_boost(enabled)?);
         }
         "super-battery" => {
             if args.len() != 2 {
                 return Err("usage: msicenter super-battery on|off".into());
             }
-            let enabled = match args[1].as_str() {
-                "on" | "1" | "true" => true,
-                "off" | "0" | "false" => false,
-                other => return Err(format!("invalid super-battery value: {other}").into()),
-            };
+            let enabled = parse_on_off(&args[1], "super-battery")?;
             println!("{}", request_super_battery(enabled)?);
         }
         "rgb-color" => {
@@ -139,6 +132,29 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 "{}",
                 request_rgb_effect(zones, mode, speed_seconds * 100, 1, colors)?
             );
+        }
+        "webcam" => {
+            if args.len() != 2 {
+                return Err("usage: msicenter webcam on|off".into());
+            }
+            let enabled = parse_on_off(&args[1], "webcam")?;
+            println!("{}", request_webcam(enabled)?);
+        }
+        "webcam-block" => {
+            if args.len() != 2 {
+                return Err("usage: msicenter webcam-block on|off".into());
+            }
+            let enabled = parse_on_off(&args[1], "webcam-block")?;
+            println!("{}", request_webcam_block(enabled)?);
+        }
+        "fn-key" => {
+            if args.len() != 2 {
+                return Err("usage: msicenter fn-key left|right".into());
+            }
+            match args[1].as_str() {
+                "left" | "right" => println!("{}", request_fn_key(&args[1])?),
+                other => return Err(format!("invalid fn-key position: {other}").into()),
+            }
         }
         "rgb-save" => {
             if args.len() != 1 {
@@ -221,12 +237,37 @@ fn scene_apply(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(enabled) = settings.super_battery {
         report_step("super_battery", request_super_battery(enabled));
     }
+    if let Some(enabled) = settings.webcam {
+        report_step("webcam", request_webcam(enabled));
+    }
+    if let Some(enabled) = settings.webcam_block {
+        report_step("webcam_block", request_webcam_block(enabled));
+    }
+    if let Some(position) = &settings.fn_key {
+        report_step("fn_key", request_fn_key(position));
+    }
     if let (Some(start), Some(end)) = (settings.battery_start, settings.battery_end) {
         report_step("battery_thresholds", request_battery_thresholds(start, end));
     }
     if let Some(rgb) = &settings.rgb {
-        if let Some((r, g, b)) = scene::color_to_rgb(&rgb.color) {
-            report_step("rgb", request_rgb_color(rgb.zones, r, g, b));
+        let mode = scene::rgb_mode_id(rgb.mode.as_deref()).expect("validated");
+        if mode <= 1 {
+            if let Some((r, g, b)) = scene::color_to_rgb(&rgb.color) {
+                report_step("rgb", request_rgb_color(rgb.zones, r, g, b));
+            }
+        } else {
+            let speed = rgb.speed.unwrap_or(3).max(1);
+            let direction = rgb.wave_direction.unwrap_or(1);
+            report_step(
+                "rgb",
+                request_rgb_preset_effect(
+                    rgb.zones,
+                    mode,
+                    speed.saturating_mul(100),
+                    &rgb.color,
+                    direction,
+                ),
+            );
         }
     }
     Ok(())
@@ -250,6 +291,9 @@ fn print_help() {
     println!("  msicenter fan-mode MODE");
     println!("  msicenter cooler-boost on|off");
     println!("  msicenter super-battery on|off");
+    println!("  msicenter webcam on|off");
+    println!("  msicenter webcam-block on|off");
+    println!("  msicenter fn-key left|right");
     println!("  msicenter rgb-color ZONE_MASK RRGGBB  (non-persistent)");
     println!("  msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS  (non-persistent)");
     println!("  msicenter rgb-save  (persistent flash save)");
@@ -291,6 +335,14 @@ fn print_status(status: &SystemStatus) {
     println!("  Fan mode    : {}", show(status.ec.fan_mode.as_deref()));
     println!("  CoolerBoost : {}", show_bool(status.ec.cooler_boost));
     println!("  SuperBattery: {}", show_bool(status.ec.super_battery));
+    println!("  Webcam      : {}", show_bool(status.ec.webcam));
+    println!("  Webcam block: {}", show_bool(status.ec.webcam_block));
+    println!("  Fn key      : {}", show(status.ec.fn_key.as_deref()));
+    println!("  Win key     : {}", show(status.ec.win_key.as_deref()));
+    println!(
+        "  EC date     : {}",
+        show(status.ec.firmware_date.as_deref())
+    );
     println!("  CPU temp    : {}", show_temp(status.ec.cpu_temperature_c));
     println!("  GPU temp    : {}", show_temp(status.ec.gpu_temperature_c));
     println!("  CPU fan lvl : {}", show_num(status.ec.cpu_fan_level));
@@ -358,6 +410,14 @@ fn print_capabilities(status: &SystemStatus) {
     println!("Write features remain disabled.");
 }
 
+fn parse_on_off(value: &str, label: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    match value {
+        "on" | "1" | "true" => Ok(true),
+        "off" | "0" | "false" => Ok(false),
+        other => Err(format!("invalid {label} value: {other}").into()),
+    }
+}
+
 fn show(value: Option<&str>) -> &str {
     value.unwrap_or("unavailable")
 }
@@ -410,6 +470,14 @@ mod tests {
     fn fixture_status_and_missing_interfaces() {
         let status = msi_dbus::collect_status_at(fixture("katana17-b13vgk")).unwrap();
         assert_eq!(status.ec.shift_mode.as_deref(), Some("unknown (192)"));
+        assert_eq!(status.ec.webcam, Some(true));
+        assert_eq!(status.ec.webcam_block, Some(false));
+        assert_eq!(status.ec.fn_key.as_deref(), Some("right"));
+        assert_eq!(status.ec.win_key.as_deref(), Some("left"));
+        assert_eq!(
+            status.ec.firmware_date.as_deref(),
+            Some("2024-08-22T13:39:26")
+        );
         assert!(status.backends.msi_ec);
         assert!(status.backends.msi_wmi_platform);
         assert!(status.backends.power_supply_battery);
@@ -435,6 +503,8 @@ mod tests {
         assert!(json["runtime_capabilities"].is_array());
 
         let missing = msi_dbus::collect_status_at(fixture("missing-interfaces")).unwrap();
+        assert!(missing.ec.webcam.is_none());
+        assert!(missing.ec.fn_key.is_none());
         assert!(!missing.backends.msi_ec);
         assert!(!missing.backends.msi_wmi_platform);
         assert!(missing.backends.power_supply_battery);

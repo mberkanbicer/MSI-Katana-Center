@@ -21,6 +21,15 @@ ScrollView {
             color: "#E8DCCB"
         }
 
+        Label {
+            visible: center.profileText === ""
+            width: parent.width
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            text: "No device profile matched. Copy the report below when asking for support on a new model. Serial numbers are not included."
+            color: "#E2A35B"
+            font.pixelSize: 12
+        }
+
         Rectangle {
             width: parent.width
             radius: 10
@@ -37,8 +46,11 @@ ScrollView {
                     text: "Profile: " + (center.profileText !== "" ? center.profileText : "unmatched")
                           + "   ·   support: " + (center.supportText !== "" ? center.supportText : "unknown")
                           + "   ·   firmware: " + (center.ecFirmware !== "" ? center.ecFirmware : "?")
+                          + (center.ecFirmwareDate !== "" ? " (" + center.ecFirmwareDate + ")" : "")
                     color: "#E8DCCB"
                     font.pixelSize: 13
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    Layout.fillWidth: true
                 }
                 Label { text: "RGB controller"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
                 Label {
@@ -52,38 +64,73 @@ ScrollView {
                     color: center.lastError !== "" ? "#DD6B58" : "#A9BA7C"
                     font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    width: parent.width
+                    Layout.fillWidth: true
                 }
             }
-            implicitHeight: 200
+            implicitHeight: 210
         }
 
         Rectangle {
             width: parent.width
-            Layout.preferredHeight: 200
             radius: 10
             color: "#292420"
             border.color: "#3A332B"
             border.width: 1
             clip: true
-            ColumnLayout {
+            Column {
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 8
                 Label { text: "Runtime capabilities (readable)"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
-                ScrollView {
-                    width: parent.width
-                    height: 130
-                    clip: true
-                    Label {
-                        text: center.capsText
-                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                        font.pixelSize: 12
-                        color: "#B5A896"
-                        width: parent.width
-                    }
+                Label {
+                    width: parent.width - 32
+                    text: center.capsText
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    font.pixelSize: 12
+                    color: "#B5A896"
                 }
             }
+            implicitHeight: 160
+        }
+
+        Row {
+            spacing: 10
+            Button {
+                text: "Copy report"
+                enabled: center.diagnosticReport !== ""
+                onClicked: center.copyDiagnosticReport()
+            }
+            Label {
+                text: "CLI: msicenter report [--json]  ·  no serials (AGENTS §31)"
+                color: "#8C7F6F"
+                font.pixelSize: 11
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            radius: 10
+            color: "#201C17"
+            border.color: "#3A332B"
+            border.width: 1
+            clip: true
+            ScrollView {
+                anchors.fill: parent
+                anchors.margins: 12
+                TextArea {
+                    readOnly: true
+                    wrapMode: TextEdit.Wrap
+                    text: center.diagnosticReport !== ""
+                              ? center.diagnosticReport
+                              : "connecting…"
+                    color: "#B5A896"
+                    font.family: "monospace"
+                    font.pixelSize: 11
+                    background: null
+                }
+            }
+            implicitHeight: 280
         }
     }
 }

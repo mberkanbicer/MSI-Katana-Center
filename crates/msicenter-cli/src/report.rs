@@ -1,91 +1,19 @@
-//! Read-only diagnostic report for community/upstream support (Phase 9).
-//!
-//! A report collects the kernel/module context around a `SystemStatus` so
-//! an issue can be filed without re-asking for basics. Everything here is
-//! read-only. Privacy rule AGENTS §31: serial numbers and UUIDs are never
-//! included — the RGB controller serial is dropped from the device JSON.
+//! Human-readable Phase 9 report. JSON lives in `msi_dbus::report_json`.
 
 use msi_core::SystemStatus;
-use serde::Serialize;
-use std::path::{Path, PathBuf};
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ModuleInfo {
-    pub name: String,
-    pub state: Option<String>,
-    pub version: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SystemInfo {
-    pub osrelease: Option<String>,
-    pub kernel_version: Option<String>,
-    pub modules: Vec<ModuleInfo>,
-}
-
-fn read_trimmed(path: &Path) -> Option<String> {
-    std::fs::read_to_string(path)
-        .ok()
-        .map(|text| text.trim().to_string())
-}
-
-/// sysroot override, matching `msi-hardware::HardwarePaths` resolution.
-pub fn sysroot() -> PathBuf {
-    std::env::var_os("MSI_LINUX_CENTER_SYSROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/"))
-}
-
-pub fn module_info(name: &str, sysroot: &Path) -> Option<ModuleInfo> {
-    let base = sysroot.join("sys/module").join(name);
-    if !base.is_dir() {
-        return None;
-    }
-    Some(ModuleInfo {
-        name: name.to_string(),
-        state: read_trimmed(&base.join("initstate")),
-        version: read_trimmed(&base.join("version")),
-    })
-}
-
-pub fn system_info(sysroot: &Path) -> SystemInfo {
-    let rooted = |absolute: &str| sysroot.join(absolute.trim_start_matches('/'));
-    let mut modules = Vec::new();
-    for name in ["msi_ec", "msi_wmi_platform"] {
-        if let Some(info) = module_info(name, sysroot) {
-            modules.push(info);
-        }
-    }
-    SystemInfo {
-        osrelease: read_trimmed(&rooted("/proc/sys/kernel/osrelease")),
-        kernel_version: read_trimmed(&rooted("/proc/version")),
-        modules,
-    }
-}
-
-/// Device JSON with serial numbers removed (AGENTS §31).
-pub fn device_json(status: &SystemStatus) -> serde_json::Value {
-    let mut value = serde_json::to_value(status).expect("SystemStatus serializes");
-    if let Some(rgb) = value.get_mut("rgb").and_then(|rgb| rgb.as_object_mut()) {
-        rgb.remove("controller_serial");
-    }
-    value
-}
-
-/// Full JSON report: tool version, system context, redacted device state.
-pub fn report_json(status: &SystemStatus) -> serde_json::Value {
-    serde_json::json!({
-        "msicenter_version": env!("CARGO_PKG_VERSION"),
-        "system": system_info(&sysroot()),
-        "device": device_json(status),
-    })
-}
+use msi_dbus::system_info;
+use std::path::PathBuf;
 
 fn show(value: Option<&str>) -> &str {
     value.unwrap_or("unavailable")
 }
 
-/// Human-readable report (no serial numbers, AGENTS §31).
+fn sysroot() -> PathBuf {
+    std::env::var_os("MSI_LINUX_CENTER_SYSROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/"))
+}
+
 pub fn print_report(status: &SystemStatus) {
     let info = system_info(&sysroot());
     let identity = &status.identity;
@@ -126,6 +54,9 @@ pub fn print_report(status: &SystemStatus) {
             .map(|p| p.support_tier.to_string())
             .unwrap_or_else(|| "unknown".into())
     );
+    if profile.is_none() {
+        println!("  Note        : unmatched model — attach this report when asking for support");
+    }
     let backend_names = [
         ("msi_ec", status.backends.msi_ec),
         ("msi_wmi_platform", status.backends.msi_wmi_platform),
@@ -166,6 +97,34 @@ pub fn print_report(status: &SystemStatus) {
             .super_battery
             .map(|enabled| if enabled { "on" } else { "off" }.to_string())
             .unwrap_or_else(|| "unavailable".into())
+    );
+    println!(
+        "  Webcam      : {}",
+        status
+            .ec
+            .webcam
+            .map(|enabled| if enabled { "on" } else { "off" }.to_string())
+            .unwrap_or_else(|| "unavailable".into())
+    );
+    println!(
+        "  Webcam block: {}",
+        status
+            .ec
+            .webcam_block
+            .map(|enabled| if enabled { "on" } else { "off" }.to_string())
+            .unwrap_or_else(|| "unavailable".into())
+    );
+    println!(
+        "  Fn key      : {}",
+        status.ec.fn_key.as_deref().unwrap_or("unavailable")
+    );
+    println!(
+        "  Win key     : {}",
+        status.ec.win_key.as_deref().unwrap_or("unavailable")
+    );
+    println!(
+        "  EC date     : {}",
+        status.ec.firmware_date.as_deref().unwrap_or("unavailable")
     );
     println!(
         "  CPU temp    : {}",
@@ -254,58 +213,4 @@ pub fn print_report(status: &SystemStatus) {
     println!();
     println!("Privacy: serial numbers and UUIDs are not included (AGENTS §31).");
     println!("For the machine-readable form run: msicenter report --json");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use msi_core::{BackendAvailability, DeviceIdentity, RgbStatus, SystemStatus};
-
-    fn sample_status() -> SystemStatus {
-        SystemStatus {
-            identity: DeviceIdentity {
-                sys_vendor: Some("Micro-Star International".into()),
-                product_name: Some("Katana 17 B13VGK".into()),
-                ..Default::default()
-            },
-            matched_profile: None,
-            backends: BackendAvailability {
-                msi_ec: true,
-                msi_wmi_platform: true,
-                power_supply_battery: true,
-                rgb_hid: false,
-            },
-            runtime_capabilities: vec![],
-            ec: Default::default(),
-            fans: vec![],
-            battery: Default::default(),
-            rgb: RgbStatus {
-                controller_name: Some("MysticLight MS-1565".into()),
-                controller_serial: Some("4062C8A28000".into()),
-            },
-        }
-    }
-
-    #[test]
-    fn device_json_drops_rgb_serial() {
-        let value = device_json(&sample_status());
-        assert_eq!(value["rgb"]["controller_name"], "MysticLight MS-1565");
-        assert!(value["rgb"].get("controller_serial").is_none());
-    }
-
-    #[test]
-    fn module_info_reads_state_and_version() {
-        let root = std::env::temp_dir().join("msicenter-report-test");
-        let base = root.join("sys/module/msi_ec");
-        std::fs::create_dir_all(&base).unwrap();
-        std::fs::write(base.join("initstate"), "live\n").unwrap();
-        std::fs::write(base.join("version"), "0.13\n").unwrap();
-
-        let info = module_info("msi_ec", &root).expect("module present");
-        assert_eq!(info.state.as_deref(), Some("live"));
-        assert_eq!(info.version.as_deref(), Some("0.13"));
-        assert!(module_info("not_a_module", &root).is_none());
-
-        std::fs::remove_dir_all(&root).ok();
-    }
 }

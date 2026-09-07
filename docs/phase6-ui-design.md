@@ -11,7 +11,10 @@ navigation (Overview/Power & Fans/Battery/Keyboard RGB/Scenes/
 Diagnostics), RGB color picker (HSL sliders + hex + live preview) and RGB
 effect picker (steady/breathing/cycle/wave via daemon
 `SetRgbPresetEffect`), system tray with hide-to-close, autostart
-descriptor. Desktop visual test of write controls pending (user session).
+descriptor, tray RGB effects (breathing/cycle/wave amber) and in-app
+shortcuts (Ctrl+Shift+C Cooler Boost, Ctrl+Shift+B Super Battery,
+Ctrl+Shift+L RGB off). Desktop visual test of write controls pending
+(user session).
 
 Acceptance criteria for this document: (1) environment facts are recorded;
 (2) the D-Bus surface is mapped to concrete UI screens and actions;

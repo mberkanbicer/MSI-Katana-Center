@@ -42,9 +42,13 @@ applies a named set in one action and reports per-setting results.
     "fan_mode": "auto",              // optional; values from available_fan_modes
     "cooler_boost": false,           // optional boolean
     "super_battery": false,          // optional boolean
+    "webcam": true,                  // optional boolean
+    "webcam_block": false,           // optional boolean
+    "fn_key": "right",               // optional; left|right
     "battery_start": 80,             // optional, 0..99 (pair with battery_end)
     "battery_end": 100,              // optional, 1..100, > battery_start
-    "rgb": { "zones": 15, "color": "ff0000" }   // optional steady color
+    "rgb": { "zones": 15, "color": "ff0000" }   // optional; default steady
+    // "rgb": { "zones": 15, "color": "e2a35b", "mode": "wave", "speed": 5, "wave_direction": 1 }
   }
 }
 ```
@@ -56,6 +60,9 @@ Constraints:
 - Values are validated against the same rules as the individual writes
   (zones bits 0-3, color RRGGBB, thresholds start<end, fan mode from the
   driver list at apply time).
+- Optional `rgb.mode`: omitted/`steady` uses `SetRgbColor`; `breath` /
+  `cycle` / `wave` uses `SetRgbPresetEffect` (optional `speed` seconds,
+  default 3; optional `wave_direction` 0 or 1, default 1).
 - **RGB is never persisted by a scene** (no flash-save); scenes are
   non-persistent by design — a reboot returns to the flashed state.
 - Scenes do not touch performance mode (deferred, §6.1), MUX, or fan

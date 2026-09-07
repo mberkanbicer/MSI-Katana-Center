@@ -28,6 +28,14 @@ class CenterClient : public QObject {
     Q_PROPERTY(bool coolerBoostValid READ coolerBoostValid NOTIFY changed)
     Q_PROPERTY(bool superBatteryOn READ superBatteryOn NOTIFY changed)
     Q_PROPERTY(bool superBatteryValid READ superBatteryValid NOTIFY changed)
+    Q_PROPERTY(QString webcamText READ webcamText NOTIFY changed)
+    Q_PROPERTY(bool webcamOn READ webcamOn NOTIFY changed)
+    Q_PROPERTY(bool webcamValid READ webcamValid NOTIFY changed)
+    Q_PROPERTY(bool webcamBlockOn READ webcamBlockOn NOTIFY changed)
+    Q_PROPERTY(bool webcamBlockValid READ webcamBlockValid NOTIFY changed)
+    Q_PROPERTY(QString fnWinText READ fnWinText NOTIFY changed)
+    Q_PROPERTY(QString fnKey READ fnKey NOTIFY changed)
+    Q_PROPERTY(QString ecFirmwareDate READ ecFirmwareDate NOTIFY changed)
     Q_PROPERTY(QString ecTemps READ ecTemps NOTIFY changed)
     Q_PROPERTY(QString fanText READ fanText NOTIFY changed)
     Q_PROPERTY(QString batteryState READ batteryState NOTIFY changed)
@@ -36,6 +44,7 @@ class CenterClient : public QObject {
     Q_PROPERTY(int chargeEndPercent READ chargeEndPercent NOTIFY changed)
     Q_PROPERTY(QString capsText READ capsText NOTIFY changed)
     Q_PROPERTY(QString rgbControllerText READ rgbControllerText NOTIFY changed)
+    Q_PROPERTY(QString diagnosticReport READ diagnosticReport NOTIFY changed)
     Q_PROPERTY(QString lastError READ lastError NOTIFY changed)
     Q_PROPERTY(QString actionMessage READ actionMessage NOTIFY changed)
     Q_PROPERTY(bool actionError READ actionError NOTIFY changed)
@@ -56,6 +65,14 @@ public:
     bool coolerBoostValid() const { return m_hasCoolerBoost; }
     bool superBatteryOn() const { return m_superBattery; }
     bool superBatteryValid() const { return m_hasSuperBattery; }
+    QString webcamText() const { return m_webcamText; }
+    bool webcamOn() const { return m_webcamOn; }
+    bool webcamValid() const { return m_hasWebcam; }
+    bool webcamBlockOn() const { return m_webcamBlockOn; }
+    bool webcamBlockValid() const { return m_hasWebcamBlock; }
+    QString fnWinText() const { return m_fnWinText; }
+    QString fnKey() const { return m_fnKey; }
+    QString ecFirmwareDate() const { return m_ecFirmwareDate; }
     QString ecTemps() const { return m_ecTemps; }
     QString fanText() const { return m_fanText; }
     QString batteryState() const { return m_battery; }
@@ -64,6 +81,7 @@ public:
     int chargeEndPercent() const { return m_chargeEnd; }
     QString capsText() const { return m_caps; }
     QString rgbControllerText() const { return m_rgbController; }
+    QString diagnosticReport() const { return m_diagnosticReport; }
     QString lastError() const { return m_error; }
     QString actionMessage() const { return m_actionMessage; }
     bool actionError() const { return m_actionError; }
@@ -86,6 +104,9 @@ public slots:
     void setFanMode(const QString &mode);
     void setCoolerBoost(bool enabled);
     void setSuperBattery(bool enabled);
+    void setWebcam(bool enabled);
+    void setWebcamBlock(bool enabled);
+    void setFnKey(const QString &position);
     void setBatteryThresholds(int start, int end);
     void setRgbColorFromHex(int zones, const QString &hex);
     void setRgbEffectPreset(int zones, int mode, int speedSeconds,
@@ -94,6 +115,7 @@ public slots:
     void applyScene(const QString &name);
     Q_INVOKABLE void importScenes();
     Q_INVOKABLE void exportScenes();
+    Q_INVOKABLE void copyDiagnosticReport();
 
 signals:
     void changed();
@@ -134,6 +156,14 @@ private:
     bool m_hasCoolerBoost = false;
     bool m_superBattery = false;
     bool m_hasSuperBattery = false;
+    bool m_webcamOn = false;
+    bool m_hasWebcam = false;
+    bool m_webcamBlockOn = false;
+    bool m_hasWebcamBlock = false;
+    QString m_webcamText;
+    QString m_fnWinText;
+    QString m_fnKey;
+    QString m_ecFirmwareDate;
     QString m_ecTemps;
     QString m_fanText;
     QString m_battery;
@@ -142,6 +172,7 @@ private:
     int m_chargeEnd = -1;
     QString m_caps;
     QString m_rgbController;
+    QString m_diagnosticReport;
     QString m_error;
     QString m_actionMessage;
     bool m_actionError = false;

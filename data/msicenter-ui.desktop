@@ -8,3 +8,16 @@ Terminal=false
 Categories=Utility;Settings;System;
 Keywords=MSI;laptop;fan;RGB;battery;hardware;
 StartupNotify=false
+Actions=CoolerBoostOn;CoolerBoostOff;RgbOff;
+
+[Desktop Action CoolerBoostOn]
+Name=Cooler Boost on
+Exec=msicenter cooler-boost on
+
+[Desktop Action CoolerBoostOff]
+Name=Cooler Boost off
+Exec=msicenter cooler-boost off
+
+[Desktop Action RgbOff]
+Name=Keyboard RGB off
+Exec=msicenter rgb-color f 000000

@@ -17,14 +17,18 @@ verification on the reference laptop. See
 | 1–2 | read-only core, device database, runtime capabilities, fixture | complete |
 | 3 | D-Bus daemon, systemd unit, D-Bus policy, Polkit actions | complete |
 | 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — all physically verified 2026-09-05 |
-| 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) |
+| 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) — no writes until §11 experiment |
 | 6 | Qt/QML desktop UI | Material/warm desktop client with sidebar navigation, write controls, RGB color+effect pickers, system tray: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
 | 7 | RGB (MysticLight MS-1565) | non-persistent `SetRgbColor` physically verified 2026-09-06; effect modes via `SetRgbPresetEffect` implemented (desktop test pending); flash-save implemented, physical test pending |
+| 8 | scenes | CLI physically validated; UI apply/import/export |
+| 9 | community diagnostics | `msicenter report` + UI copy; unmatched-model JSON, no serials: [`docs/phase9-diagnostics.md`](docs/phase9-diagnostics.md) |
+| 10 | MUX | research only; see [`docs/deferred-features-research.md`](docs/deferred-features-research.md) |
 
 ## Current scope
 
 - DMI device detection and profile matching with provenance validation
-- EC semantic state through `msi-ec` (shift/fan modes, temps, fan levels)
+- EC semantic state through `msi-ec` (shift/fan modes, temps, fan levels,
+  webcam and Fn/Win key positions — read-only)
 - real fan RPM through `msi_wmi_platform`/hwmon (channels kept unmapped)
 - battery status and charge thresholds through Linux `power_supply`
 - runtime capability reporting (model vs backend vs readable)
@@ -32,6 +36,8 @@ verification on the reference laptop. See
 - gated, verified writes: `SetBatteryThresholds`, `SetFanMode`,
   `SetCoolerBoost`, `SetSuperBattery` — disabled by default (per-feature
   daemon opt-ins), exact verified firmware + Polkit required
+- gated peripheral writes (physical test pending): `SetWebcam`,
+  `SetWebcamBlock`, `SetFnKey` through `msi-ec` sysfs
 - D-Bus daemon (`org.msilinux.Center`) and Qt/QML desktop client
 - all paths redirectable via `MSI_LINUX_CENTER_SYSROOT`
 
@@ -69,6 +75,9 @@ Each command requires the daemon to run with the matching opt-in
     msicenter fan-mode auto|silent|advanced
     msicenter cooler-boost on|off
     msicenter super-battery on|off
+    msicenter webcam on|off
+    msicenter webcam-block on|off
+    msicenter fn-key left|right
 
 With the opt-in disabled the daemon refuses with `NotSupported`. The exact
 support scope, gates, and physical verification records live in
@@ -81,7 +90,12 @@ support scope, gates, and physical verification records live in
     ./build/msicenter-ui
 
 Pure D-Bus client: never root, no direct `/sys` access; write controls go
-through the daemon's Polkit-gated methods.
+through the daemon's Polkit-gated methods. The tray menu can set a steady
+keyboard color or an amber breathing/cycle/wave effect, apply a saved
+scene, and (while the app is running) Ctrl+Shift+C / B / L toggles
+Cooler Boost, Super Battery, and keyboard RGB off. Compositor-level
+bindings can call the same CLI commands (`msicenter cooler-boost on`,
+`msicenter rgb-color f 000000`).
 
 ## Sysroot override
 

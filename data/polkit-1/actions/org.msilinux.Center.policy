@@ -57,4 +57,31 @@
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
   </action>
+  <action id="org.msilinux.Center.set-webcam">
+    <description>Enable or disable the integrated webcam</description>
+    <message>Authentication is required to change the webcam state</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+  <action id="org.msilinux.Center.set-webcam-block">
+    <description>Block or unblock the integrated webcam</description>
+    <message>Authentication is required to change the webcam block</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+  <action id="org.msilinux.Center.set-fn-key">
+    <description>Swap Fn and Windows key positions</description>
+    <message>Authentication is required to change the Fn key position</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
 </policyconfig>

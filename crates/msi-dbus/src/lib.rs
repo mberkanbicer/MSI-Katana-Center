@@ -3,7 +3,7 @@ use msi_core::{
     RgbStatus, RuntimeCapability, SupportTier, SystemStatus,
 };
 use msi_device_db::DatabaseError;
-use msi_hardware::{validate_battery_thresholds, FanModeError, HardwarePaths};
+use msi_hardware::{validate_battery_thresholds, EcAttrError, FanModeError, HardwarePaths};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
@@ -15,6 +15,11 @@ use zbus::message::Header;
 use zbus::object_server::SignalContext;
 use zbus::zvariant::Value;
 
+mod report;
+pub use report::{
+    device_json, module_info, report_json, report_json_default, system_info, ModuleInfo, SystemInfo,
+};
+
 pub const BUS_NAME: &str = "org.msilinux.Center";
 pub const ROOT_PATH: &str = "/org/msilinux/Center";
 pub const SET_BATTERY_THRESHOLDS_ACTION: &str = "org.msilinux.Center.set-battery-thresholds";
@@ -23,6 +28,9 @@ pub const SET_COOLER_BOOST_ACTION: &str = "org.msilinux.Center.set-cooler-boost"
 pub const SET_SUPER_BATTERY_ACTION: &str = "org.msilinux.Center.set-super-battery";
 pub const SET_RGB_COLOR_ACTION: &str = "org.msilinux.Center.set-rgb-color";
 pub const SET_RGB_SAVE_ACTION: &str = "org.msilinux.Center.set-rgb-save";
+pub const SET_WEBCAM_ACTION: &str = "org.msilinux.Center.set-webcam";
+pub const SET_WEBCAM_BLOCK_ACTION: &str = "org.msilinux.Center.set-webcam-block";
+pub const SET_FN_KEY_ACTION: &str = "org.msilinux.Center.set-fn-key";
 
 #[derive(Debug)]
 pub enum ServiceError {
@@ -160,6 +168,63 @@ pub fn request_rgb_effect(
             &(zones, mode, speed_centiseconds, wave_direction, colors),
         )
         .map_err(Into::into)
+}
+
+pub fn request_rgb_preset_effect(
+    zones: u8,
+    mode: u8,
+    speed_centiseconds: u16,
+    color_hex: &str,
+    wave_direction: u8,
+) -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy
+        .call(
+            "SetRgbPresetEffect",
+            &(zones, mode, speed_centiseconds, color_hex, wave_direction),
+        )
+        .map_err(Into::into)
+}
+
+pub fn request_webcam(enabled: bool) -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy.call("SetWebcam", &(enabled,)).map_err(Into::into)
+}
+
+pub fn request_webcam_block(enabled: bool) -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy
+        .call("SetWebcamBlock", &(enabled,))
+        .map_err(Into::into)
+}
+
+pub fn request_fn_key(position: &str) -> Result<String, ServiceError> {
+    let connection = Connection::system()?;
+    let proxy = zbus::blocking::Proxy::new(
+        &connection,
+        BUS_NAME,
+        ROOT_PATH,
+        "org.msilinux.Center1.Device",
+    )?;
+    proxy.call("SetFnKey", &(position,)).map_err(Into::into)
 }
 
 pub fn request_rgb_save() -> Result<String, ServiceError> {
@@ -304,6 +369,18 @@ fn runtime_capabilities(
         ),
         capability("rgb", has(|c| c.rgb), backends.rgb_hid, false),
         capability(
+            "webcam",
+            has(|c| c.webcam),
+            backends.msi_ec,
+            ec.webcam.is_some(),
+        ),
+        capability(
+            "fn_win",
+            has(|c| c.fn_win),
+            backends.msi_ec,
+            ec.fn_key.is_some() || ec.win_key.is_some(),
+        ),
+        capability(
             "custom_fan_curve",
             has(|c| c.custom_fan_curve),
             false,
@@ -352,6 +429,12 @@ impl DeviceInterface {
     #[zbus(property, name = "RgbController")]
     fn rgb_controller(&self) -> zbus::fdo::Result<String> {
         to_json(&snapshot(&self.status)?.rgb)
+    }
+
+    #[zbus(property, name = "DiagnosticReport")]
+    fn diagnostic_report(&self) -> zbus::fdo::Result<String> {
+        let status = snapshot(&self.status)?;
+        to_json(&report_json(&status, &self.hardware))
     }
 
     async fn refresh(
@@ -523,6 +606,109 @@ impl DeviceInterface {
                 &status.fans,
                 &status.battery,
             );
+        }
+        Self::state_changed(&context)
+            .await
+            .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        to_json(&applied)
+    }
+
+    async fn set_webcam(
+        &self,
+        enabled: bool,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(signal_context)] context: SignalContext<'_>,
+    ) -> zbus::fdo::Result<String> {
+        let current = snapshot(&self.status)?;
+        require_webcam_write_support(&current, webcam_writes_enabled())?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_WEBCAM_ACTION).await?;
+        let applied = self
+            .hardware
+            .set_webcam(enabled)
+            .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        {
+            let mut status = self
+                .status
+                .write()
+                .map_err(|_| zbus::fdo::Error::Failed("status lock poisoned".into()))?;
+            status.ec.webcam = applied.webcam;
+        }
+        Self::state_changed(&context)
+            .await
+            .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        to_json(&applied)
+    }
+
+    async fn set_webcam_block(
+        &self,
+        enabled: bool,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(signal_context)] context: SignalContext<'_>,
+    ) -> zbus::fdo::Result<String> {
+        let current = snapshot(&self.status)?;
+        let webcam_ok = current
+            .matched_profile
+            .as_ref()
+            .is_some_and(|profile| profile.capabilities.webcam);
+        require_msi_ec_capability(
+            &current,
+            webcam_block_writes_enabled(),
+            "MSI_LINUX_CENTER_ENABLE_WEBCAM_BLOCK_WRITES",
+            webcam_ok,
+            "webcam-block",
+        )?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_WEBCAM_BLOCK_ACTION).await?;
+        let applied = self
+            .hardware
+            .set_webcam_block(enabled)
+            .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        {
+            let mut status = self
+                .status
+                .write()
+                .map_err(|_| zbus::fdo::Error::Failed("status lock poisoned".into()))?;
+            status.ec.webcam_block = applied.webcam_block;
+        }
+        Self::state_changed(&context)
+            .await
+            .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        to_json(&applied)
+    }
+
+    async fn set_fn_key(
+        &self,
+        position: String,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(signal_context)] context: SignalContext<'_>,
+    ) -> zbus::fdo::Result<String> {
+        let current = snapshot(&self.status)?;
+        require_fn_win_write_support(&current, fn_key_writes_enabled())?;
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        authorize(&self.connection, sender.as_str(), SET_FN_KEY_ACTION).await?;
+        let applied = self
+            .hardware
+            .set_fn_key(&position)
+            .map_err(|error| match error {
+                EcAttrError::InvalidValue { .. } => {
+                    zbus::fdo::Error::InvalidArgs(error.to_string())
+                }
+                other => zbus::fdo::Error::Failed(other.to_string()),
+            })?;
+        {
+            let mut status = self
+                .status
+                .write()
+                .map_err(|_| zbus::fdo::Error::Failed("status lock poisoned".into()))?;
+            status.ec.fn_key = applied.fn_key.clone();
+            status.ec.win_key = applied.win_key.clone();
         }
         Self::state_changed(&context)
             .await
@@ -757,6 +943,18 @@ fn rgb_flash_writes_enabled() -> bool {
     std::env::var("MSI_LINUX_CENTER_ENABLE_RGB_FLASH_WRITES").as_deref() == Ok("1")
 }
 
+fn webcam_writes_enabled() -> bool {
+    std::env::var("MSI_LINUX_CENTER_ENABLE_WEBCAM_WRITES").as_deref() == Ok("1")
+}
+
+fn webcam_block_writes_enabled() -> bool {
+    std::env::var("MSI_LINUX_CENTER_ENABLE_WEBCAM_BLOCK_WRITES").as_deref() == Ok("1")
+}
+
+fn fn_key_writes_enabled() -> bool {
+    std::env::var("MSI_LINUX_CENTER_ENABLE_FN_KEY_WRITES").as_deref() == Ok("1")
+}
+
 fn require_battery_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
     if !enabled {
         return Err(zbus::fdo::Error::NotSupported(
@@ -881,6 +1079,69 @@ fn require_super_battery_write_support(
         ));
     }
     Ok(())
+}
+
+fn require_msi_ec_capability(
+    status: &SystemStatus,
+    enabled: bool,
+    opt_in: &str,
+    capability_ok: bool,
+    label: &str,
+) -> zbus::fdo::Result<()> {
+    if !enabled {
+        return Err(zbus::fdo::Error::NotSupported(format!(
+            "{label} writes disabled; set {opt_in}=1 for local validation"
+        )));
+    }
+    let profile = status
+        .matched_profile
+        .as_ref()
+        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
+    let firmware = status
+        .ec
+        .firmware
+        .as_ref()
+        .ok_or_else(|| zbus::fdo::Error::NotSupported("EC firmware unavailable".into()))?;
+    if !capability_ok
+        || !profile
+            .exact_verified_firmware
+            .iter()
+            .any(|verified| verified == firmware)
+        || !status.backends.msi_ec
+    {
+        return Err(zbus::fdo::Error::NotSupported(format!(
+            "{label} writes require exact verified firmware and the msi-ec backend"
+        )));
+    }
+    Ok(())
+}
+
+fn require_webcam_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
+    let ok = status
+        .matched_profile
+        .as_ref()
+        .is_some_and(|profile| profile.capabilities.webcam);
+    require_msi_ec_capability(
+        status,
+        enabled,
+        "MSI_LINUX_CENTER_ENABLE_WEBCAM_WRITES",
+        ok,
+        "webcam",
+    )
+}
+
+fn require_fn_win_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
+    let ok = status
+        .matched_profile
+        .as_ref()
+        .is_some_and(|profile| profile.capabilities.fn_win);
+    require_msi_ec_capability(
+        status,
+        enabled,
+        "MSI_LINUX_CENTER_ENABLE_FN_KEY_WRITES",
+        ok,
+        "fn-key",
+    )
 }
 
 fn require_rgb_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
@@ -1075,6 +1336,21 @@ mod tests {
         assert!(require_rgb_write_support(&status, true).is_ok());
         status.matched_profile.as_mut().unwrap().rgb_usb_vid = None;
         assert!(require_rgb_write_support(&status, true).is_err());
+    }
+
+    #[test]
+    fn webcam_and_fn_key_write_gates_require_opt_in_and_exact_firmware() {
+        let mut status = collect_status_at(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/katana17-b13vgk"),
+        )
+        .unwrap();
+        assert!(require_webcam_write_support(&status, false).is_err());
+        assert!(require_webcam_write_support(&status, true).is_ok());
+        assert!(require_fn_win_write_support(&status, false).is_err());
+        assert!(require_fn_win_write_support(&status, true).is_ok());
+        status.ec.firmware = Some("17L5EMS1.999".into());
+        assert!(require_webcam_write_support(&status, true).is_err());
+        assert!(require_fn_win_write_support(&status, true).is_err());
     }
 
     #[test]

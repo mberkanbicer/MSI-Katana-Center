@@ -1,6 +1,6 @@
 use msi_core::{
     BackendAvailability, BatteryStatus, CoolerBoostState, DeviceIdentity, EcStatus, FanModeState,
-    FanReading, SuperBatteryState,
+    FanReading, FnWinState, SuperBatteryState, WebcamBlockState, WebcamState,
 };
 use std::fmt;
 use std::fs;
@@ -235,6 +235,71 @@ impl From<io::Error> for SuperBatteryError {
     }
 }
 
+#[derive(Debug)]
+pub enum EcAttrError {
+    Unavailable {
+        attr: &'static str,
+    },
+    InvalidValue {
+        attr: &'static str,
+        value: String,
+    },
+    Io {
+        attr: &'static str,
+        error: io::Error,
+    },
+    Verification {
+        attr: &'static str,
+        applied: Option<String>,
+        expected: String,
+    },
+    Rollback {
+        attr: &'static str,
+        operation: String,
+        rollback: io::Error,
+    },
+}
+
+impl fmt::Display for EcAttrError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable { attr } => {
+                write!(f, "writable msi-ec {attr} interface unavailable")
+            }
+            Self::InvalidValue { attr, value } => {
+                write!(f, "invalid {attr} value {value:?}")
+            }
+            Self::Io { attr, error } => write!(f, "{attr} I/O error: {error}"),
+            Self::Verification {
+                attr,
+                applied,
+                expected,
+            } => write!(
+                f,
+                "{attr} verification failed: driver reported {applied:?}, expected {expected:?}"
+            ),
+            Self::Rollback {
+                attr,
+                operation,
+                rollback,
+            } => write!(
+                f,
+                "{attr} operation failed ({operation}); rollback also failed: {rollback}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for EcAttrError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { error, .. } => Some(error),
+            Self::Rollback { rollback, .. } => Some(rollback),
+            _ => None,
+        }
+    }
+}
+
 pub fn validate_battery_thresholds(start: u8, end: u8) -> Result<(), BatteryThresholdError> {
     if start > 100 || end > 100 || start >= end {
         Err(BatteryThresholdError::InvalidRange { start, end })
@@ -260,6 +325,10 @@ impl Default for HardwarePaths {
 impl HardwarePaths {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
+    }
+
+    pub fn sysroot(&self) -> &Path {
+        &self.root
     }
 
     fn rooted(&self, absolute: &str) -> PathBuf {
@@ -290,6 +359,11 @@ impl HardwarePaths {
             available_fan_modes: self.read_words(format!("{base}/available_fan_modes")),
             cooler_boost: self.read_on_off(format!("{base}/cooler_boost")),
             super_battery: self.read_on_off(format!("{base}/super_battery")),
+            webcam: self.read_on_off(format!("{base}/webcam")),
+            webcam_block: self.read_on_off(format!("{base}/webcam_block")),
+            fn_key: self.read_trimmed(format!("{base}/fn_key")),
+            win_key: self.read_trimmed(format!("{base}/win_key")),
+            firmware_date: self.read_trimmed(format!("{base}/fw_release_date")),
             cpu_temperature_c: self.read_num(format!("{base}/cpu/realtime_temperature")),
             gpu_temperature_c: self.read_num(format!("{base}/gpu/realtime_temperature")),
             cpu_fan_level: self.read_num(format!("{base}/cpu/realtime_fan_speed")),
@@ -521,6 +595,72 @@ impl HardwarePaths {
         })
     }
 
+    pub fn set_webcam(&self, enabled: bool) -> Result<WebcamState, EcAttrError> {
+        let value = if enabled { "on" } else { "off" };
+        self.set_ec_text("webcam", value, &["on", "off"])?;
+        Ok(WebcamState {
+            webcam: self.read_on_off("/sys/devices/platform/msi-ec/webcam"),
+        })
+    }
+
+    pub fn set_webcam_block(&self, enabled: bool) -> Result<WebcamBlockState, EcAttrError> {
+        let value = if enabled { "on" } else { "off" };
+        self.set_ec_text("webcam_block", value, &["on", "off"])?;
+        Ok(WebcamBlockState {
+            webcam_block: self.read_on_off("/sys/devices/platform/msi-ec/webcam_block"),
+        })
+    }
+
+    pub fn set_fn_key(&self, position: &str) -> Result<FnWinState, EcAttrError> {
+        self.set_ec_text("fn_key", position, &["left", "right"])?;
+        Ok(FnWinState {
+            fn_key: self.read_trimmed("/sys/devices/platform/msi-ec/fn_key"),
+            win_key: self.read_trimmed("/sys/devices/platform/msi-ec/win_key"),
+        })
+    }
+
+    fn set_ec_text(
+        &self,
+        attr: &'static str,
+        value: &str,
+        allowed: &[&str],
+    ) -> Result<String, EcAttrError> {
+        let dir = self.rooted("/sys/devices/platform/msi-ec");
+        let path = dir.join(attr);
+        if !path.is_file() {
+            return Err(EcAttrError::Unavailable { attr });
+        }
+        if !allowed.iter().any(|candidate| *candidate == value) {
+            return Err(EcAttrError::InvalidValue {
+                attr,
+                value: value.to_owned(),
+            });
+        }
+        let previous = self.read_trimmed(format!("/sys/devices/platform/msi-ec/{attr}"));
+        if let Err(error) = fs::write(&path, format!("{value}\n")) {
+            return Err(ec_attr_rollback(
+                &dir,
+                attr,
+                previous,
+                EcAttrError::Io { attr, error },
+            ));
+        }
+        let applied = self.read_trimmed(format!("/sys/devices/platform/msi-ec/{attr}"));
+        if applied.as_deref() != Some(value) {
+            return Err(ec_attr_rollback(
+                &dir,
+                attr,
+                previous,
+                EcAttrError::Verification {
+                    attr,
+                    applied,
+                    expected: value.to_owned(),
+                },
+            ));
+        }
+        Ok(value.to_owned())
+    }
+
     pub fn discover_backends(&self) -> io::Result<BackendAvailability> {
         Ok(BackendAvailability {
             msi_ec: self.rooted("/sys/devices/platform/msi-ec").is_dir(),
@@ -720,6 +860,29 @@ fn cooler_boost_rollback_error(
     }
 }
 
+fn restore_ec_attr(dir: &Path, attr: &str, previous: Option<String>) -> io::Result<()> {
+    match previous {
+        Some(previous) => fs::write(dir.join(attr), format!("{previous}\n")),
+        None => Ok(()),
+    }
+}
+
+fn ec_attr_rollback(
+    dir: &Path,
+    attr: &'static str,
+    previous: Option<String>,
+    operation: EcAttrError,
+) -> EcAttrError {
+    match restore_ec_attr(dir, attr, previous) {
+        Ok(()) => operation,
+        Err(rollback) => EcAttrError::Rollback {
+            attr,
+            operation: operation.to_string(),
+            rollback,
+        },
+    }
+}
+
 fn restore_super_battery(dir: &Path, previous: Option<bool>) -> io::Result<()> {
     match previous {
         Some(previous) => {
@@ -880,6 +1043,39 @@ mod tests {
         assert!(matches!(
             hardware.set_super_battery(false).unwrap().super_battery,
             Some(false)
+        ));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn writes_and_validates_webcam_and_fn_key() {
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-periph-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let msi_ec = root.join("sys/devices/platform/msi-ec");
+        fs::create_dir_all(&msi_ec).unwrap();
+        fs::write(msi_ec.join("webcam"), "on\n").unwrap();
+        fs::write(msi_ec.join("webcam_block"), "off\n").unwrap();
+        fs::write(msi_ec.join("fn_key"), "right\n").unwrap();
+        fs::write(msi_ec.join("win_key"), "left\n").unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        assert_eq!(hardware.set_webcam(false).unwrap().webcam, Some(false));
+        assert_eq!(
+            hardware.set_webcam_block(true).unwrap().webcam_block,
+            Some(true)
+        );
+        let keys = hardware.set_fn_key("left").unwrap();
+        assert_eq!(keys.fn_key.as_deref(), Some("left"));
+        assert!(matches!(
+            hardware.set_fn_key("up"),
+            Err(EcAttrError::InvalidValue { .. })
         ));
 
         fs::remove_dir_all(root).unwrap();

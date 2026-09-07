@@ -89,8 +89,49 @@ ScrollView {
                     text: "Battery preservation mode. Polkit prompt follows."
                     color: "#8C7F6F"; font.pixelSize: 10
                 }
+                Switch {
+                    text: "Webcam"
+                    checked: center.webcamOn
+                    enabled: center.webcamValid
+                    onToggled: center.setWebcam(checked)
+                }
+                Switch {
+                    text: "Webcam block"
+                    checked: center.webcamBlockOn
+                    enabled: center.webcamBlockValid
+                    onToggled: center.setWebcamBlock(checked)
+                }
+                Label {
+                    text: "Block is a hardware kill: the Fn webcam key cannot re-enable it."
+                    color: "#8C7F6F"; font.pixelSize: 10
+                }
+                Label { text: "Fn key position"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Row {
+                    spacing: 8
+                    ButtonGroup { id: fnGroup }
+                    Button {
+                        text: "Fn left"
+                        checkable: true
+                        checked: center.fnKey === "left"
+                        enabled: center.fnKey !== ""
+                        ButtonGroup.group: fnGroup
+                        onClicked: center.setFnKey("left")
+                    }
+                    Button {
+                        text: "Fn right"
+                        checkable: true
+                        checked: center.fnKey === "right"
+                        enabled: center.fnKey !== ""
+                        ButtonGroup.group: fnGroup
+                        onClicked: center.setFnKey("right")
+                    }
+                }
+                Label {
+                    text: center.fnWinText + "  ·  Polkit + per-feature opt-in."
+                    color: "#8C7F6F"; font.pixelSize: 10
+                }
             }
-            implicitHeight: 170
+            implicitHeight: 360
         }
 
         Label {

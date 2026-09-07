@@ -6,10 +6,12 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusVariant>
 #include <QDebug>
+#include <QClipboard>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -75,6 +77,7 @@ void CenterClient::fetchAll() {
     fetchProperty(kDeviceIface, "SupportTier");
     fetchProperty(kDeviceIface, "RuntimeCapabilities");
     fetchProperty(kDeviceIface, "RgbController");
+    fetchProperty(kDeviceIface, "DiagnosticReport");
     fetchProperty(kSensorsIface, "EcState");
     fetchProperty(kSensorsIface, "FanRpm");
     fetchProperty(kSensorsIface, "Battery");
@@ -148,6 +151,9 @@ void CenterClient::handleJson(const QString &property, const QString &json) {
                                              ? name
                                              : QStringLiteral("%1 (%2)").arg(name, serial));
             }
+        } else if (property == "DiagnosticReport") {
+            m_diagnosticReport = QString::fromUtf8(
+                QJsonDocument(doc).toJson(QJsonDocument::Indented));
         }
     }
     emit changed();
@@ -163,6 +169,18 @@ void CenterClient::setCoolerBoost(bool enabled) {
 
 void CenterClient::setSuperBattery(bool enabled) {
     callMethod(QStringLiteral("SetSuperBattery"), {QVariant(enabled)});
+}
+
+void CenterClient::setWebcam(bool enabled) {
+    callMethod(QStringLiteral("SetWebcam"), {QVariant(enabled)});
+}
+
+void CenterClient::setWebcamBlock(bool enabled) {
+    callMethod(QStringLiteral("SetWebcamBlock"), {QVariant(enabled)});
+}
+
+void CenterClient::setFnKey(const QString &position) {
+    callMethod(QStringLiteral("SetFnKey"), {QVariant(position)});
 }
 
 void CenterClient::setBatteryThresholds(int start, int end) {
@@ -239,6 +257,12 @@ QString CenterClient::actionTitle(const QString &method) const {
         return QStringLiteral("Cooler Boost");
     if (method == QStringLiteral("SetSuperBattery"))
         return QStringLiteral("Super Battery");
+    if (method == QStringLiteral("SetWebcam"))
+        return QStringLiteral("Webcam");
+    if (method == QStringLiteral("SetWebcamBlock"))
+        return QStringLiteral("Webcam block");
+    if (method == QStringLiteral("SetFnKey"))
+        return QStringLiteral("Fn key");
     if (method == QStringLiteral("SetBatteryThresholds"))
         return QStringLiteral("Battery limit");
     if (method == QStringLiteral("SetRgbColor"))
@@ -255,9 +279,13 @@ QString CenterClient::actionDetail(const QString &method,
     if (method == QStringLiteral("SetFanMode"))
         return args.value(0).toString();
     if (method == QStringLiteral("SetCoolerBoost")
-        || method == QStringLiteral("SetSuperBattery"))
+        || method == QStringLiteral("SetSuperBattery")
+        || method == QStringLiteral("SetWebcam")
+        || method == QStringLiteral("SetWebcamBlock"))
         return args.value(0).toBool() ? QStringLiteral("on")
                                       : QStringLiteral("off");
+    if (method == QStringLiteral("SetFnKey"))
+        return args.value(0).toString();
     if (method == QStringLiteral("SetBatteryThresholds"))
         return QStringLiteral("%1% – %2%")
             .arg(args.value(0).toInt())
@@ -380,6 +408,20 @@ QVector<CenterClient::SceneStep> CenterClient::sceneSteps(
             {QStringLiteral("super_battery"), QStringLiteral("SetSuperBattery"),
              {QVariant(settings.value("super_battery").toBool())}});
     }
+    if (settings.value("webcam").isBool()) {
+        steps.push_back({QStringLiteral("webcam"), QStringLiteral("SetWebcam"),
+                         {QVariant(settings.value("webcam").toBool())}});
+    }
+    if (settings.value("webcam_block").isBool()) {
+        steps.push_back(
+            {QStringLiteral("webcam_block"), QStringLiteral("SetWebcamBlock"),
+             {QVariant(settings.value("webcam_block").toBool())}});
+    }
+    const QString fnKey = settings.value("fn_key").toString();
+    if (fnKey == QLatin1String("left") || fnKey == QLatin1String("right")) {
+        steps.push_back({QStringLiteral("fn_key"), QStringLiteral("SetFnKey"),
+                         {QVariant(fnKey)}});
+    }
     const int start = settings.value("battery_start").toInt(-1);
     const int end = settings.value("battery_end").toInt(-1);
     if (start >= 0 && end >= 0 && start < end && end <= 100) {
@@ -393,12 +435,40 @@ QVector<CenterClient::SceneStep> CenterClient::sceneSteps(
         const QString color = rgb.value("color").toString();
         if (zones >= 0 && zones <= 15 && color.size() == 6) {
             bool ok = false;
-            const int value = color.toInt(&ok, 16);
+            color.toInt(&ok, 16);
             if (ok) {
-                steps.push_back(
-                    {QStringLiteral("rgb"), QStringLiteral("SetRgbColor"),
-                     {byte(zones), byte((value >> 16) & 0xff),
-                      byte((value >> 8) & 0xff), byte(value & 0xff)}});
+                QString mode = rgb.value("mode").toString().trimmed().toLower();
+                if (mode == QLatin1String("breathing"))
+                    mode = QStringLiteral("breath");
+                quint8 modeId = 1;
+                if (mode == QLatin1String("breath"))
+                    modeId = 2;
+                else if (mode == QLatin1String("cycle"))
+                    modeId = 3;
+                else if (mode == QLatin1String("wave"))
+                    modeId = 4;
+                if (modeId == 1 && (mode.isEmpty() || mode == QLatin1String("steady"))) {
+                    const int value = color.toInt(&ok, 16);
+                    steps.push_back(
+                        {QStringLiteral("rgb"), QStringLiteral("SetRgbColor"),
+                         {byte(zones), byte((value >> 16) & 0xff),
+                          byte((value >> 8) & 0xff), byte(value & 0xff)}});
+                } else if (modeId >= 2) {
+                    int speed = rgb.value("speed").toInt(3);
+                    if (speed <= 0)
+                        speed = 3;
+                    if (speed > 600)
+                        speed = 600;
+                    int direction = rgb.value("wave_direction").toInt(1);
+                    if (direction != 0)
+                        direction = 1;
+                    steps.push_back(
+                        {QStringLiteral("rgb"),
+                         QStringLiteral("SetRgbPresetEffect"),
+                         {byte(zones), byte(modeId),
+                          QVariant::fromValue<quint16>(quint16(speed * 100)),
+                          QVariant(color), byte(direction)}});
+                }
             }
         }
     }
@@ -459,6 +529,30 @@ void CenterClient::parseEc(const QJsonObject &ec) {
     const QJsonValue superBattery = ec.value("super_battery");
     m_hasSuperBattery = superBattery.isBool();
     m_superBattery = superBattery.toBool(false);
+    const QJsonValue webcam = ec.value("webcam");
+    m_hasWebcam = webcam.isBool();
+    m_webcamOn = webcam.toBool(false);
+    const QJsonValue webcamBlock = ec.value("webcam_block");
+    m_hasWebcamBlock = webcamBlock.isBool();
+    m_webcamBlockOn = webcamBlock.toBool(false);
+    if (!m_hasWebcam) {
+        m_webcamText = QStringLiteral("unavailable");
+    } else if (webcamBlock.isBool() && webcamBlock.toBool()) {
+        m_webcamText = QStringLiteral("blocked");
+    } else {
+        m_webcamText = m_webcamOn ? QStringLiteral("on") : QStringLiteral("off");
+    }
+    const QString fnKey = ec.value("fn_key").toString();
+    m_fnKey = fnKey;
+    const QString winKey = ec.value("win_key").toString();
+    if (fnKey.isEmpty() && winKey.isEmpty()) {
+        m_fnWinText = QStringLiteral("unavailable");
+    } else {
+        m_fnWinText = QStringLiteral("Fn %1 · Win %2")
+                          .arg(fnKey.isEmpty() ? QStringLiteral("?") : fnKey,
+                               winKey.isEmpty() ? QStringLiteral("?") : winKey);
+    }
+    m_ecFirmwareDate = ec.value("firmware_date").toString();
     const int cpu = ec.value("cpu_temperature_c").toInt(-1);
     const int gpu = ec.value("gpu_temperature_c").toInt(-1);
     // 0 or missing means the sensor is not readable (e.g. the dGPU is
@@ -682,4 +776,15 @@ void CenterClient::exportScenes() {
     m_actionMessage = QStringLiteral("exported to %1").arg(fileName);
     emit changed();
     emit actionDone(true, QStringLiteral("Scenes export"), m_actionMessage);
+}
+
+void CenterClient::copyDiagnosticReport() {
+    if (m_diagnosticReport.trimmed().isEmpty()) {
+        emit actionDone(false, QStringLiteral("Diagnostics"),
+                        QStringLiteral("report not loaded yet"));
+        return;
+    }
+    QGuiApplication::clipboard()->setText(m_diagnosticReport);
+    emit actionDone(true, QStringLiteral("Diagnostics"),
+                    QStringLiteral("report copied (serials redacted)"));
 }

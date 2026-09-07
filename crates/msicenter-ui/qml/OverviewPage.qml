@@ -87,6 +87,16 @@ ScrollView {
                            : (center.superBatteryOn ? "ON" : "off")
             }
             StatCard {
+                title: "WEBCAM"
+                value: center.webcamText
+                footnote: "msi-ec"
+            }
+            StatCard {
+                title: "FN / WIN KEYS"
+                value: center.fnWinText
+                footnote: "msi-ec"
+            }
+            StatCard {
                 title: "RGB CONTROLLER"
                 value: center.rgbControllerText
             }

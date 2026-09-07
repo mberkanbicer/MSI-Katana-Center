@@ -20,7 +20,9 @@
     "battery_threshold": true,
     "rgb": true,
     "custom_fan_curve": false,
-    "mux": false
+    "mux": false,
+    "webcam": true,
+    "fn_win": true
   },
   "provenance": [
     {
@@ -107,6 +109,32 @@
       "writes_tested": true,
       "confidence": "verified",
       "notes": "Physically verified on 2026-09-05 on the reference laptop: SetBatteryThresholds(80, 90) applied through power_supply, driver read-back confirmed 80/90, restored to original 90/100."
+    },
+    {
+      "feature": "webcam",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local msi-ec webcam and webcam_block sysfs (CONF_G2_10 0x2e/0x2f bit 1)",
+        "BeardOverflow/msi-ec README webcam / webcam_block ABI",
+        "MControlCenter webcam control via msi-ec"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Read-only confirmed on 2026-09-07 (webcam on, webcam_block off). Writes implemented through msi-ec, gated until physical verification."
+    },
+    {
+      "feature": "fn_win",
+      "model_firmware_scope": "Katana 17 B13VGK / MS-17L5 / 17L5EMS1.115",
+      "sources": [
+        "local msi-ec fn_key / win_key sysfs (CONF_G2_10 0xe8 bit 4, invert)",
+        "BeardOverflow/msi-ec README fn_key / win_key ABI",
+        "MControlCenter FN → Super swap via msi-ec"
+      ],
+      "local_verification": "verified_read_only",
+      "writes_tested": false,
+      "confidence": "verified",
+      "notes": "Read-only confirmed on 2026-09-07 (Fn right, Win left). One write (SetFnKey) updates both positions; writes gated until physical verification."
     },
     {
       "feature": "custom_fan_curve",

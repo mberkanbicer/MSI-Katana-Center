@@ -41,6 +41,13 @@ pub struct EcStatus {
     pub available_fan_modes: Vec<String>,
     pub cooler_boost: Option<bool>,
     pub super_battery: Option<bool>,
+    pub webcam: Option<bool>,
+    pub webcam_block: Option<bool>,
+    /// Fn key position from msi-ec (`left` / `right`); preserved verbatim.
+    pub fn_key: Option<String>,
+    /// Win key position from msi-ec (`left` / `right`); preserved verbatim.
+    pub win_key: Option<String>,
+    pub firmware_date: Option<String>,
     pub cpu_temperature_c: Option<i32>,
     pub gpu_temperature_c: Option<i32>,
     /// Value exported by msi-ec. This is kept semantically separate from RPM.
@@ -80,6 +87,22 @@ pub struct SuperBatteryState {
     pub super_battery: Option<bool>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WebcamState {
+    pub webcam: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WebcamBlockState {
+    pub webcam_block: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FnWinState {
+    pub fn_key: Option<String>,
+    pub win_key: Option<String>,
+}
+
 /// Read-only identity of the detected RGB HID controller (if any).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RgbStatus {
@@ -101,6 +124,10 @@ pub struct CapabilitySet {
     pub rgb: bool,
     pub custom_fan_curve: bool,
     pub mux: bool,
+    #[serde(default)]
+    pub webcam: bool,
+    #[serde(default)]
+    pub fn_win: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

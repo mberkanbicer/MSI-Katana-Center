@@ -123,7 +123,7 @@ ScrollView {
         Label {
             text: "Scenes apply the same daemon-gated writes as the individual controls; "
                   + "settings whose opt-in is off are reported and skipped. RGB is never "
-                  + "persisted by a scene."
+                  + "persisted by a scene. Optional rgb.mode: breath, cycle, or wave."
             color: "#8C7F6F"
             font.pixelSize: 11
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere

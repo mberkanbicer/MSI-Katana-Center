@@ -27,6 +27,28 @@ ApplicationWindow {
 
     property int currentPage: 0
 
+    // When no system tray is available the window owns these; otherwise
+    // the tray QAction shortcuts fire and these stay off to avoid a
+    // double toggle.
+    Shortcut {
+        sequences: ["Ctrl+Shift+C"]
+        context: Shortcut.ApplicationShortcut
+        enabled: !trayAvailable
+        onActivated: center.setCoolerBoost(!center.coolerBoostOn)
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+B"]
+        context: Shortcut.ApplicationShortcut
+        enabled: !trayAvailable
+        onActivated: center.setSuperBattery(!center.superBatteryOn)
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+L"]
+        context: Shortcut.ApplicationShortcut
+        enabled: !trayAvailable
+        onActivated: center.setRgbColorFromHex(15, "000000")
+    }
+
     // ---- Top bar ----
     header: ToolBar {
         Material.background: "#201C17"

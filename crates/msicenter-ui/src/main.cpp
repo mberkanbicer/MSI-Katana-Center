@@ -3,6 +3,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QDebug>
+#include <QKeySequence>
 #include <QMenu>
 #include <QPixmap>
 #include <QPainter>
@@ -52,6 +53,10 @@ struct TrayStatus {
                                                    : QStringLiteral("off"))
                                             : QStringLiteral("n/a"))};
         QStringList text = parts;
+        if (!client->webcamText().isEmpty()
+            && client->webcamText() != QStringLiteral("unavailable")) {
+            text << QStringLiteral("cam %1").arg(client->webcamText());
+        }
         if (client->cpuTempC() > 0) {
             text << QStringLiteral("cpu %1 °C").arg(client->cpuTempC());
             if (client->gpuTempC() > 0)
@@ -66,13 +71,30 @@ struct TrayStatus {
 
     struct QuickActions {
     QMenu *fanMenu = nullptr;
+    QMenu *sceneMenu = nullptr;
     QAction *coolerBoostOn = nullptr;
     QAction *coolerBoostOff = nullptr;
     QAction *superBatteryOn = nullptr;
     QAction *superBatteryOff = nullptr;
     QStringList lastFanModes;
+    QStringList lastSceneNames;
 
     void refresh(CenterClient *client) {
+        const QStringList scenes = client->sceneNames();
+        if (sceneMenu && scenes != lastSceneNames) {
+            lastSceneNames = scenes;
+            sceneMenu->clear();
+            if (scenes.isEmpty()) {
+                QAction *empty = sceneMenu->addAction(QStringLiteral("No scenes"));
+                empty->setEnabled(false);
+            } else {
+                for (const QString &name : scenes) {
+                    QAction *action = sceneMenu->addAction(name);
+                    QObject::connect(action, &QAction::triggered, client,
+                                     [client, name] { client->applyScene(name); });
+                }
+            }
+        }
         const QStringList modes = client->fanModes();
         if (modes != lastFanModes && !modes.isEmpty()) {
             lastFanModes = modes;
@@ -118,11 +140,12 @@ int main(int argc, char *argv[]) {
         return -1;
 
     QSystemTrayIcon tray;
+    TrayStatus trayStatus;
+    QuickActions quick;
     if (trayAvailable) {
         tray.setIcon(makeTrayIcon());
         tray.setToolTip(QStringLiteral("MSI Linux Center"));
         QMenu *menu = new QMenu();
-        TrayStatus trayStatus;
         trayStatus.line = menu->addAction(QStringLiteral("connecting…"));
         trayStatus.line->setEnabled(false);
         menu->addSeparator();
@@ -130,8 +153,8 @@ int main(int argc, char *argv[]) {
         QAction *refreshAction = menu->addAction(QStringLiteral("Refresh"));
 
         QMenu *quickMenu = menu->addMenu(QStringLiteral("Quick actions"));
-        QuickActions quick;
         quick.fanMenu = quickMenu->addMenu(QStringLiteral("Fan mode"));
+        quick.sceneMenu = quickMenu->addMenu(QStringLiteral("Apply scene"));
 
         QMenu *rgbMenu = quickMenu->addMenu(QStringLiteral("Keyboard RGB"));
         const struct {
@@ -146,11 +169,31 @@ int main(int argc, char *argv[]) {
             QObject::connect(action, &QAction::triggered, &client,
                              [&client, hex] { client.setRgbColorFromHex(15, hex); });
         }
+        rgbMenu->addSeparator();
+        const struct {
+            const char *label;
+            int mode;
+        } rgbEffects[] = {{"Breathing amber", 2},
+                          {"Cycle amber", 3},
+                          {"Wave amber", 4}};
+        for (const auto &item : rgbEffects) {
+            QAction *action = rgbMenu->addAction(QString::fromUtf8(item.label));
+            const int mode = item.mode;
+            QObject::connect(action, &QAction::triggered, &client, [&client, mode] {
+                client.setRgbEffectPreset(15, mode, 3, QStringLiteral("e2a35b"), 1);
+            });
+        }
 
         quick.coolerBoostOn = quickMenu->addAction(QStringLiteral("Cooler Boost: on"));
         quick.coolerBoostOff = quickMenu->addAction(QStringLiteral("Cooler Boost: off"));
         quick.superBatteryOn = quickMenu->addAction(QStringLiteral("Super Battery: on"));
         quick.superBatteryOff = quickMenu->addAction(QStringLiteral("Super Battery: off"));
+        QAction *webcamOn = quickMenu->addAction(QStringLiteral("Webcam: on"));
+        QAction *webcamOff = quickMenu->addAction(QStringLiteral("Webcam: off"));
+        QObject::connect(webcamOn, &QAction::triggered, &client,
+                         [&client] { client.setWebcam(true); });
+        QObject::connect(webcamOff, &QAction::triggered, &client,
+                         [&client] { client.setWebcam(false); });
         for (auto *action : {quick.coolerBoostOn, quick.coolerBoostOff}) {
             action->setCheckable(true);
             const bool enabled = action == quick.coolerBoostOn;
@@ -163,6 +206,30 @@ int main(int argc, char *argv[]) {
             QObject::connect(action, &QAction::triggered, &client,
                              [&client, enabled] { client.setSuperBattery(enabled); });
         }
+
+        QMenu *shortcutMenu = quickMenu->addMenu(QStringLiteral("Shortcuts"));
+        auto addAppShortcut = [shortcutMenu, menu, &client](const QString &label,
+                                                            const QString &keys,
+                                                            auto handler) {
+            auto *action = new QAction(label, menu);
+            action->setShortcut(QKeySequence(keys));
+            action->setShortcutContext(Qt::ApplicationShortcut);
+            shortcutMenu->addAction(action);
+            QObject::connect(action, &QAction::triggered, &client, handler);
+        };
+        addAppShortcut(QStringLiteral("Toggle Cooler Boost"),
+                       QStringLiteral("Ctrl+Shift+C"), [&client] {
+                           client.setCoolerBoost(!client.coolerBoostOn());
+                       });
+        addAppShortcut(QStringLiteral("Toggle Super Battery"),
+                       QStringLiteral("Ctrl+Shift+B"), [&client] {
+                           client.setSuperBattery(!client.superBatteryOn());
+                       });
+        addAppShortcut(QStringLiteral("Keyboard RGB off"),
+                       QStringLiteral("Ctrl+Shift+L"), [&client] {
+                           client.setRgbColorFromHex(15, QStringLiteral("000000"));
+                       });
+
         QObject::connect(&client, &CenterClient::changed, &client,
                          [&quick, &client, &trayStatus, &tray] {
                              trayStatus.refresh(&client);

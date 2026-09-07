@@ -327,7 +327,7 @@ Do not lose the raw value when the semantic mapping is unknown.
 
 `unknown (192)` equals `0xc0`. The `msi-ec` 0.13 driver table for this model family (address `0xd2`) maps `eco`/`comfort`/`turbo` to `0xc2`/`0xc1`/`0xc4`, with a source comment that turbo is "sometimes `0xc0`". Because the driver cannot write `0xc0`, reverting to the current register value after any shift-mode write is impossible through `msi-ec`; a failed or unwanted write would be irreversible without an EC reset.
 
-2026-09-06 cross-check (msi-ec issues #288/#291/#24, GhostDeck `models.json`): the `0xcx` space encodes level in the low 3 bits with bit 6 set — `0xc0` (000) is the legacy **sport/"balanced"** value, `0xc1` (001) comfort/silent, `0xc2` (010) eco/super-battery, `0xc4` (100) turbo/extreme. GhostDeck's entry for this laptop (Pulse/Katana 17 B13V/GK) writes `0xc1` for Balanced and Silent, `0xc4` for Extreme, `0xc2`+`0xeb=0x0f` for Super Battery, and knows no `0xc0` — so `0xc0` on this EC is a shipped-default balanced value that newer MSI Center versions do not write. It is a *known name* now, not a writable one.
+2026-09-06 cross-check (msi-ec issues #288/#291/#24, GhostDeck `models.json`): the `0xcx` space encodes level in the low 3 bits with bit 6 set — `0xc0` (000), `0xc1` (001) comfort, `0xc2` (010) eco, `0xc4` (100) turbo. GhostDeck's entry for this laptop writes `0xc1` for Balanced and Silent, `0xc4` for Extreme, `0xc2`+`0xeb=0x0f` for Super Battery, and never `0xc0`. Independent sources still disagree what live `0xc0` *means* on a given firmware: legacy sport/factory default (#198, GhostDeck omission), “unconfigured / similar to turbo `0xc4`” (maintainer note on #352), or named high-performance on older Center builds (#24). See `docs/deferred-features-research.md`. It is a *known byte*, not a writable named mode in `msi-ec` 0.13.
 
 Performance-mode writes are therefore still deferred: no rollback path through `msi-ec` exists for `0xc0`. Do not implement `SetShiftMode` until the driver (or an independently verified mapping) can write and restore every mode value this EC actually uses — e.g. a local DKMS/upstream addition of a `sport 0xc0` mode, after which a consent-gated write test with read-back becomes eligible.
 
@@ -1239,9 +1239,14 @@ sequential per-setting gated writes, no new daemon surface. CLI
 2026-09-06; UI scene section (`ScenesPage.qml`: list, reload, sequential
 apply with per-step results) implemented, desktop visual test pending.
 
-## Phase 9
+## Phase 9 — complete (community use)
 
-Community diagnostics and unsupported-model workflow.
+Community diagnostics and unmatched-model workflow.
+
+CLI `msicenter report [--json]` and D-Bus `Device.DiagnosticReport` (redacted
+JSON, no serials). UI Diagnostics page copies the same report. Unmatched
+devices set `unmatched: true` so a support request can attach the file
+without extra `dmidecode` dumps. See `docs/phase9-diagnostics.md`. Read-only.
 
 ## Phase 10
 
