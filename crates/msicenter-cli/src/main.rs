@@ -250,37 +250,39 @@ fn scene_apply(name: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Applying scene '{name}':");
     let settings = &entry.settings;
+    let mut all_ok = true;
     if let Some(mode) = &settings.fan_mode {
-        report_step("fan_mode", request_fan_mode(mode));
+        all_ok = report_step("fan_mode", request_fan_mode(mode)) && all_ok;
     }
     if let Some(enabled) = settings.cooler_boost {
-        report_step("cooler_boost", request_cooler_boost(enabled));
+        all_ok = report_step("cooler_boost", request_cooler_boost(enabled)) && all_ok;
     }
     if let Some(enabled) = settings.super_battery {
-        report_step("super_battery", request_super_battery(enabled));
+        all_ok = report_step("super_battery", request_super_battery(enabled)) && all_ok;
     }
     if let Some(enabled) = settings.webcam {
-        report_step("webcam", request_webcam(enabled));
+        all_ok = report_step("webcam", request_webcam(enabled)) && all_ok;
     }
     if let Some(enabled) = settings.webcam_block {
-        report_step("webcam_block", request_webcam_block(enabled));
+        all_ok = report_step("webcam_block", request_webcam_block(enabled)) && all_ok;
     }
     if let Some(position) = &settings.fn_key {
-        report_step("fn_key", request_fn_key(position));
+        all_ok = report_step("fn_key", request_fn_key(position)) && all_ok;
     }
     if let (Some(start), Some(end)) = (settings.battery_start, settings.battery_end) {
-        report_step("battery_thresholds", request_battery_thresholds(start, end));
+        all_ok =
+            report_step("battery_thresholds", request_battery_thresholds(start, end)) && all_ok;
     }
     if let Some(rgb) = &settings.rgb {
         let mode = scene::rgb_mode_id(rgb.mode.as_deref()).expect("validated");
         if mode <= 1 {
             if let Some((r, g, b)) = scene::color_to_rgb(&rgb.color) {
-                report_step("rgb", request_rgb_color(rgb.zones, r, g, b));
+                all_ok = report_step("rgb", request_rgb_color(rgb.zones, r, g, b)) && all_ok;
             }
         } else {
             let speed = rgb.speed.unwrap_or(3).max(1);
             let direction = rgb.wave_direction.unwrap_or(1);
-            report_step(
+            all_ok = report_step(
                 "rgb",
                 request_rgb_preset_effect(
                     rgb.zones,
@@ -289,25 +291,40 @@ fn scene_apply(name: &str) -> Result<(), Box<dyn std::error::Error>> {
                     &rgb.color,
                     direction,
                 ),
-            );
+            ) && all_ok;
         }
     }
-    Ok(())
+    if all_ok {
+        Ok(())
+    } else {
+        Err("one or more scene steps failed".into())
+    }
 }
 
 fn panic_reset() -> Result<(), Box<dyn std::error::Error>> {
     println!("Panic reset: Cooler Boost off, Super Battery off, fan auto.");
     println!("Does not change shift/performance mode.");
-    report_step("cooler_boost", request_cooler_boost(false));
-    report_step("super_battery", request_super_battery(false));
-    report_step("fan_mode", request_fan_mode("auto"));
-    Ok(())
+    let mut all_ok = true;
+    all_ok = report_step("cooler_boost", request_cooler_boost(false)) && all_ok;
+    all_ok = report_step("super_battery", request_super_battery(false)) && all_ok;
+    all_ok = report_step("fan_mode", request_fan_mode("auto")) && all_ok;
+    if all_ok {
+        Ok(())
+    } else {
+        Err("one or more panic-reset steps failed".into())
+    }
 }
 
-fn report_step(label: &str, result: Result<String, msi_dbus::ServiceError>) {
+fn report_step(label: &str, result: Result<String, msi_dbus::ServiceError>) -> bool {
     match result {
-        Ok(_) => println!("  ok   {label}"),
-        Err(error) => println!("  FAIL {label}: {error}"),
+        Ok(_) => {
+            println!("  ok   {label}");
+            true
+        }
+        Err(error) => {
+            println!("  FAIL {label}: {error}");
+            false
+        }
     }
 }
 

@@ -1,43 +1,39 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "Theme.js" as Theme
 
 ScrollView {
     id: page
     clip: true
     contentWidth: availableWidth
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
     property int selectedScene: -1
 
     Column {
-        x: 24
-        width: page.availableWidth - 48
-        spacing: 14
-        topPadding: 24
+        x: Math.max(28, (page.availableWidth - 1120) / 2)
+        width: Math.min(1120, page.availableWidth - 56)
+        spacing: 18
+        topPadding: 28
         bottomPadding: 24
 
-        Label {
-            text: "Scenes"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#E8DCCB"
+        PageHeading {
+            title: "Scenes"
+            subtitle: "Your favorite settings, ready when you need them."
         }
         Label {
             text: "Named bundles of the same gated writes — not MSI Silent / Balanced / Extreme. "
                   + "Quiet only sets fan silent; it does not write performance/shift mode."
-            color: "#8C7F6F"
+            color: Theme.muted
             font.pixelSize: 12
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             width: parent.width
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            Layout.preferredHeight: Math.min(280, 48 * Math.max(center.sceneNames.length, 1))
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
+            implicitHeight: Math.min(280, 52 * Math.max(center.sceneNames.length, 1) + 12)
             clip: true
 
             ListView {
@@ -50,43 +46,97 @@ ScrollView {
                 delegate: ItemDelegate {
                     required property string modelData
                     required property int index
-                    width: sceneList.width - 12
-                    height: 40
+                    width: sceneList.width
+                    height: 52
                     highlighted: ListView.isCurrentItem
                     text: modelData
                     onClicked: sceneList.currentIndex = index
                     contentItem: Label {
                         text: parent.text
-                        color: parent.highlighted ? "#E2A35B" : "#E8DCCB"
+                        color: parent.highlighted ? Theme.accent : Theme.text
                         font.pixelSize: 13
                         font.bold: parent.highlighted
                         verticalAlignment: Text.AlignVCenter
                         leftPadding: 10
                     }
                     background: Rectangle {
-                        radius: 6
-                        color: parent.highlighted ? "#3A332B" : "transparent"
+                        radius: 10
+                        color: parent.highlighted ? Theme.accentSoft : parent.hovered ? Theme.elevated : "transparent"
+                        border.color: parent.visualFocus ? Theme.accent : "transparent"
                     }
                 }
                 Label {
                     anchors.centerIn: parent
                     visible: sceneList.count === 0
-                    text: "No scenes yet — Add examples, or create ~/.config/msi-linux-center/scenes.json"
-                    color: "#8C7F6F"
+                    width: parent.width - 24
+                    wrapMode: Text.WordWrap
+                    text: "No scenes yet. Choose Add examples to get started."
+                    color: Theme.muted
                     horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
 
-        Rectangle {
+        Flow {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
+            spacing: 10
+            ActionButton {
+                text: "Apply selected scene"
+                primary: true
+                enabled: page.selectedScene >= 0 && !center.sceneApplying
+                onClicked: center.applyScene(center.sceneNames[page.selectedScene])
+            }
+            ActionButton {
+                text: "Reload"
+                onClicked: center.reloadScenes()
+            }
+            ActionButton {
+                text: "Add examples"
+                enabled: !center.sceneApplying
+                onClicked: center.addExampleScenes()
+            }
+            ActionButton {
+                text: "Import…"
+                onClicked: center.importScenes()
+            }
+            ActionButton {
+                text: "Export…"
+                onClicked: center.exportScenes()
+            }
+            BusyIndicator {
+                visible: center.sceneApplying
+                implicitWidth: 24
+                implicitHeight: 24
+            }
+        }
+
+        Panel {
+            visible: center.sceneResultText !== ""
+            width: parent.width
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
+                spacing: 4
+                Repeater {
+                    model: center.sceneResultText.split("\n")
+                    Label {
+                        required property string modelData
+                        text: modelData
+                        Layout.fillWidth: true
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        color: modelData.startsWith("FAIL") ? Theme.danger : Theme.success
+                        font.pixelSize: 12
+                        font.family: "monospace"
+                    }
+                }
+            }
+        }
+
+        Panel {
+            width: parent.width
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
                 spacing: 10
                 Switch {
                     text: "Apply a scene when the app starts"
@@ -108,24 +158,19 @@ ScrollView {
                     text: "Off by default so a cold boot stays firmware stock. "
                           + "Uses the same gated scene apply; missing opt-ins fail per setting. "
                           + "Polkit may prompt at login if autostart is on."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 160
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 10
                 Switch {
                     text: "Switch scene on AC / battery"
@@ -138,15 +183,15 @@ ScrollView {
                 }
                 Label {
                     text: center.powerSourceText
-                    color: "#B5A896"
+                    color: Theme.secondary
                     font.pixelSize: 12
                 }
                 RowLayout {
                     spacing: 10
                     Label {
                         text: "On AC"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                     }
                     ComboBox {
                         enabled: center.powerSceneSwitch
@@ -160,8 +205,8 @@ ScrollView {
                     spacing: 10
                     Label {
                         text: "On battery"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                     }
                     ComboBox {
                         enabled: center.powerSceneSwitch
@@ -173,24 +218,19 @@ ScrollView {
                 }
                 Label {
                     text: "Edge-triggered: applies only when you plug or unplug, not on first read and not after a manual scene. Charging / Full / Not charging count as AC; Discharging as battery. (none) skips that side."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 230
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 10
                 Switch {
                     text: "Battery-level scene rules"
@@ -205,8 +245,8 @@ ScrollView {
                     spacing: 10
                     Label {
                         text: "Below"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                     }
                     SpinBox {
                         from: 5
@@ -217,8 +257,8 @@ ScrollView {
                     }
                     Label {
                         text: "% discharging →"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                     }
                     ComboBox {
                         enabled: center.batteryLevelRules
@@ -232,8 +272,8 @@ ScrollView {
                     spacing: 10
                     Label {
                         text: "Above"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                     }
                     SpinBox {
                         from: 10
@@ -244,8 +284,8 @@ ScrollView {
                     }
                     Label {
                         text: "% charging →"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                     }
                     ComboBox {
                         enabled: center.batteryLevelRules
@@ -257,24 +297,19 @@ ScrollView {
                 }
                 Label {
                     text: "Once per crossing. Low fires only while discharging, high only while charging. First reading is ignored. (none) skips that side."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 210
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 10
                 Switch {
                     text: "Scene schedule"
@@ -296,10 +331,11 @@ ScrollView {
                             spacing: 4
                             Repeater {
                                 model: ["M", "T", "W", "T", "F", "S", "S"]
-                                Button {
+                                ActionButton {
                                     required property string modelData
                                     required property int index
                                     text: modelData
+                                    Accessible.name: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][index]
                                     checkable: true
                                     width: 32
                                     checked: (Number(ruleRow.modelData.days) & (1 << index)) !== 0
@@ -310,7 +346,7 @@ ScrollView {
                         }
                         RowLayout {
                             spacing: 6
-                            Label { text: "Start"; color: "#8C7F6F"; font.pixelSize: 11 }
+                            Label { text: "Start"; color: Theme.muted; font.pixelSize: 12 }
                             SpinBox {
                                 from: 0; to: 23
                                 value: modelData.startHour
@@ -323,7 +359,10 @@ ScrollView {
                                 enabled: center.sceneSchedule
                                 onValueModified: center.setScheduleRuleStart(index, modelData.startHour, value)
                             }
-                            Label { text: "End"; color: "#8C7F6F"; font.pixelSize: 11 }
+                        }
+                        RowLayout {
+                            spacing: 6
+                            Label { text: "End"; color: Theme.muted; font.pixelSize: 12 }
                             SpinBox {
                                 from: 0; to: 23
                                 value: modelData.endHour
@@ -336,6 +375,9 @@ ScrollView {
                                 enabled: center.sceneSchedule
                                 onValueModified: center.setScheduleRuleEnd(index, modelData.endHour, value)
                             }
+                        }
+                        RowLayout {
+                            spacing: 6
                             ComboBox {
                                 enabled: center.sceneSchedule
                                 Layout.preferredWidth: 160
@@ -349,83 +391,30 @@ ScrollView {
                                 }
                                 onActivated: (i) => center.setScheduleRuleScene(index, i)
                             }
-                            Button {
+                            ActionButton {
                                 text: "Remove"
+                                destructive: true
                                 enabled: center.sceneSchedule
                                 onClicked: center.removeScheduleRule(index)
                             }
                         }
                     }
                 }
-                Button {
+                ActionButton {
                     text: "Add rule"
                     enabled: center.sceneSchedule && center.scheduleRules.length < 8
                     onClicked: center.addScheduleRule()
                 }
                 Label {
                     text: "First matching rule wins. Applies when a window starts, and at app start if you are already inside one. Overnight ranges (22:00–07:00) are fine. Manual scenes inside a window stick until the next window. Needs this app running (autostart); no systemd timer, so Polkit is not popped at 07:00 by a background unit."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 150 + center.scheduleRules.length * 96
         }
 
-        Row {
-            spacing: 10
-            Button {
-                text: "Apply selected scene"
-                enabled: page.selectedScene >= 0 && !center.sceneApplying
-                onClicked: center.applyScene(center.sceneNames[page.selectedScene])
-            }
-            Button {
-                text: "Reload"
-                onClicked: center.reloadScenes()
-            }
-            Button {
-                text: "Add examples"
-                enabled: !center.sceneApplying
-                onClicked: center.addExampleScenes()
-            }
-            Button {
-                text: "Import…"
-                onClicked: center.importScenes()
-            }
-            Button {
-                text: "Export…"
-                onClicked: center.exportScenes()
-            }
-            BusyIndicator {
-                visible: center.sceneApplying
-                implicitWidth: 24
-                implicitHeight: 24
-            }
-        }
-
-        Rectangle {
-            visible: center.sceneResultText !== ""
-            width: parent.width
-            radius: 10
-            color: "#2C3220"
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 4
-                Repeater {
-                    model: center.sceneResultText.split("\n")
-                    Label {
-                        required property string modelData
-                        text: modelData
-                        color: modelData.startsWith("FAIL") ? "#DD6B58" : "#A9BA7C"
-                        font.pixelSize: 12
-                        font.family: "monospace"
-                    }
-                }
-            }
-            implicitHeight: Math.max(40, 22 * center.sceneResultText.split("\n").length + 20)
-        }
 
         Label {
             text: "Quiet: fan silent, Cooler Boost off, Super Battery off. "
@@ -433,8 +422,8 @@ ScrollView {
                   + "(not eco shift). Gaming lights: red wave only. "
                   + "Add examples merges missing names and never overwrites yours. "
                   + "RGB is never persisted by a scene."
-            color: "#8C7F6F"
-            font.pixelSize: 11
+            color: Theme.muted
+            font.pixelSize: 12
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             width: parent.width
         }

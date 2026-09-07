@@ -19,6 +19,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <algorithm>
+#include <cmath>
 
 namespace {
 constexpr auto kService = "org.msilinux.Center";
@@ -84,17 +85,20 @@ void CenterClient::refreshNow() {
 }
 
 void CenterClient::fetchAll() {
-    fetchProperty(kDeviceIface, "MatchedProfile");
-    fetchProperty(kDeviceIface, "SupportTier");
-    fetchProperty(kDeviceIface, "RuntimeCapabilities");
-    fetchProperty(kDeviceIface, "RgbController");
-    fetchProperty(kDeviceIface, "DiagnosticReport");
-    fetchProperty(kSensorsIface, "EcState");
-    fetchProperty(kSensorsIface, "FanRpm");
-    fetchProperty(kSensorsIface, "Battery");
+    const quint64 generation = ++m_refreshGeneration;
+    m_error.clear();
+    fetchProperty(kDeviceIface, "MatchedProfile", generation);
+    fetchProperty(kDeviceIface, "SupportTier", generation);
+    fetchProperty(kDeviceIface, "RuntimeCapabilities", generation);
+    fetchProperty(kDeviceIface, "RgbController", generation);
+    fetchProperty(kDeviceIface, "DiagnosticReport", generation);
+    fetchProperty(kSensorsIface, "EcState", generation);
+    fetchProperty(kSensorsIface, "FanRpm", generation);
+    fetchProperty(kSensorsIface, "Battery", generation);
 }
 
-void CenterClient::fetchProperty(const QString &iface, const QString &property) {
+void CenterClient::fetchProperty(const QString &iface, const QString &property,
+                                 quint64 refreshGeneration) {
     ++m_inFlight;
     QDBusMessage get = QDBusMessage::createMethodCall(
         kService, kPath, "org.freedesktop.DBus.Properties", "Get");
@@ -102,19 +106,21 @@ void CenterClient::fetchProperty(const QString &iface, const QString &property) 
     QDBusPendingCall call = QDBusConnection::systemBus().asyncCall(get);
     auto *watcher = new QDBusPendingCallWatcher(call, this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, property](QDBusPendingCallWatcher *w) {
+            [this, property, refreshGeneration](QDBusPendingCallWatcher *w) {
                 w->deleteLater();
                 QDBusMessage reply = w->reply();
                 if (reply.type() != QDBusMessage::ReplyMessage) {
-                    m_error = reply.errorMessage();
+                    const QString errorMessage = reply.errorMessage();
+                    if (refreshGeneration == m_refreshGeneration)
+                        m_error = errorMessage;
                     qWarning().noquote()
-                        << "center:" << property << "error:" << m_error;
+                        << "center:" << property << "error:" << errorMessage;
                     emit changed();
                 } else {
                     const QVariant v = reply.arguments().constFirst()
                                            .value<QDBusVariant>()
                                            .variant();
-                    handleJson(property, v.toString());
+                    handleJson(property, v.toString(), refreshGeneration);
                 }
                 if (--m_inFlight == 0 && !m_loggedFirstSummary) {
                     m_loggedFirstSummary = true;
@@ -127,7 +133,8 @@ void CenterClient::fetchProperty(const QString &iface, const QString &property) 
             });
 }
 
-void CenterClient::handleJson(const QString &property, const QString &json) {
+void CenterClient::handleJson(const QString &property, const QString &json,
+                              quint64 refreshGeneration) {
     // Plain string fields arrive as quoted JSON strings. QJsonDocument
     // rejects scalar documents with IllegalValue, so handle them first.
     if (property == "MatchedProfile") {
@@ -138,8 +145,9 @@ void CenterClient::handleJson(const QString &property, const QString &json) {
         QJsonParseError error{};
         const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8(), &error);
         if (error.error != QJsonParseError::NoError) {
-            m_error = QStringLiteral("%1: JSON parse error: %2")
-                          .arg(property, error.errorString());
+            if (refreshGeneration == m_refreshGeneration)
+                m_error = QStringLiteral("%1: JSON parse error: %2")
+                              .arg(property, error.errorString());
             emit changed();
             return;
         }
@@ -471,10 +479,16 @@ void CenterClient::setFnKey(const QString &position) {
 }
 
 void CenterClient::setBatteryThresholds(int start, int end) {
+    requestBatteryThresholds(start, end, ActionContext::Regular);
+}
+
+void CenterClient::requestBatteryThresholds(int start, int end,
+                                             ActionContext context) {
     // The daemon signature is (yy); marshal as bytes, not ints.
     callMethod(QStringLiteral("SetBatteryThresholds"),
                {QVariant::fromValue<quint8>(quint8(start)),
-                QVariant::fromValue<quint8>(quint8(end))});
+                QVariant::fromValue<quint8>(quint8(end))},
+               context);
 }
 
 QString CenterClient::travelRestoreText() const {
@@ -521,7 +535,8 @@ void CenterClient::startTravel(int days) {
         return;
     }
     m_travelArming = true;
-    setBatteryThresholds(m_chargeStart, 100);
+    m_travelRequestId = m_nextActionId + 1;
+    requestBatteryThresholds(m_chargeStart, 100, ActionContext::TravelArming);
 }
 
 void CenterClient::cancelTravel() {
@@ -532,7 +547,9 @@ void CenterClient::cancelTravel() {
     }
     m_travelRestoreFailed = false;
     m_travelRestoreInFlight = true;
-    setBatteryThresholds(m_travelRestoreStart, m_travelRestoreEnd);
+    m_travelRequestId = m_nextActionId + 1;
+    requestBatteryThresholds(m_travelRestoreStart, m_travelRestoreEnd,
+                             ActionContext::TravelRestore);
 }
 
 void CenterClient::clearTravel() {
@@ -543,6 +560,7 @@ void CenterClient::clearTravel() {
     m_travelArming = false;
     m_travelRestoreInFlight = false;
     m_travelRestoreFailed = false;
+    m_travelRequestId = 0;
     saveUiSettings();
 }
 
@@ -553,7 +571,9 @@ void CenterClient::maybeRestoreTravel() {
     if (QDateTime::currentDateTimeUtc() < m_travelRestoreAt)
         return;
     m_travelRestoreInFlight = true;
-    setBatteryThresholds(m_travelRestoreStart, m_travelRestoreEnd);
+    m_travelRequestId = m_nextActionId + 1;
+    requestBatteryThresholds(m_travelRestoreStart, m_travelRestoreEnd,
+                             ActionContext::TravelRestore);
 }
 
 QStringList CenterClient::restoreSceneChoices() const {
@@ -828,7 +848,10 @@ int CenterClient::matchingScheduleRule(const QDateTime &when) const {
     const int now = when.time().hour() * 60 + when.time().minute();
     for (int index = 0; index < m_scheduleRules.size(); ++index) {
         const ScheduleRule &rule = m_scheduleRules.at(index);
-        if ((rule.days & (1u << bit)) == 0)
+        int ruleBit = bit;
+        if (rule.startMinute > rule.endMinute && now < rule.endMinute)
+            ruleBit = (bit + 6) % 7;
+        if ((rule.days & (1u << ruleBit)) == 0)
             continue;
         if (!minuteInWindow(rule.startMinute, rule.endMinute, now))
             continue;
@@ -1126,7 +1149,9 @@ void CenterClient::setRgbEffectPreset(int zones, int mode, int speedSeconds,
                 QVariant::fromValue<quint8>(quint8(waveDirection))});
 }
 
-void CenterClient::callMethod(const QString &method, const QVariantList &args) {
+void CenterClient::callMethod(const QString &method, const QVariantList &args,
+                              ActionContext context) {
+    const quint64 requestId = ++m_nextActionId;
     QDBusMessage msg = QDBusMessage::createMethodCall(
         kService, kPath, kDeviceIface, method);
     for (const QVariant &arg : args)
@@ -1134,13 +1159,14 @@ void CenterClient::callMethod(const QString &method, const QVariantList &args) {
     QDBusPendingCall call = QDBusConnection::systemBus().asyncCall(msg);
     auto *watcher = new QDBusPendingCallWatcher(call, this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, method, args](QDBusPendingCallWatcher *w) {
+            [this, method, args, requestId, context](QDBusPendingCallWatcher *w) {
                 w->deleteLater();
-                handleAction(method, args, w->reply());
+                handleAction(method, args, w->reply(), requestId, context);
             });
 }
 
-QString CenterClient::actionTitle(const QString &method) const {
+QString CenterClient::actionTitle(const QString &method,
+                                  ActionContext context) const {
     if (method == QStringLiteral("SetFanMode"))
         return QStringLiteral("Fan mode");
     if (method == QStringLiteral("SetCoolerBoost"))
@@ -1154,9 +1180,9 @@ QString CenterClient::actionTitle(const QString &method) const {
     if (method == QStringLiteral("SetFnKey"))
         return QStringLiteral("Fn key");
     if (method == QStringLiteral("SetBatteryThresholds")) {
-        if (m_travelArming)
+        if (context == ActionContext::TravelArming)
             return QStringLiteral("Travel");
-        if (m_travelRestoreInFlight)
+        if (context == ActionContext::TravelRestore)
             return QStringLiteral("Travel restore");
         return QStringLiteral("Battery limit");
     }
@@ -1170,7 +1196,8 @@ QString CenterClient::actionTitle(const QString &method) const {
 }
 
 QString CenterClient::actionDetail(const QString &method,
-                                   const QVariantList &args) const {
+                                   const QVariantList &args,
+                                   ActionContext context) const {
     if (method == QStringLiteral("SetFanMode"))
         return args.value(0).toString();
     if (method == QStringLiteral("SetCoolerBoost")
@@ -1185,13 +1212,13 @@ QString CenterClient::actionDetail(const QString &method,
     if (method == QStringLiteral("SetFnKey"))
         return args.value(0).toString();
     if (method == QStringLiteral("SetBatteryThresholds")) {
-        if (m_travelArming && m_travelRestoreAt.isValid())
+        if (context == ActionContext::TravelArming && m_travelRestoreAt.isValid())
             return QStringLiteral("to 100% until %1; then %2–%3%")
                 .arg(m_travelRestoreAt.toLocalTime().toString(
                     QStringLiteral("dd MMM yyyy")),
                      QString::number(m_travelRestoreStart),
                      QString::number(m_travelRestoreEnd));
-        if (m_travelRestoreInFlight)
+        if (context == ActionContext::TravelRestore)
             return QStringLiteral("restored %1–%2%")
                 .arg(m_travelRestoreStart)
                 .arg(m_travelRestoreEnd);
@@ -1225,7 +1252,14 @@ QString CenterClient::actionDetail(const QString &method,
 
 void CenterClient::handleAction(const QString &method,
                                 const QVariantList &args,
-                                const QDBusMessage &reply) {
+                                const QDBusMessage &reply, quint64 requestId,
+                                ActionContext context) {
+    const bool sceneReply = context == ActionContext::Scene
+                            && requestId == m_sceneRequestId
+                            && static_cast<bool>(m_actionCallback);
+    const bool travelReply = context == ActionContext::TravelArming
+                                 || context == ActionContext::TravelRestore;
+    const bool ownedTravelReply = travelReply && requestId == m_travelRequestId;
     bool ok = false;
     if (reply.type() == QDBusMessage::ReplyMessage) {
         ok = true;
@@ -1245,8 +1279,8 @@ void CenterClient::handleAction(const QString &method,
             cancelCoolerBoostAutoOff();
     }
     bool travelRestoreOk = false;
-    if (method == QStringLiteral("SetBatteryThresholds")) {
-        if (m_travelArming) {
+    if (method == QStringLiteral("SetBatteryThresholds") && ownedTravelReply) {
+        if (context == ActionContext::TravelArming) {
             if (ok) {
                 m_travelActive = true;
                 saveUiSettings();
@@ -1256,18 +1290,19 @@ void CenterClient::handleAction(const QString &method,
                 m_travelRestoreAt = QDateTime();
             }
         }
-        if (m_travelRestoreInFlight) {
+        if (context == ActionContext::TravelRestore) {
             if (ok)
                 travelRestoreOk = true;
             else
                 m_travelRestoreFailed = true;
         }
     }
-    const QString title = actionTitle(method);
-    const QString detail = ok ? actionDetail(method, args) : reply.errorMessage();
+    const QString title = actionTitle(method, context);
+    const QString detail = ok ? actionDetail(method, args, context) : reply.errorMessage();
     appendWriteLog(ok, title, detail);
     emit changed();
-    if (m_actionCallback) {
+    if (sceneReply) {
+        m_sceneRequestId = 0;
         std::function<void(bool, const QString &)> callback =
             std::move(m_actionCallback);
         callback(ok, m_actionMessage);
@@ -1275,14 +1310,14 @@ void CenterClient::handleAction(const QString &method,
         // Refresh cached state after any write attempt (success or gate
         // refusal) when nobody is chaining steps.
         refreshNow();
-        emit actionDone(ok, actionTitle(method),
-                        ok ? actionDetail(method, args) : reply.errorMessage());
+        emit actionDone(ok, title, detail);
     }
     if (method == QStringLiteral("SetCoolerBoost"))
         m_coolerBoostAutoOffFiring = false;
-    if (method == QStringLiteral("SetBatteryThresholds")) {
+    if (method == QStringLiteral("SetBatteryThresholds") && ownedTravelReply) {
         m_travelArming = false;
         m_travelRestoreInFlight = false;
+        m_travelRequestId = 0;
         if (travelRestoreOk)
             clearTravel();
     }
@@ -1420,13 +1455,26 @@ bool CenterClient::mergeExampleScenes(bool announce) {
     return true;
 }
 
+namespace {
+QString validateSceneEntry(const QJsonValue &value, int index);
+}
+
 void CenterClient::applyScene(const QString &name) {
     if (m_sceneApplying)
         return;
-    for (const QJsonValue &value : m_scenes) {
+    for (int sceneIndex = 0; sceneIndex < m_scenes.size(); ++sceneIndex) {
+        const QJsonValue &value = m_scenes.at(sceneIndex);
         const QJsonObject scene = value.toObject();
         if (scene.value("name").toString() != name)
             continue;
+        const QString problem = validateSceneEntry(value, sceneIndex);
+        if (!problem.isEmpty()) {
+            m_actionError = true;
+            m_actionMessage = QStringLiteral("invalid %1").arg(problem);
+            emit changed();
+            emit actionDone(false, QStringLiteral("Scene"), m_actionMessage);
+            return;
+        }
         m_sceneSteps = sceneSteps(scene.value("settings").toObject());
         m_sceneResults.clear();
         m_sceneResultText.clear();
@@ -1588,9 +1636,6 @@ void CenterClient::runNextSceneStep() {
     }
     const SceneStep &step = m_sceneSteps.at(m_sceneStepIndex);
     const int index = m_sceneStepIndex;
-    callMethod(step.method, step.args);
-    // The reply arrives asynchronously; handle it through handleAction,
-    // which invokes m_actionCallback below.
     m_actionCallback = [this, index, step](bool ok, const QString &message) {
         QString line = QStringLiteral("%1 %2: ").arg(ok ? QStringLiteral("ok")
                                                         : QStringLiteral("FAIL"),
@@ -1604,6 +1649,9 @@ void CenterClient::runNextSceneStep() {
         m_sceneStepIndex = index + 1;
         runNextSceneStep();
     };
+    // The reply arrives asynchronously; bind the callback to this request.
+    m_sceneRequestId = m_nextActionId + 1;
+    callMethod(step.method, step.args, ActionContext::Scene);
 }
 
 void CenterClient::parseEc(const QJsonObject &ec) {
@@ -1746,17 +1794,24 @@ bool validHexColor(const QString &text) {
 
 QString validateSceneEntry(const QJsonValue &value, int index) {
     const QString where = QStringLiteral("scene %1").arg(index + 1);
+    if (!value.isObject())
+        return where + ": must be an object";
     const QJsonObject entry = value.toObject();
-    const QString name = entry.value("name").toString();
-    if (name.isEmpty())
+    const QJsonValue nameValue = entry.value("name");
+    if (!nameValue.isString() || nameValue.toString().trimmed().isEmpty())
         return where + ": missing or empty 'name'";
-    const QJsonObject settings = entry.value("settings").toObject();
+    const QJsonValue settingsValue = entry.value("settings");
+    if (!settingsValue.isUndefined() && !settingsValue.isObject())
+        return where + ": 'settings' must be an object";
+    const QJsonObject settings = settingsValue.toObject();
     if (settings.isEmpty())
         return QString();
     const QStringList known = {
-        QStringLiteral("fan_mode"),       QStringLiteral("cooler_boost"),
-        QStringLiteral("super_battery"),  QStringLiteral("battery_start"),
-        QStringLiteral("battery_end"),    QStringLiteral("rgb")};
+        QStringLiteral("fan_mode"),      QStringLiteral("cooler_boost"),
+        QStringLiteral("super_battery"), QStringLiteral("webcam"),
+        QStringLiteral("webcam_block"),  QStringLiteral("fn_key"),
+        QStringLiteral("battery_start"), QStringLiteral("battery_end"),
+        QStringLiteral("rgb")};
     for (const QString &key : settings.keys()) {
         if (!known.contains(key))
             return where + ": unknown settings key '" + key + "'";
@@ -1769,24 +1824,76 @@ QString validateSceneEntry(const QJsonValue &value, int index) {
             && !settings.value(QLatin1String(key)).isBool())
             return where + QStringLiteral(": '%1' must be a boolean").arg(key);
     }
+    for (const char *key : {"webcam", "webcam_block"}) {
+        if (settings.contains(QLatin1String(key))
+            && !settings.value(QLatin1String(key)).isBool())
+            return where + QStringLiteral(": '%1' must be a boolean").arg(key);
+    }
+    if (settings.contains(QStringLiteral("fn_key"))) {
+        const QJsonValue value = settings.value(QStringLiteral("fn_key"));
+        if (!value.isString()
+            || (value.toString() != QStringLiteral("left")
+                && value.toString() != QStringLiteral("right")))
+            return where + ": invalid fn_key (left|right)";
+    }
+    auto validInteger = [](const QJsonValue &value, int minimum, int maximum) {
+        if (!value.isDouble())
+            return false;
+        const double number = value.toDouble();
+        return std::isfinite(number) && std::floor(number) == number
+               && number >= minimum && number <= maximum;
+    };
+    const bool hasStart = settings.contains(QStringLiteral("battery_start"));
+    const bool hasEnd = settings.contains(QStringLiteral("battery_end"));
+    if (hasStart != hasEnd)
+        return where + ": battery_start and battery_end must be set together";
     for (const char *key : {"battery_start", "battery_end"}) {
         const QJsonValue v = settings.value(QLatin1String(key));
-        if (!v.isUndefined() && (!v.isDouble() || v.toInt() < 0 || v.toInt() > 100))
+        if (!v.isUndefined() && !validInteger(v, 0, 100))
             return where + QStringLiteral(": '%1' must be 0-100").arg(key);
     }
-    if (settings.contains(QStringLiteral("battery_start"))
-        && settings.contains(QStringLiteral("battery_end"))
-        && settings.value("battery_start").toInt()
-               >= settings.value("battery_end").toInt())
+    if (hasStart && settings.value("battery_start").toInt()
+                         >= settings.value("battery_end").toInt())
         return where + ": battery_start must be below battery_end";
-    const QJsonObject rgb = settings.value("rgb").toObject();
-    if (!rgb.isEmpty()) {
-        const int zones = rgb.value("zones").toInt(-1);
-        const QString color = rgb.value("color").toString();
-        if (zones < 0 || zones > 15)
+    if (settings.contains(QStringLiteral("rgb"))) {
+        const QJsonValue rgbValue = settings.value(QStringLiteral("rgb"));
+        if (!rgbValue.isObject())
+            return where + ": 'rgb' must be an object";
+        const QJsonObject rgb = rgbValue.toObject();
+        const QStringList knownRgb = {
+            QStringLiteral("zones"), QStringLiteral("color"),
+            QStringLiteral("mode"),  QStringLiteral("speed"),
+            QStringLiteral("wave_direction")};
+        for (const QString &key : rgb.keys()) {
+            if (!knownRgb.contains(key))
+                return where + ": unknown rgb key '" + key + "'";
+        }
+        if (!rgb.contains(QStringLiteral("zones"))
+            || !validInteger(rgb.value(QStringLiteral("zones")), 0, 15))
             return where + ": 'rgb.zones' must be a zone bitmask (0-15)";
+        const QJsonValue colorValue = rgb.value(QStringLiteral("color"));
+        if (!colorValue.isString())
+            return where + ": 'rgb.color' must be RRGGBB hex";
+        const QString color = colorValue.toString();
         if (!validHexColor(color))
             return where + ": 'rgb.color' must be RRGGBB hex";
+        if (rgb.contains(QStringLiteral("mode"))) {
+            const QJsonValue modeValue = rgb.value(QStringLiteral("mode"));
+            const QString mode = modeValue.toString();
+            if (!modeValue.isString()
+                || (mode != QStringLiteral("steady")
+                    && mode != QStringLiteral("breath")
+                    && mode != QStringLiteral("breathing")
+                    && mode != QStringLiteral("cycle")
+                    && mode != QStringLiteral("wave")))
+                return where + ": invalid rgb.mode (steady|breath|cycle|wave)";
+        }
+        if (rgb.contains(QStringLiteral("speed"))
+            && !validInteger(rgb.value(QStringLiteral("speed")), 1, 600))
+            return where + ": 'rgb.speed' must be 1-600 seconds";
+        if (rgb.contains(QStringLiteral("wave_direction"))
+            && !validInteger(rgb.value(QStringLiteral("wave_direction")), 0, 1))
+            return where + ": 'rgb.wave_direction' must be 0 or 1";
     }
     return QString();
 }

@@ -1,0 +1,17 @@
+.pragma library
+
+var background = "#101418"
+var sidebar = "#151A20"
+var surface = "#1B222A"
+var elevated = "#232D37"
+var border = "#2E3A46"
+var text = "#EEF3F7"
+var secondary = "#BAC6D2"
+var muted = "#93A3B3"
+var accent = "#66DEC2"
+var accentSoft = "#203D39"
+var success = "#83D9AC"
+var successSoft = "#21392F"
+var danger = "#FFA29A"
+var dangerSoft = "#402A2C"
+var amber = "#F2BC79"

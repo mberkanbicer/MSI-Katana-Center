@@ -18,6 +18,11 @@ qt_add_resources(msicenter-ui "qml"
     PREFIX "/"
     FILES
         qml/Main.qml
+        qml/Theme.js
+        qml/Panel.qml
+        qml/PageHeading.qml
+        qml/ActionButton.qml
+        qml/LineIcon.qml
         qml/StatCard.qml
         qml/OverviewPage.qml
         qml/PowerPage.qml

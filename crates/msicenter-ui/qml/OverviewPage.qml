@@ -1,71 +1,69 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "Theme.js" as Theme
 
 ScrollView {
     id: page
     clip: true
     contentWidth: availableWidth
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
     Column {
-        x: 24
-        width: page.availableWidth - 48
-        spacing: 14
-        topPadding: 24
-        bottomPadding: 24
+        x: Math.max(28, (page.availableWidth - 1120) / 2)
+        width: Math.min(1120, page.availableWidth - 56)
+        spacing: 18
+        topPadding: 28
+        bottomPadding: 28
 
-        Label {
-            text: "Overview"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#E8DCCB"
+        PageHeading {
+            title: "System overview"
+            subtitle: "A live view of your device. Everything that matters, in one place."
         }
 
-        // Device card
-        Rectangle {
+        GridLayout {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 4
-                Label { text: "Device"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
-                Label {
-                    text: center.profileText !== ""
-                              ? "Matched: " + center.profileText
-                              : "No device profile matched"
-                    color: "#E8DCCB"; font.pixelSize: 14; font.bold: true
-                }
-                Label {
-                    text: "EC firmware: " + (center.ecFirmware !== ""
-                                             ? center.ecFirmware
-                                             : "unavailable")
-                          + (center.ecShift !== "" ? "   ·   shift: " + center.ecShift : "")
-                    color: "#B5A896"; font.pixelSize: 12
-                }
+            columns: 2
+            columnSpacing: 16
+            rowSpacing: 16
+            StatCard {
+                title: "TEMPERATURE · CPU / GPU"
+                value: center.ecTemps !== "" ? center.ecTemps : "Unavailable"
+                footnote: "Live temperature readings"
+                accent: Theme.amber
             }
-            implicitHeight: 92
+            StatCard {
+                title: "BATTERY"
+                value: center.capacityPercent >= 0 ? center.capacityPercent + "%" : "Unavailable"
+                footnote: center.batteryState
+                progress: center.capacityPercent >= 0 ? center.capacityPercent / 100 : -1
+            }
+            StatCard {
+                title: "COOLING MODE"
+                value: center.ecFanMode !== "" ? center.ecFanMode : "Unavailable"
+                footnote: center.coolerBoostOn ? "Cooler Boost is active" : "Fan control · msi-ec"
+            }
+            StatCard {
+                title: "FAN SPEED"
+                value: center.fanText !== "" ? center.fanText : "Unavailable"
+                footnote: "RPM · channels unmapped"
+                accent: Theme.secondary
+            }
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 16
-                spacing: 8
+                anchors.margins: 20
+                spacing: 12
                 RowLayout {
+                    Layout.fillWidth: true
                     Label {
-                        text: "History (memory only)"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
-                        font.bold: true
+                        text: "Activity"
+                        color: Theme.text
+                        font.pixelSize: 16
+                        font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
                     ComboBox {
@@ -77,110 +75,121 @@ ScrollView {
                             ListElement { label: "60 min"; minutes: 60 }
                         }
                         Component.onCompleted: {
-                            const current = center.historyWindowMinutes
                             for (let i = 0; i < count; i++) {
-                                if (Number(model.get(i).minutes) === current) {
+                                if (Number(model.get(i).minutes) === center.historyWindowMinutes) {
                                     currentIndex = i
                                     break
                                 }
                             }
                         }
-                        onActivated: (index) =>
-                            center.setHistoryWindowMinutes(
-                                Number(model.get(index).minutes))
+                        onActivated: (index) => center.setHistoryWindowMinutes(Number(model.get(index).minutes))
                     }
-                    Button {
+                    ActionButton {
                         text: "Copy CSV"
                         onClicked: center.copyHistoryCsv()
                     }
                 }
-                Label {
-                    text: "CPU °C"
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
-                }
-                Sparkline {
+                RowLayout {
                     Layout.fillWidth: true
-                    values: center.historyCpu
-                    maxValue: 100
-                    stroke: "#E2A35B"
-                }
-                Label {
-                    text: "Fan RPM (max channel)"
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
-                }
-                Sparkline {
-                    Layout.fillWidth: true
-                    values: center.historyRpm
-                    maxValue: Math.max(1, center.historyMaxRpm)
-                    stroke: "#A9BA7C"
+                    spacing: 24
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        spacing: 12
+                        Label { text: "CPU temperature · °C"; color: Theme.muted; font.pixelSize: 12 }
+                        Sparkline {
+                            Layout.fillWidth: true
+                            implicitHeight: 100
+                            values: center.historyCpu
+                            maxValue: 100
+                            stroke: Theme.amber
+                        }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        spacing: 12
+                        Label { text: "Fan speed · max RPM"; color: Theme.muted; font.pixelSize: 12 }
+                        Sparkline {
+                            Layout.fillWidth: true
+                            implicitHeight: 100
+                            values: center.historyRpm
+                            maxValue: Math.max(1, center.historyMaxRpm)
+                            stroke: Theme.accent
+                        }
+                    }
                 }
                 Label {
                     text: center.historyCpu.length < 2
-                          ? "Collecting samples (about 2 s apart)…"
-                          : (center.historyCpu.length + " CPU points in this window")
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                          ? "Collecting samples… Updates about every 2 seconds."
+                          : center.historyCpu.length + " CPU samples · kept in memory for this session"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                 }
             }
-            implicitHeight: 220
         }
 
-        GridLayout {
-            columns: page.availableWidth > 520 ? 2 : 1
-            columnSpacing: 14
-            rowSpacing: 14
+        Label {
+            text: "Device details"
+            color: Theme.text
+            font.pixelSize: 18
+            font.weight: Font.DemiBold
+        }
+
+        Panel {
             width: parent.width
-            StatCard {
-                title: "TEMPERATURE (CPU / GPU)"
-                value: center.ecTemps
-            }
-            StatCard {
-                title: "FAN MODE"
-                value: center.ecFanMode !== "" ? center.ecFanMode : "unavailable"
-                footnote: "msi-ec"
-            }
-            StatCard {
-                title: "FANS (RPM)"
-                value: center.fanText
-                footnote: "msi_wmi_platform · channels unmapped"
-            }
-            StatCard {
-                title: "BATTERY"
-                value: center.batteryState
-                footnote: "limits from power_supply"
-            }
-            StatCard {
-                title: "COOLER BOOST"
-                value: !center.coolerBoostValid
-                           ? "unavailable"
-                           : (center.coolerBoostOn ? "ON" : "off")
-            }
-            StatCard {
-                title: "SUPER BATTERY"
-                value: !center.superBatteryValid
-                           ? "unavailable"
-                           : (center.superBatteryOn ? "ON" : "off")
-            }
-            StatCard {
-                title: "WEBCAM"
-                value: center.webcamText
-                footnote: "msi-ec"
-            }
-            StatCard {
-                title: "FN / WIN KEYS"
-                value: center.fnWinText
-                footnote: "msi-ec"
-            }
-            StatCard {
-                title: "RGB CONTROLLER"
-                value: center.rgbControllerText
-            }
-            StatCard {
-                title: "SNAPSHOT"
-                value: center.capsText
-                footnote: "readable features"
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 12
+                Label {
+                    text: center.profileText !== "" ? center.profileText : "No device profile matched"
+                    color: Theme.text
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    Layout.fillWidth: true
+                    wrapMode: Text.WrapAnywhere
+                }
+                Label {
+                    text: "EC firmware: " + (center.ecFirmware || "Unavailable")
+                          + (center.ecShift ? "  ·  Shift: " + center.ecShift : "")
+                    color: Theme.muted
+                    font.pixelSize: 12
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: 20
+                    rowSpacing: 12
+                    Repeater {
+                        model: [
+                            {label: "Cooler Boost", value: !center.coolerBoostValid ? "Unavailable" : (center.coolerBoostOn ? "On" : "Off")},
+                            {label: "Super Battery", value: !center.superBatteryValid ? "Unavailable" : (center.superBatteryOn ? "On" : "Off")},
+                            {label: "Webcam", value: center.webcamText},
+                            {label: "Fn / Win keys", value: center.fnWinText},
+                            {label: "RGB controller", value: center.rgbControllerText},
+                            {label: "Readable features", value: center.capsText}
+                        ]
+                        ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            spacing: 4
+                            Label { text: modelData.label; color: Theme.muted; font.pixelSize: 12 }
+                            Label {
+                                text: modelData.value || "Unavailable"
+                                color: Theme.secondary
+                                font.pixelSize: 13
+                                Layout.fillWidth: true
+                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            }
+                        }
+                    }
+                }
             }
         }
     }

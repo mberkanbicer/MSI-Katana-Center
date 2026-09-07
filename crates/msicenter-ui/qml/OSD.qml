@@ -1,6 +1,7 @@
 import QtQuick
+import "Theme.js" as Theme
 
-// Toast-style on-screen notification (GhostDeck-like OSD) shown bottom-
+// Toast-style on-screen notification shown bottom-
 // right for a few seconds whenever a write action completes. Frameless,
 // always on top, never takes focus; click to dismiss.
 Window {
@@ -36,8 +37,8 @@ Window {
     Rectangle {
         anchors.fill: parent
         radius: 12
-        color: osd.errorState ? "#3A2622" : "#2A241E"
-        border.color: osd.errorState ? "#DD6B58" : "#4A4237"
+        color: osd.errorState ? Theme.dangerSoft : Theme.surface
+        border.color: osd.errorState ? Theme.danger : Theme.border
         border.width: 1
         opacity: 0.97
 
@@ -57,11 +58,11 @@ Window {
                     height: 10
                     radius: 5
                     anchors.verticalCenter: parent.verticalCenter
-                    color: osd.errorState ? "#DD6B58" : "#A9BA7C"
+                    color: osd.errorState ? Theme.danger : Theme.success
                 }
                 Text {
                     text: osd.titleText
-                    color: "#E8DCCB"
+                    color: Theme.text
                     font.pixelSize: 14
                     font.bold: true
                     width: parent.width - 18
@@ -70,7 +71,7 @@ Window {
             }
             Text {
                 text: osd.bodyText
-                color: "#B5A896"
+                color: Theme.secondary
                 font.pixelSize: 12
                 width: parent.width
                 wrapMode: Text.Wrap

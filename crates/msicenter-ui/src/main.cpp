@@ -13,7 +13,7 @@
 #include <QQuickWindow>
 #include <QSystemTrayIcon>
 
-// Builds a small amber "M" pixmap for the tray icon without depending on
+// Builds a small mint "M" pixmap for the tray icon without depending on
 // an icon theme.
 static QIcon makeTrayIcon() {
     QPixmap pixmap(64, 64);
@@ -21,9 +21,9 @@ static QIcon makeTrayIcon() {
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor("#E2A35B"));
+    painter.setBrush(QColor("#66DEC2"));
     painter.drawRoundedRect(6, 6, 52, 52, 14, 14);
-    painter.setBrush(QColor("#1B1815"));
+    painter.setBrush(QColor("#101418"));
     QFont font = painter.font();
     font.setPixelSize(30);
     font.setBold(true);

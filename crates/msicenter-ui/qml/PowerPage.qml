@@ -1,44 +1,40 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "Theme.js" as Theme
 
 ScrollView {
     id: page
     clip: true
     contentWidth: availableWidth
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
     Column {
-        x: 24
-        width: page.availableWidth - 48
-        spacing: 14
-        topPadding: 24
+        x: Math.max(28, (page.availableWidth - 1120) / 2)
+        width: Math.min(1120, page.availableWidth - 56)
+        spacing: 18
+        topPadding: 28
         bottomPadding: 24
 
-        Label {
-            text: "Power & Fans"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#E8DCCB"
+        PageHeading {
+            title: "Power & Fans"
+            subtitle: "Manage cooling, power saving and device controls."
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 14
 
-                Label { text: "Fan mode"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Fan mode"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
                 Row {
                     spacing: 8
                     ButtonGroup { id: fanGroup }
                     Repeater {
                         model: center.fanModes
-                        Button {
+                        ActionButton {
                             required property string modelData
                             text: modelData
                             checkable: true
@@ -51,22 +47,17 @@ ScrollView {
                 Label {
                     text: "Currently: " + (center.ecFanMode !== "" ? center.ecFanMode
                                                                   : "unavailable")
-                    color: "#B5A896"
+                    color: Theme.secondary
                     font.pixelSize: 12
                 }
             }
-            implicitHeight: 140
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 6
 
                 Switch {
@@ -81,14 +72,14 @@ ScrollView {
                 }
                 Label {
                     text: "Maximum fan speed on request. Polkit prompt follows."
-                    color: "#8C7F6F"; font.pixelSize: 10
+                    color: Theme.muted; font.pixelSize: 12
                 }
                 Row {
                     spacing: 10
                     Label {
                         text: "Auto-off"
-                        color: "#8C7F6F"
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: 12
                         font.bold: true
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -130,7 +121,7 @@ ScrollView {
                             : (s + "s")
                         return "Turns off in " + clock + " (while this app is running)."
                     }
-                    color: "#E2A35B"
+                    color: Theme.accent
                     font.pixelSize: 12
                 }
                 Switch {
@@ -141,7 +132,7 @@ ScrollView {
                 }
                 Label {
                     text: "Battery preservation mode. Polkit prompt follows."
-                    color: "#8C7F6F"; font.pixelSize: 10
+                    color: Theme.muted; font.pixelSize: 12
                 }
                 Switch {
                     text: "Webcam"
@@ -157,13 +148,13 @@ ScrollView {
                 }
                 Label {
                     text: "Block is a hardware kill: the Fn webcam key cannot re-enable it."
-                    color: "#8C7F6F"; font.pixelSize: 10
+                    color: Theme.muted; font.pixelSize: 12
                 }
-                Label { text: "Fn key position"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Fn key position"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
                 Row {
                     spacing: 8
                     ButtonGroup { id: fnGroup }
-                    Button {
+                    ActionButton {
                         text: "Fn left"
                         checkable: true
                         checked: center.fnKey === "left"
@@ -171,7 +162,7 @@ ScrollView {
                         ButtonGroup.group: fnGroup
                         onClicked: center.setFnKey("left")
                     }
-                    Button {
+                    ActionButton {
                         text: "Fn right"
                         checkable: true
                         checked: center.fnKey === "right"
@@ -182,24 +173,20 @@ ScrollView {
                 }
                 Label {
                     text: center.fnWinText + "  ·  Polkit + per-feature opt-in."
-                    color: "#8C7F6F"; font.pixelSize: 10
+                    color: Theme.muted; font.pixelSize: 12
                 }
             }
-            implicitHeight: 450
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 8
-                Button {
+                ActionButton {
                     text: "Panic reset"
+                    destructive: true
                     enabled: !center.sceneApplying
                     onClicked: center.panicReset()
                 }
@@ -208,24 +195,19 @@ ScrollView {
                           + "Does not change shift/performance mode (now: "
                           + (center.ecShift !== "" ? center.ecShift : "unknown")
                           + "). Ctrl+Shift+P. Polkit + opt-ins still apply."
-                    color: "#8C7F6F"
-                    font.pixelSize: 11
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 110
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 10
                 Switch {
                     text: "CPU temperature alert"
@@ -238,7 +220,7 @@ ScrollView {
                 }
                 RowLayout {
                     spacing: 8
-                    Label { text: "Above"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    Label { text: "Above"; color: Theme.muted; font.pixelSize: 12 }
                     SpinBox {
                         from: 70
                         to: 100
@@ -246,7 +228,7 @@ ScrollView {
                         enabled: center.tempAlert
                         onValueModified: center.setTempAlertCelsius(value)
                     }
-                    Label { text: "°C for"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    Label { text: "°C for"; color: Theme.muted; font.pixelSize: 12 }
                     SpinBox {
                         from: 5
                         to: 60
@@ -254,11 +236,11 @@ ScrollView {
                         enabled: center.tempAlert
                         onValueModified: center.setTempAlertHoldSeconds(value)
                     }
-                    Label { text: "s"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    Label { text: "s"; color: Theme.muted; font.pixelSize: 12 }
                 }
                 RowLayout {
                     spacing: 8
-                    Label { text: "Cooldown"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    Label { text: "Cooldown"; color: Theme.muted; font.pixelSize: 12 }
                     SpinBox {
                         from: 30
                         to: 600
@@ -267,25 +249,24 @@ ScrollView {
                         enabled: center.tempAlert
                         onValueModified: center.setTempAlertCooldownSeconds(value)
                     }
-                    Label { text: "s between alerts"; color: "#8C7F6F"; font.pixelSize: 11 }
+                    Label { text: "s between alerts"; color: Theme.muted; font.pixelSize: 12 }
                 }
                 Label {
                     text: "OSD only, no hardware write. Needs this app running. Current CPU: "
                           + (center.ecTemps !== "" ? center.ecTemps : "n/a")
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 190
         }
 
         Label {
             text: "Every write is gated daemon-side: per-feature opt-in, exact verified firmware and Polkit. "
                   + "When an opt-in is off, the refusal appears in the banner above."
-            color: "#8C7F6F"
-            font.pixelSize: 11
+            color: Theme.muted
+            font.pixelSize: 12
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             width: parent.width
         }

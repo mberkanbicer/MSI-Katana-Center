@@ -1,66 +1,57 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "Theme.js" as Theme
 
 ScrollView {
     id: page
     clip: true
     contentWidth: availableWidth
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
     Column {
-        x: 24
-        width: page.availableWidth - 48
-        spacing: 14
-        topPadding: 24
+        x: Math.max(28, (page.availableWidth - 1120) / 2)
+        width: Math.min(1120, page.availableWidth - 56)
+        spacing: 18
+        topPadding: 28
         bottomPadding: 24
 
-        Label {
-            text: "Battery"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#E8DCCB"
+        PageHeading {
+            title: "Battery"
+            subtitle: "Balance everyday battery care with time away from your desk."
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 12
 
                 Label {
                     text: center.batteryState !== "" ? center.batteryState : "unavailable"
-                    color: "#E8DCCB"
+                    color: Theme.text
                     font.pixelSize: 15
                     font.bold: true
                 }
                 ProgressBar {
-                    width: parent.width
+                    Layout.fillWidth: true
                     from: 0
                     to: 100
                     value: center.capacityPercent >= 0 ? center.capacityPercent : 0
                     indeterminate: center.capacityPercent < 0
                 }
             }
-            implicitHeight: 110
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 14
 
-                Label { text: "Charge limits"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Charge limits"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
 
                 RowLayout {
                     width: parent.width
@@ -68,21 +59,24 @@ ScrollView {
 
                     SpinBox {
                         id: startBox
+                        Accessible.name: "Start charging below percent"
                         from: 0
                         to: endBox.value - 1
                         value: center.chargeStartPercent >= 0 ? center.chargeStartPercent : 80
                         editable: true
                     }
-                    Label { text: "to"; color: "#8C7F6F" }
+                    Label { text: "to"; color: Theme.muted }
                     SpinBox {
                         id: endBox
+                        Accessible.name: "Stop charging at percent"
                         from: startBox.value + 1
                         to: 100
                         value: center.chargeEndPercent >= 0 ? center.chargeEndPercent : 90
                         editable: true
                     }
-                    Button {
+                    ActionButton {
                         text: "Apply limits"
+                        primary: true
                         onClicked: center.setBatteryThresholds(startBox.value, endBox.value)
                     }
                 }
@@ -96,50 +90,45 @@ ScrollView {
                                  ? center.chargeEndPercent
                                  : "?")
                           + "%"
-                    color: "#B5A896"
+                    color: Theme.secondary
                     font.pixelSize: 12
                 }
                 Row {
                     spacing: 8
-                    Button {
+                    ActionButton {
                         text: "50–60%"
                         onClicked: center.setBatteryThresholds(50, 60)
                     }
-                    Button {
+                    ActionButton {
                         text: "70–80%"
                         onClicked: center.setBatteryThresholds(70, 80)
                     }
-                    Button {
+                    ActionButton {
                         text: "90–100%"
                         onClicked: center.setBatteryThresholds(90, 100)
                     }
                 }
                 Label {
-                    text: "Presets write start and end together (Linux charge thresholds), not a single GhostDeck-style stop limit."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    text: "Choose when charging starts and stops. Lower limits help preserve battery health when plugged in."
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 230
         }
 
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 10
 
                 Label {
                     text: "Travel (charge to 100%)"
-                    color: "#8C7F6F"
-                    font.pixelSize: 11
+                    color: Theme.muted
+                    font.pixelSize: 12
                     font.bold: true
                 }
                 Row {
@@ -166,14 +155,15 @@ ScrollView {
                         onActivated: (index) =>
                             center.setTravelDays(Number(model.get(index).days))
                     }
-                    Button {
+                    ActionButton {
                         text: center.travelActive ? "Extend trip" : "Start travel"
+                        primary: true
                         enabled: center.chargeStartPercent >= 0
                                  && center.chargeEndPercent > center.chargeStartPercent
                         onClicked: center.startTravel(
                                        Number(travelBox.model.get(travelBox.currentIndex).days))
                     }
-                    Button {
+                    ActionButton {
                         text: "Restore now"
                         visible: center.travelActive
                         onClicked: center.cancelTravel()
@@ -182,20 +172,19 @@ ScrollView {
                 Label {
                     visible: center.travelActive
                     text: center.travelRestoreText
-                    color: "#E2A35B"
+                    color: Theme.accent
                     font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
                 Label {
                     text: "Saves the current start/end pair, sets end to 100%, then restores that pair after N days while this app is running — or on the next launch after the date. Needs the battery write opt-in and Polkit. No extra EC register."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
             }
-            implicitHeight: 210
         }
     }
 }

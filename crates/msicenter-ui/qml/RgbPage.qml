@@ -1,11 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "Theme.js" as Theme
 
 ScrollView {
     id: page
     clip: true
     contentWidth: availableWidth
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
     property int rgbZones: 15
     property string colorHex: "ff0000"
@@ -31,38 +33,72 @@ ScrollView {
     }
 
     Column {
-        x: 24
-        width: page.availableWidth - 48
-        spacing: 14
-        topPadding: 24
+        x: Math.max(28, (page.availableWidth - 1120) / 2)
+        width: Math.min(1120, page.availableWidth - 56)
+        spacing: 18
+        topPadding: 28
         bottomPadding: 24
 
-        Label {
-            text: "Keyboard RGB"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#E8DCCB"
+        PageHeading {
+            title: "Keyboard RGB"
+            subtitle: "Choose your palette. Make your keyboard your own."
         }
 
         // ---- Controller & zones ----
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             Column {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 12
-                Label { text: "Controller"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Controller"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
                 Label {
                     text: center.rgbControllerText
-                    color: center.rgbControllerText === "not detected" ? "#DD6B58" : "#E8DCCB"
+                    color: center.rgbControllerText === "not detected" ? Theme.danger : Theme.text
                     font.pixelSize: 14
                     font.bold: true
                 }
-                Label { text: "Zone"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                RowLayout {
+                    width: parent.width
+                    spacing: 10
+                    Repeater {
+                        model: 4
+                        Rectangle {
+                            required property int index
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            height: 76
+                            radius: 10
+                            color: Theme.background
+                            border.color: (page.rgbZones & (1 << index)) ? hexToColor(page.colorHex) : Theme.border
+                            Grid {
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                columns: 4
+                                spacing: 4
+                                Repeater {
+                                    model: 12
+                                    Rectangle {
+                                        width: (parent.width - 12) / 4
+                                        height: (parent.height - 8) / 3
+                                        radius: 3
+                                        color: (page.rgbZones & (1 << parent.parent.index))
+                                               ? hexToColor(page.colorHex) : Theme.elevated
+                                        opacity: 0.75
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Label {
+                    text: "Selected color preview · apply below to update your keyboard"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+                Label { text: "Zone"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
                 Row {
                     spacing: 8
                     ButtonGroup { id: zoneGroup }
@@ -72,7 +108,7 @@ ScrollView {
                                 { label: "Zone 2", mask: 2 },
                                 { label: "Zone 3", mask: 4 },
                                 { label: "Zone 4", mask: 8 }]
-                        Button {
+                        ActionButton {
                             required property var modelData
                             text: modelData.label
                             checkable: true
@@ -83,44 +119,20 @@ ScrollView {
                     }
                 }
             }
-            implicitHeight: 190
         }
 
         // ---- Color & effect ----
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             Column {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 12
 
-                Label { text: "Color & effect (non-persistent)"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Color & effect (non-persistent)"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
 
-                Row {
-                    spacing: 10
-                    Rectangle {
-                        id: selectedSwatch
-                        width: 46
-                        height: 34
-                        radius: 6
-                        color: hexToColor(page.colorHex)
-                        border.color: "#E2A35B"
-                        border.width: 2
-                        Label {
-                            anchors.centerIn: parent
-                            text: "selected"
-                            color: page.colorHex === "ffffff" || page.colorHex === "00ffff"
-                                       || page.colorHex === "ffff00" ? "#1B1815" : "#E8DCCB"
-                            font.pixelSize: 8
-                            font.bold: true
-                        }
-                    }
                     Flow {
-                        width: parent.parent.width - 62
+                        width: parent.width
                         spacing: 8
                         Repeater {
                             model: [{ name: "Red", hex: "ff0000" },
@@ -129,39 +141,45 @@ ScrollView {
                                     { name: "Yellow", hex: "ffff00" },
                                     { name: "Cyan", hex: "00ffff" },
                                     { name: "White", hex: "ffffff" }]
-                            Rectangle {
+                            AbstractButton {
+                                id: swatch
                                 required property var modelData
-                                width: 46
-                                height: 34
-                                radius: 6
-                                color: "#" + modelData.hex
-                                border.color: page.colorHex === modelData.hex
-                                                 ? "#E2A35B" : "#3A332B"
-                                border.width: page.colorHex === modelData.hex ? 2 : 1
-                                Label {
-                                    anchors.centerIn: parent
-                                    text: modelData.name
-                                    color: modelData.hex === "ffffff" || modelData.hex === "00ffff"
-                                           || modelData.hex === "ffff00" ? "#1B1815" : "#E8DCCB"
-                                    font.pixelSize: 9
-                                    font.bold: true
+                                width: 80
+                                height: 42
+                                text: modelData.name
+                                Accessible.name: modelData.name + " color"
+                                checked: page.colorHex === modelData.hex
+                                hoverEnabled: true
+                                onClicked: page.colorHex = modelData.hex
+                                contentItem: Row {
+                                    spacing: 7
+                                    leftPadding: 8
+                                    Rectangle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 12; height: 12; radius: 6
+                                        color: "#" + swatch.modelData.hex
+                                        border.color: Qt.lighter(color, 1.5)
+                                    }
+                                    Label {
+                                        height: parent.height
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: swatch.text
+                                        color: Theme.text
+                                        font.pixelSize: 12
+                                    }
                                 }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: page.colorHex = modelData.hex
-                                    onEntered: parent.border.color = "#E2A35B"
-                                    onExited: parent.border.color =
-                                        page.colorHex === modelData.hex ? "#E2A35B" : "#3A332B"
+                                background: Rectangle {
+                                    radius: 9
+                                    color: swatch.checked ? Theme.accentSoft : swatch.hovered ? Theme.elevated : Theme.surface
+                                    border.color: swatch.checked || swatch.visualFocus ? Theme.accent : Theme.border
+                                    border.width: swatch.visualFocus ? 2 : 1
                                 }
                             }
                         }
                     }
-                }
-
                 Row {
                     spacing: 10
-                    Label { text: "Effect"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true
+                    Label { text: "Effect"; color: Theme.muted; font.pixelSize: 12; font.bold: true
                             anchors.verticalCenter: parent.verticalCenter }
                     ButtonGroup { id: effectGroup }
                     Repeater {
@@ -169,7 +187,7 @@ ScrollView {
                                 { label: "Breathing", mode: 2 },
                                 { label: "Cycle", mode: 3 },
                                 { label: "Wave", mode: 4 }]
-                        Button {
+                        ActionButton {
                             required property var modelData
                             text: modelData.label
                             checkable: true
@@ -187,7 +205,7 @@ ScrollView {
                     Label {
                         text: "Speed: " + page.speedSeconds + " s"
                         width: 110
-                        color: "#B5A896"
+                        color: Theme.secondary
                         font.pixelSize: 12
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -205,13 +223,13 @@ ScrollView {
                 Row {
                     visible: page.modeIndex === 4
                     spacing: 10
-                    Label { text: "Direction"; color: "#8C7F6F"; font.pixelSize: 11
+                    Label { text: "Direction"; color: Theme.muted; font.pixelSize: 12
                             font.bold: true; anchors.verticalCenter: parent.verticalCenter }
                     ButtonGroup { id: directionGroup }
                     Repeater {
                         model: [{ label: "Left → Right", value: 1 },
                                 { label: "Right → Left", value: 0 }]
-                        Button {
+                        ActionButton {
                             required property var modelData
                             text: modelData.label
                             checkable: true
@@ -224,13 +242,14 @@ ScrollView {
 
                 Row {
                     spacing: 10
-                    Button {
+                    ActionButton {
                         text: "Apply effect"
+                        primary: true
                         onClicked: center.setRgbEffectPreset(page.rgbZones, page.modeIndex,
                                                              page.speedSeconds, page.colorHex,
                                                              page.waveDirection)
                     }
-                    Button {
+                    ActionButton {
                         text: "Turn off"
                         onClicked: center.setRgbColorFromHex(page.rgbZones, "000000")
                     }
@@ -239,26 +258,21 @@ ScrollView {
                     text: page.modeIndex === 3
                               ? "Cycle and wave derive companion colors from your selection."
                               : "Breathing fades your selected color; steady lights it."
-                    color: "#8C7F6F"
-                    font.pixelSize: 10
+                    color: Theme.muted
+                    font.pixelSize: 12
                 }
             }
-            implicitHeight: 330
         }
 
         // ---- Custom color picker ----
-        Rectangle {
+        Panel {
             width: parent.width
-            radius: 10
-            color: "#292420"
-            border.color: "#3A332B"
-            border.width: 1
             Column {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: 20
                 spacing: 12
 
-                Label { text: "Custom color"; color: "#8C7F6F"; font.pixelSize: 11; font.bold: true }
+                Label { text: "Custom color"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
 
                 Row {
                     spacing: 14
@@ -267,9 +281,9 @@ ScrollView {
                         width: 72
                         height: 44
                         radius: 8
-                        border.color: "#4A4237"
+                        border.color: Theme.border
                         border.width: 1
-                        color: validHex(hexField.text) ? hexToColor(hexField.text) : "#3A332B"
+                        color: validHex(hexField.text) ? hexToColor(hexField.text) : Theme.border
                     }
                     Column {
                         spacing: 8
@@ -282,17 +296,22 @@ ScrollView {
                                 placeholderText: "RRGGBB"
                                 maximumLength: 6
                                 font.family: "monospace"
-                                onAccepted: page.colorHex = text
+                                onAccepted: {
+                                    if (validHex(text))
+                                        page.colorHex = text.toLowerCase()
+                                }
+                                Accessible.name: "Custom color, six hexadecimal digits"
                             }
-                            Button {
+                            ActionButton {
                                 text: "Use this color"
-                                onClicked: page.colorHex = hexField.text
+                                enabled: validHex(hexField.text)
+                                onClicked: page.colorHex = hexField.text.toLowerCase()
                             }
                         }
                         Label {
                             text: "Enter or 'Use this color', then Apply effect above"
-                            color: "#8C7F6F"
-                            font.pixelSize: 10
+                            color: Theme.muted
+                            font.pixelSize: 12
                         }
                     }
                 }
@@ -300,7 +319,7 @@ ScrollView {
                 Row {
                     spacing: 14
                     width: parent.width
-                    Label { text: "Hue"; width: 44; color: "#B5A896"; font.pixelSize: 12 }
+                    Label { text: "Hue"; width: 44; color: Theme.secondary; font.pixelSize: 12 }
                     Slider {
                         id: pickHue
                         from: 0
@@ -312,7 +331,7 @@ ScrollView {
                 Row {
                     spacing: 14
                     width: parent.width
-                    Label { text: "Sat"; width: 44; color: "#B5A896"; font.pixelSize: 12 }
+                    Label { text: "Sat"; width: 44; color: Theme.secondary; font.pixelSize: 12 }
                     Slider {
                         id: pickSat
                         from: 0
@@ -324,7 +343,7 @@ ScrollView {
                 Row {
                     spacing: 14
                     width: parent.width
-                    Label { text: "Light"; width: 44; color: "#B5A896"; font.pixelSize: 12 }
+                    Label { text: "Light"; width: 44; color: Theme.secondary; font.pixelSize: 12 }
                     Slider {
                         id: pickLight
                         from: 0.15
@@ -334,7 +353,6 @@ ScrollView {
                     }
                 }
             }
-            implicitHeight: 300
         }
     }
 }

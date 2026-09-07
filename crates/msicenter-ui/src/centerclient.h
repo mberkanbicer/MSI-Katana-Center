@@ -236,6 +236,13 @@ signals:
     void actionDone(bool ok, const QString &title, const QString &detail);
 
 private:
+    enum class ActionContext {
+        Regular,
+        Scene,
+        TravelArming,
+        TravelRestore,
+    };
+
     struct SceneStep {
         QString label;
         QString method;
@@ -243,9 +250,13 @@ private:
     };
 
     void start();
-    void fetchProperty(const QString &iface, const QString &property);
-    void handleJson(const QString &property, const QString &json);
-    void callMethod(const QString &method, const QVariantList &args);
+    void fetchProperty(const QString &iface, const QString &property,
+                       quint64 refreshGeneration);
+    void handleJson(const QString &property, const QString &json,
+                    quint64 refreshGeneration);
+    void requestBatteryThresholds(int start, int end, ActionContext context);
+    void callMethod(const QString &method, const QVariantList &args,
+                    ActionContext context = ActionContext::Regular);
     QString configDir() const;
     QString scenesFilePath() const;
     bool mergeExampleScenes(bool announce);
@@ -274,9 +285,12 @@ private:
     int sceneChoiceIndex(const QString &name) const;
     void setSceneChoiceName(QString *dest, int index);
     void handleAction(const QString &method, const QVariantList &args,
-                      const QDBusMessage &reply);
-    QString actionTitle(const QString &method) const;
-    QString actionDetail(const QString &method, const QVariantList &args) const;
+                      const QDBusMessage &reply, quint64 requestId,
+                      ActionContext context);
+    QString actionTitle(const QString &method,
+                        ActionContext context = ActionContext::Regular) const;
+    QString actionDetail(const QString &method, const QVariantList &args,
+                         ActionContext context = ActionContext::Regular) const;
     void parseEc(const QJsonObject &ec);
     void parseFans(const QJsonArray &fans);
     void parseBattery(const QJsonObject &battery);
@@ -331,8 +345,12 @@ private:
     bool m_travelArming = false;
     bool m_travelRestoreInFlight = false;
     bool m_travelRestoreFailed = false;
+    quint64 m_nextActionId = 0;
+    quint64 m_sceneRequestId = 0;
+    quint64 m_travelRequestId = 0;
     int m_inFlight = 0;
     bool m_loggedFirstSummary = false;
+    quint64 m_refreshGeneration = 0;
     QJsonArray m_scenes;
     QStringList m_sceneNames;
     QVector<SceneStep> m_sceneSteps;

@@ -630,7 +630,7 @@ impl HardwarePaths {
         if !path.is_file() {
             return Err(EcAttrError::Unavailable { attr });
         }
-        if !allowed.iter().any(|candidate| *candidate == value) {
+        if !allowed.contains(&value) {
             return Err(EcAttrError::InvalidValue {
                 attr,
                 value: value.to_owned(),

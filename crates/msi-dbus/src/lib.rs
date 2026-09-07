@@ -250,7 +250,7 @@ fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError>
             backends.rgb_hid = hw.has_usb_device(vendor, product)?;
         }
     }
-    let rgb = rgb_status(&matched_profile);
+    let rgb = rgb_status(hw, &matched_profile);
     let runtime_capabilities =
         runtime_capabilities(matched_profile.as_ref(), &backends, &ec, &fans, &battery);
 
@@ -269,7 +269,10 @@ fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError>
 /// Read-only hidapi probe of the RGB controller declared by the profile.
 /// Returns an empty status when no profile/vendor-product pair is declared
 /// or the device cannot be opened (no usbfs access, device absent).
-fn rgb_status(profile: &Option<DeviceProfile>) -> RgbStatus {
+fn rgb_status(hw: &HardwarePaths, profile: &Option<DeviceProfile>) -> RgbStatus {
+    if hw.sysroot() != std::path::Path::new("/") {
+        return RgbStatus::default();
+    }
     let Some(profile) = profile else {
         return RgbStatus::default();
     };
