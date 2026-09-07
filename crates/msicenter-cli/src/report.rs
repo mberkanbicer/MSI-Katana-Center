@@ -20,7 +20,7 @@ pub fn print_report(status: &SystemStatus) {
     let profile = status.matched_profile.as_ref();
 
     println!(
-        "MSI Linux Center report (msicenter {})",
+        "MSI Katana Center report (msicenter {})",
         env!("CARGO_PKG_VERSION")
     );
     println!();

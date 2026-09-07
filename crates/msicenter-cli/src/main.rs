@@ -329,7 +329,7 @@ fn report_step(label: &str, result: Result<String, msi_dbus::ServiceError>) -> b
 }
 
 fn print_help() {
-    println!("MSI Linux Center");
+    println!("MSI Katana Center");
     println!();
     println!("Usage:");
     println!("  msicenter status [--json]");
@@ -359,7 +359,7 @@ fn print_status(status: &SystemStatus) {
     let identity = &status.identity;
     let profile = status.matched_profile.as_ref();
 
-    println!("MSI Linux Center");
+    println!("MSI Katana Center");
     println!();
     println!("Device");
     println!("  Model       : {}", show(identity.product_name.as_deref()));

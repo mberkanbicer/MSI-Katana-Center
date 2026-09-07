@@ -11,7 +11,7 @@ ApplicationWindow {
     height: 820
     minimumWidth: 900
     minimumHeight: 620
-    title: "MSI Linux Center"
+    title: "MSI Katana Center"
     color: Theme.background
     font.family: "Noto Sans"
     font.pixelSize: 13

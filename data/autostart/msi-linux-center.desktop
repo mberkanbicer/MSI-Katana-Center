@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=MSI Linux Center
-Comment=Start MSI Linux Center in the system tray
+Name=MSI Katana Center
+Comment=Start MSI Katana Center in the system tray
 Exec=msicenter-ui
 Icon=msicenter-ui
 Terminal=false

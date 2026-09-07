@@ -141,7 +141,7 @@ struct TrayStatus {
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("msicenter-ui"));
-    app.setApplicationDisplayName(QStringLiteral("MSI Linux Center"));
+    app.setApplicationDisplayName(QStringLiteral("MSI Katana Center"));
     QQuickStyle::setStyle(QStringLiteral("Material"));
 
     CenterClient client;
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
     QuickActions quick;
     if (trayAvailable) {
         tray.setIcon(makeTrayIcon());
-        tray.setToolTip(QStringLiteral("MSI Linux Center"));
+        tray.setToolTip(QStringLiteral("MSI Katana Center"));
         QMenu *menu = new QMenu();
         trayStatus.line = menu->addAction(QStringLiteral("connecting…"));
         trayStatus.line->setEnabled(false);

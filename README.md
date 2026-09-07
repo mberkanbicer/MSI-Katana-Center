@@ -1,13 +1,52 @@
-# MSI Linux Center
+# MSI Katana Center
+
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 
 Linux-native, open-source hardware management for MSI laptops, developed
-against the MSI Katana 17 B13VGK (board MS-17L5, EC `17L5EMS1.115`) as the
-reference device. Rust core + D-Bus daemon + Qt/QML desktop client.
+against the **MSI Katana 17 B13VGK** (board MS-17L5, EC `17L5EMS1.115`) as
+the reference device. Rust core + D-Bus daemon + Qt/QML desktop client.
+
+```mermaid
+flowchart LR
+    A[Qt/QML Desktop Client<br/>msicenter-ui] -->|D-Bus + Polkit| B[System Daemon<br/>org.msilinux.Center]
+    C[CLI<br/>msicenter] -->|D-Bus + Polkit| B
+    B --> D[msi-ec kernel module]
+    B --> E[msi_wmi_platform / hwmon]
+    B --> F[power_supply battery]
+    B --> G[MysticLight RGB HID]
+```
 
 Safety-first: every hardware write is firmware-gated, Polkit-authorized,
 opt-in per feature, read-back-verified, and only enabled after physical
 verification on the reference laptop. See
 [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) for the rules.
+
+## Screenshots
+
+| Overview | Page tour | Live telemetry |
+|---|---|---|
+| ![Overview](docs/screenshots/ui-overview.gif) | ![Pages](docs/screenshots/ui-pages.gif) | ![Telemetry](docs/screenshots/ui-telemetry.gif) |
+
+## Features
+
+- **Read-only telemetry** — EC shift/fan modes, CPU/GPU temperatures, fan
+  levels and real RPM, battery status and charge thresholds, runtime
+  capability reporting
+- **Gated, verified writes** — battery charge thresholds, fan mode,
+  Cooler Boost, Super Battery, webcam/webcam-block, Fn/Win key swap
+- **Keyboard RGB** — MysticLight MS-1565 steady color and effects
+  (breathing, cycle, wave), non-persistent by default; flash-save behind
+  a separate opt-in
+- **Scenes** — named bundles of the gated writes, with CLI and UI
+  apply/import/export, starter examples (Quiet / Cool / Battery saver /
+  Gaming lights), optional startup/AC-battery/battery-level/schedule
+  automation (all opt-in, all UI-owned)
+- **System tray** — live temps/RPM tooltip, quick actions, keyboard
+  shortcuts (Ctrl+Shift+C/B/L/P)
+- **Community diagnostics** — `msicenter report` with no serial numbers
+  for upstream support requests
+- **Fake-sysroot fixture** — hardware-free development and testing via
+  `MSI_LINUX_CENTER_SYSROOT`
 
 ## Phase status
 
@@ -16,41 +55,26 @@ verification on the reference laptop. See
 | 0 | read-only hardware reconnaissance | complete |
 | 1–2 | read-only core, device database, runtime capabilities, fixture | complete |
 | 3 | D-Bus daemon, systemd unit, D-Bus policy, Polkit actions | complete |
-| 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — all physically verified 2026-09-05 |
-| 5 | custom fan curves | design study: [`docs/phase5-fan-curve-design.md`](docs/phase5-fan-curve-design.md) — no writes until §11 experiment |
-| 6 | Qt/QML desktop UI | Material/warm desktop client with sidebar navigation, write controls, RGB color+effect pickers, system tray: [`docs/phase6-ui-design.md`](docs/phase6-ui-design.md) |
-| 7 | RGB (MysticLight MS-1565) | non-persistent `SetRgbColor` physically verified 2026-09-06; effect modes via `SetRgbPresetEffect` implemented (desktop test pending); flash-save implemented, physical test pending |
-| 8 | scenes | CLI physically validated; UI apply/import/export; starter examples (Quiet / Cool / Battery saver / Gaming lights) |
-| 9 | community diagnostics | `msicenter report` + UI copy; client write log on Diagnostics; unmatched-model JSON, no serials: [`docs/phase9-diagnostics.md`](docs/phase9-diagnostics.md) |
-| 10 | MUX | research only; see [`docs/deferred-features-research.md`](docs/deferred-features-research.md) |
+| 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — physically verified 2026-09-05 |
+| 5 | custom fan curves | [design study](docs/phase5-fan-curve-design.md) — no writes until §11 experiment |
+| 6 | Qt/QML desktop UI | complete — [design](docs/phase6-ui-design.md) |
+| 7 | RGB (MysticLight MS-1565) | `SetRgbColor` physically verified; effect modes implemented; flash-save implemented, physical test pending |
+| 8 | scenes | complete — CLI + UI validated |
+| 9 | community diagnostics | complete — [design](docs/phase9-diagnostics.md) |
+| 10 | MUX | research only — [notes](docs/deferred-features-research.md) |
 
-## Current scope
+## Requirements
 
-- DMI device detection and profile matching with provenance validation
-- EC semantic state through `msi-ec` (shift/fan modes, temps, fan levels,
-  webcam and Fn/Win key positions — read-only)
-- real fan RPM through `msi_wmi_platform`/hwmon (channels kept unmapped)
-- battery status and charge thresholds through Linux `power_supply`
-- runtime capability reporting (model vs backend vs readable)
-- fake-sysroot fixture for hardware-free development
-- gated, verified writes: `SetBatteryThresholds`, `SetFanMode`,
-  `SetCoolerBoost`, `SetSuperBattery`, `SetWebcam`, `SetWebcamBlock`,
-  `SetFnKey` — disabled by default (per-feature daemon opt-ins), exact
-  verified firmware + Polkit required
-- D-Bus daemon (`org.msilinux.Center`) and Qt/QML desktop client
-- all paths redirectable via `MSI_LINUX_CENTER_SYSROOT`
-
-No MUX or fan-curve write exists yet. RGB steady color and effect modes
-are writable (non-persistent; flash-save implemented behind a separate
-opt-in but not yet physically tested). Performance-mode writes are
-deferred (current EC state `0xc0` is not writable by `msi-ec`; see
-`MSI-Linux-Center-AGENTS.md` §6.1).
+- Rust toolchain (≥ 1.75)
+- Qt 6 (Core, QML, Quick, DBus, QuickControls2, Widgets) + CMake ≥ 3.21
+- Linux with `msi-ec` and `msi_wmi_platform` kernel modules for real
+  hardware (both read and write paths degrade gracefully when absent)
 
 ## Install / uninstall
 
-Builds the release daemon, CLI, and Qt UI, then installs systemd, Polkit,
-D-Bus policy, desktop file, and (by default) session autostart. Write
-opt-ins stay off.
+Builds the release daemon, CLI, and Qt UI, then installs systemd,
+Polkit, D-Bus policy, desktop file, and (by default) session autostart.
+Write opt-ins stay off.
 
     ./scripts/setup.sh install
     ./scripts/setup.sh install --no-autostart
@@ -59,17 +83,24 @@ opt-ins stay off.
 `uninstall` does not delete `~/.config/msi-linux-center`. Prefix defaults
 to `/usr` (`PREFIX`, `SYSCONFDIR`).
 
-## Requirements
+## Build from source
 
-Rust toolchain for the core/daemon/CLI; Qt 6 (Core, QML, Quick, DBus) +
-cmake for the desktop client (`crates/msicenter-ui/`).
+Rust core, daemon, and CLI:
 
-## Run against the included fixture first
+    cargo build --release
+
+Qt desktop client:
+
+    cd crates/msicenter-ui && cmake -S . -B build && cmake --build build -j
+
+## Run
+
+Against the included fixture (no hardware needed):
 
     ./scripts/run-fixture.sh
     ./scripts/run-fixture.sh --json
 
-## Run read-only on the real laptop
+Read-only on the real laptop:
 
     ./scripts/run-local-readonly.sh
     cargo run -p msicenter-cli -- status [--json]
@@ -83,62 +114,60 @@ the daemon after Polkit authorization.
 Each command requires the daemon to run with the matching opt-in
 (`MSI_LINUX_CENTER_ENABLE_*_WRITES=1`) and completes a Polkit prompt:
 
-    msicenter battery-thresholds START END      # e.g. 80 90 (UI also has 50–60 / 70–80 / 90–100 presets and travel-to-100%)
+    msicenter battery-thresholds START END      # e.g. 80 90
     msicenter fan-mode auto|silent|advanced
     msicenter cooler-boost on|off
     msicenter super-battery on|off
     msicenter webcam on|off
     msicenter webcam-block on|off
     msicenter fn-key left|right
+    msicenter rgb-color ZONE_MASK RRGGBB        # non-persistent
+    msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS
+    msicenter rgb-save                          # persistent flash save (separate opt-in)
     msicenter panic-reset                       # Cooler Boost off, Super Battery off, fan auto
-    msicenter scene examples                    # add Quiet/Cool/Battery saver/Gaming lights
+    msicenter scene list|examples|apply NAME
 
-With the opt-in disabled the daemon refuses with `NotSupported`. The exact
-support scope, gates, and physical verification records live in
+With the opt-in disabled the daemon refuses with `NotSupported`. The
+exact support scope, gates, and physical verification records live in
 [`docs/dbus-contract.md`](docs/dbus-contract.md) and the
 `docs/phase4-*-validation.md` files.
 
-## Desktop client
+## Safety model
 
-    cd crates/msicenter-ui && cmake -S . -B build && cmake --build build -j
-    ./build/msicenter-ui
+1. **Firmware gate** — writes only run when the device's EC firmware
+   exactly matches a physically verified firmware string
+2. **Opt-in gate** — every write family is disabled by default behind a
+   per-feature daemon environment variable
+3. **Polkit gate** — every D-Bus write method maps to a Polkit action
+4. **Read-back verification** — EC and battery writes are read back and
+   verified; failed writes roll back
+5. **Physical verification** — a write path ships only after it has been
+   exercised on the reference laptop and recorded in `docs/`
+6. **No guessing** — undocumented registers are never written; provenance
+   for every hardware feature is recorded in the device profile
 
-Pure D-Bus client: never root, no direct `/sys` access; write controls go
-through the daemon's Polkit-gated methods. Overview keeps an in-memory sparkline of CPU temperature and fan RPM
-(last 15–60 minutes; Copy CSV). The tray tooltip shows CPU temperature, fan RPM, and Cooler Boost.
-The tray menu can set a steady
-keyboard color or an amber breathing/cycle/wave effect, apply a saved
-scene, and (while the app is running) Ctrl+Shift+C / B / L toggles
-Cooler Boost, Super Battery, and keyboard RGB off; Ctrl+Shift+P runs
-panic reset (Cooler Boost off, Super Battery off, fan auto — not a
-shift-mode change). Cooler Boost can
-auto-off after 30 s–15 min; Battery has 50–60 / 70–80 / 90–100 presets
-and a travel-to-100% that restores the previous pair after 3–30 days
-(UI-owned state in `~/.config/msi-linux-center/ui.json`; lasts only
-while the app is running, or on the next launch after the date).
-An opt-in on the Scenes page can re-apply a scene at app start
-(default off — cold boot stays firmware stock), and another can switch
-scenes when you plug or unplug (edge-triggered; default off). Battery-level
-rules can apply a scene when capacity crosses a low % while discharging
-or a high % while charging (once per crossing; default off). A scene
-schedule can apply the first matching weekday/time window when that
-window starts (overnight ranges allowed; needs the UI running). An
-opt-in CPU temperature alert shows an OSD if the CPU stays over a
-threshold for several seconds. Compositor-level
-bindings can call the same CLI commands (`msicenter cooler-boost on`,
-`msicenter rgb-color f 000000`, `msicenter panic-reset`).
+## Supported devices
 
-## Sysroot override
+| Device | Status |
+|---|---|
+| MSI Katana 17 B13VGK (MS-17L5, EC `17L5EMS1.115`) | verified reference device |
+| Other MSI laptops with `msi-ec` | read-only telemetry; writes gated by exact firmware match |
+| Unmatched models | read-only + diagnostics report; community support via `msicenter report` |
 
-All Linux paths can be redirected for tests:
+## Documentation
 
-    MSI_LINUX_CENTER_SYSROOT=/some/fake/root cargo run -p msicenter-cli -- status
+- [`docs/dbus-contract.md`](docs/dbus-contract.md) — D-Bus API contract
+- [`docs/phase7-rgb-protocol.md`](docs/phase7-rgb-protocol.md) — MysticLight wire protocol
+- [`docs/reverse-engineering-inventory.md`](docs/reverse-engineering-inventory.md) — RE inventory
+- [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) — safety rules for contributors and agents
 
-## D-Bus API
+## Contributing
 
-Bus `org.msilinux.Center` (system bus), interfaces
-`org.msilinux.Center1.Device` and `.Sensors`, plus the gated write
-methods (battery thresholds, fan mode, Cooler Boost, Super Battery, RGB
-color, RGB effect preset, RGB flash-save). JSON-encoded properties today;
-typed records are planned once the UI/SDK needs them. See
-[`docs/dbus-contract.md`](docs/dbus-contract.md).
+Read [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) first.
+Hardware write paths require provenance, gating, and physical
+verification records — PRs that skip these will not be merged.
+
+## License
+
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE),
+at your option.

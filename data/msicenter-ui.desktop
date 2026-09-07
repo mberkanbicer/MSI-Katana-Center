@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=MSI Linux Center
+Name=MSI Katana Center
 GenericName=MSI laptop hardware management
 Comment=Status and gated hardware controls for MSI laptops
 Exec=msicenter-ui
