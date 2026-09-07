@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">How MSI Katana Center talks to the laptop</title>
+  <desc id="arch-desc">The Qt desktop client and CLI send D-Bus requests through Polkit to the system daemon, which reaches msi-ec, hwmon, the battery interface, and the MysticLight RGB HID device.</desc>
+
+  <rect width="1200" height="360" rx="26" fill="#101418"/>
+  <rect x="0" y="0" width="6" height="360" fill="#66DEC2"/>
+
+  <text x="48" y="46" font-size="14" font-weight="600" letter-spacing="2.2" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">CONTROL PATH</text>
+  <text x="48" y="78" font-size="28" font-weight="700" fill="#EEF3F7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Unprivileged clients. One privileged daemon.</text>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="48" y="118" font-size="13" font-weight="600" letter-spacing="1.6" fill="#93A3B3">SESSION</text>
+    <rect x="48" y="128" width="300" height="72" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+    <text x="68" y="158" font-size="20" font-weight="700" fill="#EEF3F7">Qt/QML desktop</text>
+    <text x="68" y="182" font-size="16" fill="#93A3B3">msicenter-ui · never root</text>
+
+    <rect x="48" y="212" width="300" height="72" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+    <text x="68" y="242" font-size="20" font-weight="700" fill="#EEF3F7">CLI</text>
+    <text x="68" y="266" font-size="16" fill="#93A3B3">msicenter · no sudo</text>
+
+    <path d="M348 164 H392" stroke="#66DEC2" stroke-width="2"/>
+    <path d="M348 248 H392" stroke="#66DEC2" stroke-width="2"/>
+    <path d="M392 164 V248" stroke="#66DEC2" stroke-width="2"/>
+    <path d="M392 206 H432" stroke="#66DEC2" stroke-width="2" marker-end="none"/>
+    <polygon points="432,200 448,206 432,212" fill="#66DEC2"/>
+
+    <text x="464" y="118" font-size="13" font-weight="600" letter-spacing="1.6" fill="#93A3B3">SYSTEM</text>
+    <rect x="464" y="128" width="280" height="156" rx="14" fill="#1B222A" stroke="#66DEC2"/>
+    <text x="484" y="168" font-size="20" font-weight="700" fill="#EEF3F7">msi-daemon</text>
+    <text x="484" y="196" font-size="16" fill="#BAC6D2">org.msilinux.Center</text>
+    <rect x="484" y="214" width="128" height="28" rx="8" fill="#203D39"/>
+    <text x="548" y="233" text-anchor="middle" font-size="14" font-weight="600" fill="#66DEC2">Polkit</text>
+    <rect x="620" y="214" width="100" height="28" rx="8" fill="#203D39"/>
+    <text x="670" y="233" text-anchor="middle" font-size="14" font-weight="600" fill="#66DEC2">opt-in</text>
+    <text x="484" y="262" font-size="15" fill="#93A3B3">firmware-gated writes</text>
+
+    <path d="M744 206 H784" stroke="#66DEC2" stroke-width="2"/>
+    <polygon points="784,200 800,206 784,212" fill="#66DEC2"/>
+
+    <text x="816" y="118" font-size="13" font-weight="600" letter-spacing="1.6" fill="#93A3B3">HARDWARE</text>
+    <rect x="816" y="128" width="336" height="38" rx="10" fill="#1B222A" stroke="#2E3A46"/>
+    <text x="984" y="154" text-anchor="middle" font-size="18" fill="#EEF3F7">msi-ec kernel module</text>
+    <rect x="816" y="174" width="336" height="38" rx="10" fill="#1B222A" stroke="#2E3A46"/>
+    <text x="984" y="200" text-anchor="middle" font-size="18" fill="#EEF3F7">msi_wmi_platform / hwmon</text>
+    <rect x="816" y="220" width="336" height="38" rx="10" fill="#1B222A" stroke="#2E3A46"/>
+    <text x="984" y="246" text-anchor="middle" font-size="18" fill="#EEF3F7">power_supply battery</text>
+    <rect x="816" y="266" width="336" height="38" rx="10" fill="#1B222A" stroke="#2E3A46"/>
+    <text x="984" y="292" text-anchor="middle" font-size="18" fill="#EEF3F7">MysticLight RGB HID</text>
+  </g>
+
+  <text x="48" y="338" font-size="16" fill="#93A3B3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">MS-17L5  ·  EC 17L5EMS1.115  ·  writes only after exact firmware match</text>
+</svg>

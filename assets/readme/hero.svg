@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">MSI Katana Center</title>
+  <desc id="desc">Linux-native, safety-gated hardware control for MSI laptops. Fans, battery, and keyboard RGB, physically verified on the Katana 17 B13VGK.</desc>
+
+  <defs>
+    <clipPath id="frame">
+      <rect width="1200" height="400" rx="26"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="400" fill="#101418"/>
+    <rect x="0" y="0" width="6" height="400" fill="#66DEC2"/>
+
+    <g id="title-block">
+      <rect x="48" y="48" width="44" height="44" rx="12" fill="#66DEC2"/>
+      <text x="70" y="80" text-anchor="middle" font-size="28" font-weight="800" fill="#101418" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">M</text>
+      <text x="104" y="66" font-size="18" font-weight="700" fill="#EEF3F7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">MSI</text>
+      <text x="104" y="86" font-size="12" font-weight="600" letter-spacing="1.8" fill="#93A3B3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">LINUX CENTER</text>
+
+      <text x="48" y="154" font-size="20" font-weight="600" letter-spacing="2.4" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">LINUX HARDWARE CONTROL</text>
+      <text x="48" y="210" font-size="44" font-weight="700" fill="#EEF3F7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">MSI Katana Center</text>
+      <text x="48" y="250" font-size="20" fill="#BAC6D2" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Safety-gated fans, battery, and keyboard RGB</text>
+      <text x="48" y="276" font-size="20" fill="#BAC6D2" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">for MSI laptops. Verified on Katana 17 B13VGK.</text>
+
+      <g id="chips" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#EEF3F7">
+        <rect x="48" y="308" width="86" height="32" rx="8" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="91" y="329" text-anchor="middle">Rust</text>
+        <rect x="142" y="308" width="102" height="32" rx="8" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="193" y="329" text-anchor="middle">D-Bus</text>
+        <rect x="252" y="308" width="108" height="32" rx="8" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="306" y="329" text-anchor="middle">Qt/QML</text>
+        <rect x="368" y="308" width="196" height="32" rx="8" fill="#203D39" stroke="#66DEC2"/>
+        <text x="466" y="329" text-anchor="middle" fill="#66DEC2">EC 17L5EMS1.115</text>
+      </g>
+    </g>
+
+    <g id="project-proof" transform="translate(640 36)">
+      <rect width="520" height="328" rx="18" fill="#151A20" stroke="#2E3A46"/>
+      <rect x="1" y="1" width="518" height="46" rx="17" fill="#101418"/>
+      <rect x="1" y="28" width="518" height="20" fill="#101418"/>
+      <rect x="16" y="14" width="22" height="22" rx="6" fill="#66DEC2"/>
+      <text x="27" y="30" text-anchor="middle" font-size="13" font-weight="800" fill="#101418" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">M</text>
+      <text x="46" y="24" font-size="13" font-weight="700" fill="#EEF3F7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">MSI LINUX CENTER</text>
+      <text x="46" y="40" font-size="11" fill="#93A3B3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Overview · live telemetry</text>
+      <circle cx="486" cy="24" r="4" fill="#83D9AC"/>
+      <text x="476" y="28" text-anchor="end" font-size="12" fill="#83D9AC" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">connected</text>
+
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+        <rect x="16" y="60" width="236" height="86" rx="12" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="32" y="82" font-size="11" font-weight="600" letter-spacing="1.2" fill="#93A3B3">TEMPERATURE · CPU / GPU</text>
+        <text x="32" y="114" font-size="24" font-weight="700" fill="#EEF3F7">94° / 47°</text>
+        <text x="32" y="134" font-size="12" fill="#93A3B3">from the reference Katana</text>
+
+        <rect x="268" y="60" width="236" height="86" rx="12" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="284" y="82" font-size="11" font-weight="600" letter-spacing="1.2" fill="#93A3B3">BATTERY</text>
+        <text x="284" y="114" font-size="24" font-weight="700" fill="#EEF3F7">92%</text>
+        <rect x="284" y="126" width="204" height="6" rx="3" fill="#203D39"/>
+        <rect x="284" y="126" width="188" height="6" rx="3" fill="#66DEC2"/>
+
+        <rect x="16" y="156" width="236" height="72" rx="12" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="32" y="178" font-size="11" font-weight="600" letter-spacing="1.2" fill="#93A3B3">COOLING MODE</text>
+        <text x="32" y="210" font-size="24" font-weight="700" fill="#EEF3F7">auto</text>
+
+        <rect x="268" y="156" width="236" height="72" rx="12" fill="#1B222A" stroke="#2E3A46"/>
+        <text x="284" y="178" font-size="11" font-weight="600" letter-spacing="1.2" fill="#93A3B3">FAN SPEED</text>
+        <text x="284" y="210" font-size="22" font-weight="700" fill="#EEF3F7">4800 rpm</text>
+      </g>
+
+      <text x="16" y="252" font-size="12" font-weight="600" letter-spacing="1.1" fill="#93A3B3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">ACTIVITY · CPU TEMP / FAN RPM</text>
+      <rect x="16" y="260" width="488" height="36" rx="8" fill="#101418"/>
+      <path d="M28 278 L70 276 L120 277 L170 274 L210 288 L250 272 L300 274 L360 273 L400 275 L488 274" fill="none" stroke="#F2BC79" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M28 290 L90 289 L160 288 L240 287 L320 286 L400 285 L488 284" fill="none" stroke="#66DEC2" stroke-width="2" stroke-linecap="round"/>
+
+      <text x="16" y="316" font-size="13" fill="#93A3B3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">msi-katana-17-b13vgk · MS-17L5 · verified</text>
+    </g>
+  </g>
+</svg>

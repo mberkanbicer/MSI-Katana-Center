@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-labelledby="safety-title safety-desc">
+  <title id="safety-title">Six hardware write gates</title>
+  <desc id="safety-desc">Every hardware write is blocked unless firmware matches, the feature is opted in, Polkit authorizes it, the value reads back, the path was physically verified on the Katana, and the register is documented.</desc>
+
+  <rect width="1200" height="280" rx="26" fill="#101418"/>
+  <rect x="0" y="0" width="6" height="280" fill="#F2BC79"/>
+
+  <text x="48" y="46" font-size="14" font-weight="600" letter-spacing="2.2" fill="#F2BC79" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">WRITE GATES</text>
+  <text x="48" y="78" font-size="28" font-weight="700" fill="#EEF3F7" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Six locks. All of them must open.</text>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <g transform="translate(48 104)">
+      <rect width="168" height="116" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+      <text x="20" y="36" font-size="22" font-weight="700" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">01</text>
+      <text x="20" y="68" font-size="18" font-weight="700" fill="#EEF3F7">Firmware</text>
+      <text x="20" y="94" font-size="16" fill="#93A3B3">exact EC string</text>
+    </g>
+    <g transform="translate(232 104)">
+      <rect width="168" height="116" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+      <text x="20" y="36" font-size="22" font-weight="700" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">02</text>
+      <text x="20" y="68" font-size="18" font-weight="700" fill="#EEF3F7">Opt-in</text>
+      <text x="20" y="94" font-size="16" fill="#93A3B3">off by default</text>
+    </g>
+    <g transform="translate(416 104)">
+      <rect width="168" height="116" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+      <text x="20" y="36" font-size="22" font-weight="700" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">03</text>
+      <text x="20" y="68" font-size="18" font-weight="700" fill="#EEF3F7">Polkit</text>
+      <text x="20" y="94" font-size="16" fill="#93A3B3">admin each write</text>
+    </g>
+    <g transform="translate(600 104)">
+      <rect width="168" height="116" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+      <text x="20" y="36" font-size="22" font-weight="700" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">04</text>
+      <text x="20" y="68" font-size="18" font-weight="700" fill="#EEF3F7">Read-back</text>
+      <text x="20" y="94" font-size="16" fill="#93A3B3">verify or roll back</text>
+    </g>
+    <g transform="translate(784 104)">
+      <rect width="168" height="116" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+      <text x="20" y="36" font-size="22" font-weight="700" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">05</text>
+      <text x="20" y="68" font-size="18" font-weight="700" fill="#EEF3F7">Physical</text>
+      <text x="20" y="94" font-size="16" fill="#93A3B3">Katana 17 B13VGK</text>
+    </g>
+    <g transform="translate(968 104)">
+      <rect width="184" height="116" rx="14" fill="#1B222A" stroke="#2E3A46"/>
+      <text x="20" y="36" font-size="22" font-weight="700" fill="#66DEC2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">06</text>
+      <text x="20" y="68" font-size="18" font-weight="700" fill="#EEF3F7">No guessing</text>
+      <text x="20" y="94" font-size="16" fill="#93A3B3">documented only</text>
+    </g>
+  </g>
+</svg>

@@ -1,31 +1,41 @@
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="MSI Katana Center — Linux-native, safety-gated fans, battery, and keyboard RGB for MSI laptops, verified on Katana 17 B13VGK">
+</p>
+
 # MSI Katana Center
 
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 
-Linux-native, open-source hardware management for MSI laptops, developed
+Linux-native, open-source hardware management for MSI laptops. Developed
 against the **MSI Katana 17 B13VGK** (board MS-17L5, EC `17L5EMS1.115`) as
-the reference device. Rust core + D-Bus daemon + Qt/QML desktop client.
+the reference device. Rust core, D-Bus daemon, Qt/QML desktop client.
 
-```mermaid
-flowchart LR
-    A[Qt/QML Desktop Client<br/>msicenter-ui] -->|D-Bus + Polkit| B[System Daemon<br/>org.msilinux.Center]
-    C[CLI<br/>msicenter] -->|D-Bus + Polkit| B
-    B --> D[msi-ec kernel module]
-    B --> E[msi_wmi_platform / hwmon]
-    B --> F[power_supply battery]
-    B --> G[MysticLight RGB HID]
-```
+Every hardware write is firmware-gated, Polkit-authorized, opt-in per
+feature, read-back-verified, and only enabled after physical verification
+on the reference laptop. See [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md)
+for the rules.
 
-Safety-first: every hardware write is firmware-gated, Polkit-authorized,
-opt-in per feature, read-back-verified, and only enabled after physical
-verification on the reference laptop. See
-[`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) for the rules.
+## Live UI
 
-## Screenshots
+<p align="center">
+  <img src="docs/screenshots/ui-overview.gif" width="100%" alt="System overview: CPU/GPU temperatures, battery charge, fan mode, and live RPM on the Katana 17">
+</p>
 
-| Overview | Page tour | Live telemetry |
-|---|---|---|
-| ![Overview](docs/screenshots/ui-overview.gif) | ![Pages](docs/screenshots/ui-pages.gif) | ![Telemetry](docs/screenshots/ui-telemetry.gif) |
+<p align="center">
+  <img src="docs/screenshots/ui-pages.gif" width="49%" alt="Page tour of Power, Battery, Keyboard RGB, Scenes, and Diagnostics">
+  <img src="docs/screenshots/ui-telemetry.gif" width="49%" alt="Keyboard RGB page with MysticLight MS-1565 zone preview">
+</p>
+
+## What it is
+
+A desktop Center and CLI that read EC shift/fan state, temperatures, RPM,
+and battery status — and, when you opt in, apply a small set of verified
+writes: charge thresholds, fan mode, Cooler Boost, Super Battery,
+webcam/Fn keys, and MysticLight RGB.
+
+<p align="center">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="Qt/QML UI and CLI talk over D-Bus and Polkit to msi-daemon, which reaches msi-ec, hwmon, the battery interface, and MysticLight RGB">
+</p>
 
 ## Features
 
@@ -48,63 +58,51 @@ verification on the reference laptop. See
 - **Fake-sysroot fixture** — hardware-free development and testing via
   `MSI_LINUX_CENTER_SYSROOT`
 
-## Phase status
+## Install
 
-| Phase | Scope | Status |
-|---|---|---|
-| 0 | read-only hardware reconnaissance | complete |
-| 1–2 | read-only core, device database, runtime capabilities, fixture | complete |
-| 3 | D-Bus daemon, systemd unit, D-Bus policy, Polkit actions | complete |
-| 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — physically verified 2026-09-05 |
-| 5 | custom fan curves | [design study](docs/phase5-fan-curve-design.md) — no writes until §11 experiment |
-| 6 | Qt/QML desktop UI | complete — [design](docs/phase6-ui-design.md) |
-| 7 | RGB (MysticLight MS-1565) | `SetRgbColor` physically verified; effect modes implemented; flash-save implemented, physical test pending |
-| 8 | scenes | complete — CLI + UI validated |
-| 9 | community diagnostics | complete — [design](docs/phase9-diagnostics.md) |
-| 10 | MUX | research only — [notes](docs/deferred-features-research.md) |
+Builds the release daemon, CLI, and Qt UI, then installs systemd,
+Polkit, D-Bus policy, desktop file, and (by default) session autostart.
+Write opt-ins stay off.
 
-## Requirements
+```bash
+./scripts/setup.sh install
+./scripts/setup.sh install --no-autostart
+./scripts/setup.sh uninstall
+```
+
+`uninstall` does not delete `~/.config/msi-linux-center`. Prefix defaults
+to `/usr` (`PREFIX`, `SYSCONFDIR`).
+
+### Requirements
 
 - Rust toolchain (≥ 1.75)
 - Qt 6 (Core, QML, Quick, DBus, QuickControls2, Widgets) + CMake ≥ 3.21
 - Linux with `msi-ec` and `msi_wmi_platform` kernel modules for real
   hardware (both read and write paths degrade gracefully when absent)
 
-## Install / uninstall
+### Build from source
 
-Builds the release daemon, CLI, and Qt UI, then installs systemd,
-Polkit, D-Bus policy, desktop file, and (by default) session autostart.
-Write opt-ins stay off.
-
-    ./scripts/setup.sh install
-    ./scripts/setup.sh install --no-autostart
-    ./scripts/setup.sh uninstall
-
-`uninstall` does not delete `~/.config/msi-linux-center`. Prefix defaults
-to `/usr` (`PREFIX`, `SYSCONFDIR`).
-
-## Build from source
-
-Rust core, daemon, and CLI:
-
-    cargo build --release
-
-Qt desktop client:
-
-    cd crates/msicenter-ui && cmake -S . -B build && cmake --build build -j
+```bash
+cargo build --release
+cd crates/msicenter-ui && cmake -S . -B build && cmake --build build -j
+```
 
 ## Run
 
 Against the included fixture (no hardware needed):
 
-    ./scripts/run-fixture.sh
-    ./scripts/run-fixture.sh --json
+```bash
+./scripts/run-fixture.sh
+./scripts/run-fixture.sh --json
+```
 
 Read-only on the real laptop:
 
-    ./scripts/run-local-readonly.sh
-    cargo run -p msicenter-cli -- status [--json]
-    cargo run -p msicenter-cli -- capabilities
+```bash
+./scripts/run-local-readonly.sh
+cargo run -p msicenter-cli -- status [--json]
+cargo run -p msicenter-cli -- capabilities
+```
 
 Do **not** run the CLI with sudo. Privileged writes are performed only by
 the daemon after Polkit authorization.
@@ -114,18 +112,20 @@ the daemon after Polkit authorization.
 Each command requires the daemon to run with the matching opt-in
 (`MSI_LINUX_CENTER_ENABLE_*_WRITES=1`) and completes a Polkit prompt:
 
-    msicenter battery-thresholds START END      # e.g. 80 90
-    msicenter fan-mode auto|silent|advanced
-    msicenter cooler-boost on|off
-    msicenter super-battery on|off
-    msicenter webcam on|off
-    msicenter webcam-block on|off
-    msicenter fn-key left|right
-    msicenter rgb-color ZONE_MASK RRGGBB        # non-persistent
-    msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS
-    msicenter rgb-save                          # persistent flash save (separate opt-in)
-    msicenter panic-reset                       # Cooler Boost off, Super Battery off, fan auto
-    msicenter scene list|examples|apply NAME
+```bash
+msicenter battery-thresholds START END      # e.g. 80 90
+msicenter fan-mode auto|silent|advanced
+msicenter cooler-boost on|off
+msicenter super-battery on|off
+msicenter webcam on|off
+msicenter webcam-block on|off
+msicenter fn-key left|right
+msicenter rgb-color ZONE_MASK RRGGBB        # non-persistent
+msicenter rgb-effect ZONE_MASK MODE SPEED_S COLORS
+msicenter rgb-save                          # persistent flash save (separate opt-in)
+msicenter panic-reset                       # Cooler Boost off, Super Battery off, fan auto
+msicenter scene list|examples|apply NAME
+```
 
 With the opt-in disabled the daemon refuses with `NotSupported`. The
 exact support scope, gates, and physical verification records live in
@@ -133,6 +133,10 @@ exact support scope, gates, and physical verification records live in
 `docs/phase4-*-validation.md` files.
 
 ## Safety model
+
+<p align="center">
+  <img src="./assets/readme/safety.svg" width="100%" alt="Six write gates: firmware match, opt-in, Polkit, read-back, physical verification on Katana 17 B13VGK, and no undocumented registers">
+</p>
 
 1. **Firmware gate** — writes only run when the device's EC firmware
    exactly matches a physically verified firmware string
@@ -153,6 +157,24 @@ exact support scope, gates, and physical verification records live in
 | MSI Katana 17 B13VGK (MS-17L5, EC `17L5EMS1.115`) | verified reference device |
 | Other MSI laptops with `msi-ec` | read-only telemetry; writes gated by exact firmware match |
 | Unmatched models | read-only + diagnostics report; community support via `msicenter report` |
+
+<details>
+<summary>Phase status</summary>
+
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | read-only hardware reconnaissance | complete |
+| 1–2 | read-only core, device database, runtime capabilities, fixture | complete |
+| 3 | D-Bus daemon, systemd unit, D-Bus policy, Polkit actions | complete |
+| 4 | gated semantic writes (battery thresholds, fan mode, Cooler Boost, Super Battery) | complete — physically verified 2026-09-05 |
+| 5 | custom fan curves | [design study](docs/phase5-fan-curve-design.md) — no writes until §11 experiment |
+| 6 | Qt/QML desktop UI | complete — [design](docs/phase6-ui-design.md) |
+| 7 | RGB (MysticLight MS-1565) | `SetRgbColor` physically verified; effect modes implemented; flash-save implemented, physical test pending |
+| 8 | scenes | complete — CLI + UI validated |
+| 9 | community diagnostics | complete — [design](docs/phase9-diagnostics.md) |
+| 10 | MUX | research only — [notes](docs/deferred-features-research.md) |
+
+</details>
 
 ## Documentation
 
