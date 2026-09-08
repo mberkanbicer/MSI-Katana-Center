@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "target": "claude-project",
+  "modules": [
+    "skill-rust-patterns",
+    "skill-rust-testing",
+    "skill-cpp-coding-standards"
+  ],
+  "options": {
+    "hooks": "off",
+    "dailyOnly": true,
+    "note": "Official ecc install-apply expands default modules (workflow-quality, platform-configs, full rules-core). This repo copies only the DAILY surface into .claude/; do not run a full profile apply."
+  }
+}

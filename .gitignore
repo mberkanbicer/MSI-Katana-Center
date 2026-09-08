@@ -8,3 +8,6 @@
 
 # Phase 6 UI (C++/QML) build
 crates/msicenter-ui/build/
+
+# Local CodeGraph index
+.codegraph/

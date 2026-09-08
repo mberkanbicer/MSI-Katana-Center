@@ -1,5 +1,8 @@
 ## Purpose
 Finish the current task with the minimum sufficient approach.
+
+Hardware, D-Bus, Polkit, and write-path work: read `MSI-Linux-Center-AGENTS.md` first.
+Build, test, and agent commands: `CLAUDE.md`.
 No overengineering.
 Planning can lean strong. Execution must lean light.
 If you can't prove a design is necessary, don't ship it.
