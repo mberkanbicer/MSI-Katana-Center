@@ -172,8 +172,8 @@ ScrollView {
                             AbstractButton {
                                 id: swatch
                                 required property var modelData
-                                width: 80
-                                height: 42
+                                width: 84
+                                height: 48
                                 text: modelData.name
                                 Accessible.name: modelData.name + " color"
                                 checked: page.colorHex === modelData.hex

@@ -9,6 +9,7 @@ Panel {
     property string value: ""
     property string footnote: ""
     property var valueLines: []
+    property bool loading: false
     property color accent: Theme.accent
     property real progress: -1
     Layout.fillWidth: true
@@ -21,7 +22,7 @@ Panel {
         spacing: 8
         Label { text: card.title; color: Theme.muted; font.pixelSize: 11; font.weight: Font.Medium; font.letterSpacing: 0.6 }
         Label {
-            visible: card.valueLines.length === 0
+            visible: card.valueLines.length === 0 && !card.loading
             text: card.value || "Unavailable"
             color: Theme.text
             font.pixelSize: 28
@@ -33,6 +34,18 @@ Panel {
             ToolTip.visible: valueHover.hovered
             ToolTip.text: text
             HoverHandler { id: valueHover }
+        }
+        Rectangle {
+            visible: card.loading && card.valueLines.length === 0
+            Layout.fillWidth: true
+            height: 28
+            radius: 6
+            color: Theme.elevated
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                NumberAnimation { from: 1; to: 0.35; duration: 700; easing.type: Easing.InOutQuad }
+                NumberAnimation { from: 0.35; to: 1; duration: 700; easing.type: Easing.InOutQuad }
+            }
         }
         ColumnLayout {
             visible: card.valueLines.length > 0

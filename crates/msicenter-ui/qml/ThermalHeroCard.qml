@@ -66,6 +66,8 @@ Panel {
                 spacing: 4
                 Label {
                     text: {
+                        if (!center.dataReady)
+                            return "…";
                         const t = card.packageTemp();
                         return t !== undefined ? Math.round(t) + "°C" : "Unavailable";
                     }

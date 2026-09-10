@@ -24,6 +24,51 @@ ApplicationWindow {
     // {text, detail, enabled, handler} claimed by the active control page;
     // null hides StickyActionBar (Status/Support have no primary action).
     property var stickyAction: null
+    property double nowTick: 0
+    property var lastBannerSeen: ""
+    readonly property bool stale: center.dataReady && center.lastUpdateMs > 0 && (root.nowTick - center.lastUpdateMs > 10000)
+    function dismissBanner(msg, isErr) {
+        for (let i = 0; i < bannerQueue.count; i++) {
+            const item = bannerQueue.get(i);
+            if (item.text === msg && item.isError === isErr) {
+                bannerQueue.remove(i);
+                return;
+            }
+        }
+    }
+    ListModel { id: bannerQueue }
+    Timer {
+        interval: 2000; repeat: true; running: true
+        onTriggered: {
+            root.nowTick = Date.now();
+            for (let i = bannerQueue.count - 1; i >= 0; i--) {
+                const item = bannerQueue.get(i);
+                if (!item.isError && root.nowTick - item.at > 6000)
+                    bannerQueue.remove(i);
+            }
+        }
+    }
+    Connections {
+        target: center
+        function onChanged() {
+            if (center.actionMessage !== "" && center.actionMessage !== root.lastBannerSeen) {
+                root.lastBannerSeen = center.actionMessage;
+                bannerQueue.append({text: center.actionMessage, isError: center.actionError, at: Date.now()});
+                while (bannerQueue.count > 3) {
+                    let dropped = false;
+                    for (let i = 0; i < bannerQueue.count; i++) {
+                        if (!bannerQueue.get(i).isError) {
+                            bannerQueue.remove(i);
+                            dropped = true;
+                            break;
+                        }
+                    }
+                    if (!dropped)
+                        bannerQueue.remove(0);
+                }
+            }
+        }
+    }
     readonly property var pages: [
         {title: "Overview", icon: "overview"},
         {title: "Cooling", icon: "fan"},
@@ -194,11 +239,11 @@ ApplicationWindow {
                             spacing: 8
                             Rectangle {
                                 width: 7; height: 7; radius: 4
-                                color: center.lastError ? Theme.danger : center.profileText ? Theme.success : Theme.muted
+                                color: root.stale ? Theme.amber : center.lastError ? Theme.danger : center.profileText ? Theme.success : Theme.muted
                             }
                             Label {
                                 id: pillLabel
-                                text: center.lastError ? "Connection issue" : center.profileText ? "Device connected" : "Connecting"
+                                text: root.stale ? "Stale — retrying" : center.lastError ? "Connection issue" : center.profileText ? "Device connected" : "Connecting"
                                 color: Theme.secondary
                                 font.pixelSize: 11
                             }
@@ -230,24 +275,49 @@ ApplicationWindow {
                     }
                 }
             }
-            Rectangle {
+            Column {
                 Layout.fillWidth: true
-                implicitHeight: visible ? bannerText.implicitHeight + 24 : 0
-                visible: center.actionMessage !== ""
-                Behavior on implicitHeight { NumberAnimation { duration: 140 } }
-                color: center.actionError ? Theme.dangerSoft : Theme.successSoft
-                Label {
-                    id: bannerText
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.margins: 28
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: center.actionMessage
-                    color: center.actionError ? Theme.danger : Theme.success
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 3
-                    elide: Text.ElideRight
-                    Accessible.role: Accessible.AlertMessage
+                spacing: 0
+                visible: bannerQueue.count > 0
+                Repeater {
+                    model: bannerQueue
+                    delegate: Rectangle {
+                        required property string text
+                        required property bool isError
+                        property string bannerMsg: text
+                        property bool bannerError: isError
+                        width: parent.width
+                        implicitHeight: Math.max(56, bannerLabel.implicitHeight + 24)
+                        Behavior on implicitHeight { NumberAnimation { duration: 140 } }
+                        color: bannerError ? Theme.dangerSoft : Theme.successSoft
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 28
+                            anchors.rightMargin: 16
+                            spacing: 12
+                            Label {
+                                id: bannerLabel
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.alignment: Qt.AlignVCenter
+                                text: bannerMsg
+                                color: bannerError ? Theme.danger : Theme.success
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
+                                maximumLineCount: 3
+                                elide: Text.ElideRight
+                                Accessible.role: Accessible.AlertMessage
+                            }
+                            ToolButton {
+                                implicitWidth: 48; implicitHeight: 48
+                                visible: bannerError
+                                Accessible.name: "Dismiss message"
+                                text: "×"
+                                font.pixelSize: 18
+                                onClicked: dismissBanner(bannerMsg, bannerError)
+                            }
+                        }
+                    }
                 }
             }
             StackLayout {

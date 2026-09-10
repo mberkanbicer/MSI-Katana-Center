@@ -351,7 +351,7 @@ ScrollView {
                                     text: modelData
                                     Accessible.name: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][index]
                                     checkable: true
-                                    width: 32
+                                    width: 48
                                     checked: (Number(ruleRow.modelData.days) & (1 << index)) !== 0
                                     enabled: center.sceneSchedule
                                     onClicked: center.toggleScheduleDay(ruleRow.index, index)

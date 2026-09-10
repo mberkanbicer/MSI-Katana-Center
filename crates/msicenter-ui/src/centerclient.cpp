@@ -124,6 +124,9 @@ void CenterClient::fetchProperty(const QString &iface, const QString &property,
                                            .variant();
                     handleJson(property, v.toString(), refreshGeneration);
                 }
+                if (!m_dataReady)
+                    m_dataReady = true;
+                m_lastUpdateMs = QDateTime::currentMSecsSinceEpoch();
                 if (--m_inFlight == 0 && !m_loggedFirstSummary) {
                     m_loggedFirstSummary = true;
                     qInfo().noquote() << summary();

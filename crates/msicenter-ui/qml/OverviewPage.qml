@@ -46,23 +46,27 @@ ScrollView {
             rowSpacing: 16
             StatCard {
                 title: "TEMPERATURE · CPU / GPU"
+                loading: !center.dataReady
                 value: center.ecTemps !== "" ? center.ecTemps : "Unavailable"
                 footnote: "Live temperature readings"
                 accent: Theme.amber
             }
             StatCard {
                 title: "BATTERY"
+                loading: !center.dataReady
                 value: center.capacityPercent >= 0 ? center.capacityPercent + "%" : "Unavailable"
                 footnote: center.batteryState
                 progress: center.capacityPercent >= 0 ? center.capacityPercent / 100 : -1
             }
             StatCard {
                 title: "COOLING MODE"
+                loading: !center.dataReady
                 value: center.ecFanMode !== "" ? center.ecFanMode : "Unavailable"
                 footnote: center.coolerBoostOn ? "Cooler Boost is active" : "Fan control · msi-ec"
             }
             StatCard {
                 title: "FAN SPEED"
+                loading: !center.dataReady
                 value: center.fanText !== "" ? center.fanText : "Unavailable"
                 valueLines: center.fanEntries
                 footnote: "RPM · channels unmapped"

@@ -60,6 +60,8 @@ class CenterClient : public QObject {
     Q_PROPERTY(QString lastError READ lastError NOTIFY changed)
     Q_PROPERTY(QString actionMessage READ actionMessage NOTIFY changed)
     Q_PROPERTY(bool actionError READ actionError NOTIFY changed)
+    Q_PROPERTY(bool dataReady READ dataReady NOTIFY changed)
+    Q_PROPERTY(qlonglong lastUpdateMs READ lastUpdateMs NOTIFY changed)
     Q_PROPERTY(QStringList sceneNames READ sceneNames NOTIFY changed)
     Q_PROPERTY(QString sceneResultText READ sceneResultText NOTIFY changed)
     Q_PROPERTY(bool sceneApplying READ sceneApplying NOTIFY changed)
@@ -144,6 +146,8 @@ public:
     QString lastError() const { return m_error; }
     QString actionMessage() const { return m_actionMessage; }
     bool actionError() const { return m_actionError; }
+    bool dataReady() const { return m_dataReady; }
+    qlonglong lastUpdateMs() const { return m_lastUpdateMs; }
     QStringList sceneNames() const { return m_sceneNames; }
     QString sceneResultText() const { return m_sceneResultText; }
     bool sceneApplying() const { return m_sceneApplying; }
@@ -340,6 +344,8 @@ private:
     QString m_error;
     QString m_actionMessage;
     bool m_actionError = false;
+    bool m_dataReady = false;
+    qlonglong m_lastUpdateMs = 0;
     int m_cpuTemp = -1;
     int m_gpuTemp = -1;
     QTimer m_timer;
