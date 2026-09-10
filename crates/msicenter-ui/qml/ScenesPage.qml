@@ -10,6 +10,7 @@ ScrollView {
     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
     property int selectedScene: -1
+    property string openSection: ""
 
     function refreshSticky() {
         const w = ApplicationWindow.window;
@@ -152,54 +153,51 @@ ScrollView {
             }
         }
 
-        Panel {
-            width: parent.width
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 10
-                Switch {
-                    text: "Apply a scene when the app starts"
-                    checked: center.restoreSceneOnStart
-                    onToggled: {
-                        if (checked === center.restoreSceneOnStart)
-                            return
-                        center.setRestoreSceneOnStart(checked)
-                    }
+        AutomationAccordion {
+            title: "Restore on start"
+            summary: center.restoreSceneOnStart ? (center.restoreSceneName !== "" ? center.restoreSceneName : "On") : "Off"
+            open: page.openSection === "restore"
+            onToggled: page.openSection = page.openSection === "restore" ? "" : "restore"
+            Switch {
+                text: "Apply a scene when the app starts"
+                checked: center.restoreSceneOnStart
+                onToggled: {
+                    if (checked === center.restoreSceneOnStart)
+                        return
+                    center.setRestoreSceneOnStart(checked)
                 }
-                ComboBox {
-                    enabled: center.restoreSceneOnStart
-                    Layout.preferredWidth: 280
-                    model: center.restoreSceneChoices
-                    currentIndex: center.restoreSceneChoiceIndex
-                    onActivated: (index) => center.setRestoreSceneChoiceIndex(index)
-                }
-                Label {
-                    text: "Off by default so a cold boot stays firmware stock. "
-                          + "Uses the same gated scene apply; missing opt-ins fail per setting. "
-                          + "Polkit may prompt at login if autostart is on."
-                    color: Theme.muted
-                    font.pixelSize: 12
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    Layout.fillWidth: true
-                }
+            }
+            ComboBox {
+                enabled: center.restoreSceneOnStart
+                Layout.preferredWidth: 280
+                model: center.restoreSceneChoices
+                currentIndex: center.restoreSceneChoiceIndex
+                onActivated: (index) => center.setRestoreSceneChoiceIndex(index)
+            }
+            Label {
+                text: "Off by default so a cold boot stays firmware stock. "
+                      + "Uses the same gated scene apply; missing opt-ins fail per setting. "
+                      + "Polkit may prompt at login if autostart is on."
+                color: Theme.muted
+                font.pixelSize: 12
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                Layout.fillWidth: true
             }
         }
 
-        Panel {
-            width: parent.width
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 10
-                Switch {
-                    text: "Switch scene on AC / battery"
-                    checked: center.powerSceneSwitch
-                    onToggled: {
-                        if (checked === center.powerSceneSwitch)
-                            return
-                        center.setPowerSceneSwitch(checked)
-                    }
+        AutomationAccordion {
+            title: "AC / battery switch"
+            summary: center.powerSceneSwitch ? ("AC \u2192 " + (center.acSceneName || "none") + " \u00b7 Battery \u2192 " + (center.batterySceneName || "none")) : "Off"
+            open: page.openSection === "power"
+            onToggled: page.openSection = page.openSection === "power" ? "" : "power"
+            Switch {
+                text: "Switch scene on AC / battery"
+                checked: center.powerSceneSwitch
+                onToggled: {
+                    if (checked === center.powerSceneSwitch)
+                        return
+                    center.setPowerSceneSwitch(checked)
+                }
                 }
                 Label {
                     text: center.powerSourceText
@@ -243,23 +241,21 @@ ScrollView {
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
-            }
         }
 
-        Panel {
-            width: parent.width
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 10
-                Switch {
-                    text: "Battery-level scene rules"
-                    checked: center.batteryLevelRules
-                    onToggled: {
-                        if (checked === center.batteryLevelRules)
-                            return
-                        center.setBatteryLevelRules(checked)
-                    }
+        AutomationAccordion {
+            title: "Battery-level rules"
+            summary: center.batteryLevelRules ? ("Below " + center.batteryLowPercent + "% \u00b7 Above " + center.batteryHighPercent + "%") : "Off"
+            open: page.openSection === "levels"
+            onToggled: page.openSection = page.openSection === "levels" ? "" : "levels"
+            Switch {
+                text: "Battery-level scene rules"
+                checked: center.batteryLevelRules
+                onToggled: {
+                    if (checked === center.batteryLevelRules)
+                        return
+                    center.setBatteryLevelRules(checked)
+                }
                 }
                 RowLayout {
                     spacing: 10
@@ -322,23 +318,21 @@ ScrollView {
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
-            }
         }
 
-        Panel {
-            width: parent.width
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 10
-                Switch {
-                    text: "Scene schedule"
-                    checked: center.sceneSchedule
-                    onToggled: {
-                        if (checked === center.sceneSchedule)
-                            return
-                        center.setSceneSchedule(checked)
-                    }
+        AutomationAccordion {
+            title: "Scene schedule"
+            summary: center.sceneSchedule ? (center.scheduleRules.length + (center.scheduleRules.length === 1 ? " rule" : " rules")) : "Off"
+            open: page.openSection === "schedule"
+            onToggled: page.openSection = page.openSection === "schedule" ? "" : "schedule"
+            Switch {
+                text: "Scene schedule"
+                checked: center.sceneSchedule
+                onToggled: {
+                    if (checked === center.sceneSchedule)
+                        return
+                    center.setSceneSchedule(checked)
+                }
                 }
                 Repeater {
                     model: center.scheduleRules
@@ -432,7 +426,6 @@ ScrollView {
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     Layout.fillWidth: true
                 }
-            }
         }
 
 
