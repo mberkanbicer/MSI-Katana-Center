@@ -47,6 +47,13 @@ Canvas {
             c.strokeRect(6, 4, 12, 17)
             line([[9,4],[9,2],[15,2],[15,4]])
             line([[8.5,13],[11,15.5],[15.5,9.5]])
+        } else if (name === "fan") {
+            c.beginPath(); c.arc(12, 12, 8.5, 0, 6.2832); c.stroke()
+            for (const a of [0, 2.0944, 4.1888]) {
+                c.beginPath()
+                c.arc(12 + 4 * Math.cos(a), 12 + 4 * Math.sin(a), 3.2, a, a + 3.6)
+                c.stroke()
+            }
         } else if (name === "more") {
             c.fillStyle = tint
             for (const x of [5, 12, 19]) { c.beginPath(); c.arc(x, 12, 1.6, 0, 6.2832); c.fill() }

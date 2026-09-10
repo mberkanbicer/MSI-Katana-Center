@@ -26,7 +26,8 @@ ApplicationWindow {
     property var stickyAction: null
     readonly property var pages: [
         {title: "Overview", icon: "overview"},
-        {title: "Power & Fans", icon: "power"},
+        {title: "Cooling", icon: "fan"},
+        {title: "Power", icon: "power"},
         {title: "Battery", icon: "battery"},
         {title: "Keyboard RGB", icon: "keyboard"},
         {title: "Scenes", icon: "scenes"},
@@ -66,6 +67,7 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+4"; onActivated: root.currentPage = 3 }
     Shortcut { sequence: "Ctrl+5"; onActivated: root.currentPage = 4 }
     Shortcut { sequence: "Ctrl+6"; onActivated: root.currentPage = 5 }
+    Shortcut { sequence: "Ctrl+7"; onActivated: root.currentPage = 6 }
 
     RowLayout {
         anchors.fill: parent
@@ -253,6 +255,7 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: root.currentPage
                 OverviewPage {}
+                CoolingPage {}
                 PowerPage {}
                 BatteryPage {}
                 RgbPage {}
