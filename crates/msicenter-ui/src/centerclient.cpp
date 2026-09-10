@@ -1716,17 +1716,21 @@ void CenterClient::parseEc(const QJsonObject &ec) {
 void CenterClient::parseFans(const QJsonArray &fans) {
     QStringList parts;
     QStringList rpms;
+    QVariantList entries;
     for (const QJsonValue &value : fans) {
         const QJsonObject fan = value.toObject();
+        const QString channel = fan.value("channel").toString();
         const int rpm = fan.value("rpm").toInt();
         parts << QStringLiteral("%1: %2 rpm")
-                     .arg(fan.value("channel").toString(),
-                          QString::number(rpm));
+                     .arg(channel, QString::number(rpm));
+        entries << QVariantMap{{QStringLiteral("channel"), channel},
+                               {QStringLiteral("rpm"), rpm}};
         if (rpm > 0)
             rpms << QString::number(rpm);
     }
     m_fanText = parts.isEmpty() ? QStringLiteral("unavailable")
                                 : parts.join(QStringLiteral(", "));
+    m_fanEntries = entries;
     m_fanRpmShort = rpms.isEmpty() ? QString()
                                    : rpms.join(QLatin1Char('/')) + QStringLiteral(" rpm");
     int rpmMax = 0;

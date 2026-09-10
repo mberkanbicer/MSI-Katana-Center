@@ -46,6 +46,7 @@ ScrollView {
             StatCard {
                 title: "FAN SPEED"
                 value: center.fanText !== "" ? center.fanText : "Unavailable"
+                valueLines: center.fanEntries
                 footnote: "RPM · channels unmapped"
                 accent: Theme.secondary
             }
