@@ -231,3 +231,47 @@ pub struct SystemStatus {
     pub battery: BatteryStatus,
     pub rgb: RgbStatus,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cap(readable: bool, declared: bool, detected: bool, tier: SupportTier) -> RuntimeCapability {
+        RuntimeCapability {
+            feature: "x".into(),
+            declared_by_model: declared,
+            backend_detected: detected,
+            readable,
+            support_tier: tier,
+        }
+    }
+
+    #[test]
+    fn availability_priority() {
+        assert!(matches!(
+            cap(true, false, false, SupportTier::Unknown).availability(),
+            CapabilityAvailability::AvailableNow
+        ));
+        assert!(matches!(
+            cap(false, true, false, SupportTier::Experimental).availability(),
+            CapabilityAvailability::Experimental
+        ));
+        assert!(matches!(
+            cap(false, false, true, SupportTier::Documented).availability(),
+            CapabilityAvailability::BackendDetected
+        ));
+        assert!(matches!(
+            cap(false, true, false, SupportTier::Verified).availability(),
+            CapabilityAvailability::SupportedByModel
+        ));
+        assert!(matches!(
+            cap(false, false, false, SupportTier::Unknown).availability(),
+            CapabilityAvailability::Unavailable
+        ));
+        // Readable wins even over an experimental declaration.
+        assert!(matches!(
+            cap(true, true, true, SupportTier::Experimental).availability(),
+            CapabilityAvailability::AvailableNow
+        ));
+    }
+}

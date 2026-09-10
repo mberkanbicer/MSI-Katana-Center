@@ -959,137 +959,83 @@ fn fn_key_writes_enabled() -> bool {
 }
 
 fn require_battery_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
-    if !enabled {
-        return Err(zbus::fdo::Error::NotSupported(
-            "battery writes disabled; set MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES=1 for local validation"
-                .into(),
-        ));
-    }
-    let profile = status
+    let capability_ok = status
         .matched_profile
         .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
-    let firmware = status
-        .ec
-        .firmware
-        .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("EC firmware unavailable".into()))?;
-    if !profile.capabilities.battery_threshold
-        || !profile
-            .exact_verified_firmware
-            .iter()
-            .any(|verified| verified == firmware)
-        || !status.backends.power_supply_battery
-    {
-        return Err(zbus::fdo::Error::NotSupported(
-            "battery writes require exact verified firmware and power_supply thresholds".into(),
-        ));
-    }
-    Ok(())
+        .is_some_and(|profile| profile.capabilities.battery_threshold);
+    require_gated_write(
+        status,
+        enabled,
+        "MSI_LINUX_CENTER_ENABLE_BATTERY_WRITES",
+        "battery",
+        "power_supply thresholds",
+        capability_ok,
+        status.backends.power_supply_battery,
+    )
 }
 
 fn require_fan_mode_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
-    if !enabled {
-        return Err(zbus::fdo::Error::NotSupported(
-            "fan-mode writes disabled; set MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES=1 for local validation"
-                .into(),
-        ));
-    }
-    let profile = status
+    let capability_ok = status
         .matched_profile
         .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
-    let firmware = status
-        .ec
-        .firmware
-        .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("EC firmware unavailable".into()))?;
-    if !profile.capabilities.fan_mode
-        || !profile
-            .exact_verified_firmware
-            .iter()
-            .any(|verified| verified == firmware)
-        || !status.backends.msi_ec
-    {
-        return Err(zbus::fdo::Error::NotSupported(
-            "fan-mode writes require exact verified firmware and the msi-ec backend".into(),
-        ));
-    }
-    Ok(())
+        .is_some_and(|profile| profile.capabilities.fan_mode);
+    require_gated_write(
+        status,
+        enabled,
+        "MSI_LINUX_CENTER_ENABLE_FAN_MODE_WRITES",
+        "fan-mode",
+        "the msi-ec backend",
+        capability_ok,
+        status.backends.msi_ec,
+    )
 }
 
 fn require_cooler_boost_write_support(
     status: &SystemStatus,
     enabled: bool,
 ) -> zbus::fdo::Result<()> {
-    if !enabled {
-        return Err(zbus::fdo::Error::NotSupported(
-            "cooler-boost writes disabled; set MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES=1 for local validation"
-                .into(),
-        ));
-    }
-    let profile = status
+    let capability_ok = status
         .matched_profile
         .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
-    let firmware = status
-        .ec
-        .firmware
-        .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("EC firmware unavailable".into()))?;
-    if !profile.capabilities.cooler_boost
-        || !profile
-            .exact_verified_firmware
-            .iter()
-            .any(|verified| verified == firmware)
-        || !status.backends.msi_ec
-    {
-        return Err(zbus::fdo::Error::NotSupported(
-            "cooler-boost writes require exact verified firmware and the msi-ec backend".into(),
-        ));
-    }
-    Ok(())
+        .is_some_and(|profile| profile.capabilities.cooler_boost);
+    require_gated_write(
+        status,
+        enabled,
+        "MSI_LINUX_CENTER_ENABLE_COOLER_BOOST_WRITES",
+        "cooler-boost",
+        "the msi-ec backend",
+        capability_ok,
+        status.backends.msi_ec,
+    )
 }
 
 fn require_super_battery_write_support(
     status: &SystemStatus,
     enabled: bool,
 ) -> zbus::fdo::Result<()> {
-    if !enabled {
-        return Err(zbus::fdo::Error::NotSupported(
-            "super-battery writes disabled; set MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES=1 for local validation"
-                .into(),
-        ));
-    }
-    let profile = status
+    let capability_ok = status
         .matched_profile
         .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("device profile unmatched".into()))?;
-    let firmware = status
-        .ec
-        .firmware
-        .as_ref()
-        .ok_or_else(|| zbus::fdo::Error::NotSupported("EC firmware unavailable".into()))?;
-    if !profile.capabilities.super_battery
-        || !profile
-            .exact_verified_firmware
-            .iter()
-            .any(|verified| verified == firmware)
-        || !status.backends.msi_ec
-    {
-        return Err(zbus::fdo::Error::NotSupported(
-            "super-battery writes require exact verified firmware and the msi-ec backend".into(),
-        ));
-    }
-    Ok(())
+        .is_some_and(|profile| profile.capabilities.super_battery);
+    require_gated_write(
+        status,
+        enabled,
+        "MSI_LINUX_CENTER_ENABLE_SUPER_BATTERY_WRITES",
+        "super-battery",
+        "the msi-ec backend",
+        capability_ok,
+        status.backends.msi_ec,
+    )
 }
 
-fn require_msi_ec_capability(
+fn require_gated_write(
     status: &SystemStatus,
     enabled: bool,
     opt_in: &str,
-    capability_ok: bool,
     label: &str,
+    backend_desc: &str,
+    capability_ok: bool,
+    backend_ok: bool,
 ) -> zbus::fdo::Result<()> {
     if !enabled {
         return Err(zbus::fdo::Error::NotSupported(format!(
@@ -1110,13 +1056,31 @@ fn require_msi_ec_capability(
             .exact_verified_firmware
             .iter()
             .any(|verified| verified == firmware)
-        || !status.backends.msi_ec
+        || !backend_ok
     {
         return Err(zbus::fdo::Error::NotSupported(format!(
-            "{label} writes require exact verified firmware and the msi-ec backend"
+            "{label} writes require exact verified firmware and {backend_desc}"
         )));
     }
     Ok(())
+}
+
+fn require_msi_ec_capability(
+    status: &SystemStatus,
+    enabled: bool,
+    opt_in: &str,
+    capability_ok: bool,
+    label: &str,
+) -> zbus::fdo::Result<()> {
+    require_gated_write(
+        status,
+        enabled,
+        opt_in,
+        label,
+        "the msi-ec backend",
+        capability_ok,
+        status.backends.msi_ec,
+    )
 }
 
 fn require_webcam_write_support(status: &SystemStatus, enabled: bool) -> zbus::fdo::Result<()> {
