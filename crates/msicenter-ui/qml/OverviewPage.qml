@@ -9,10 +9,19 @@ ScrollView {
     contentWidth: availableWidth
     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
+    property bool showAllCores: false
     function fmtTemp(t) { return t === undefined ? "n/a" : t.toFixed(1) + "°C"; }
     function fmtLoad(l) { return l === undefined ? "…" : Math.round(l) + "%"; }
     function coreRow(c) { return c.id + "  " + fmtTemp(c.temp) + "  " + fmtLoad(c.load); }
     function gpuRow(g) { return fmtTemp(g.temp) + "  " + fmtLoad(g.load); }
+    function topCores() {
+        const sorted = [...center.cpuCores].sort((a, b) => {
+            const ta = a.temp !== undefined ? a.temp : -1;
+            const tb = b.temp !== undefined ? b.temp : -1;
+            return tb - ta;
+        });
+        return page.showAllCores ? sorted : sorted.slice(0, 4);
+    }
 
     Column {
         x: Math.max(28, (page.availableWidth - 1120) / 2)
@@ -24,6 +33,10 @@ ScrollView {
         PageHeading {
             title: "System overview"
             subtitle: "A live view of your device. Everything that matters, in one place."
+        }
+
+        ThermalHeroCard {
+            width: parent.width
         }
 
         GridLayout {
@@ -163,7 +176,7 @@ ScrollView {
                     columnSpacing: 24
                     rowSpacing: 4
                     Repeater {
-                        model: center.cpuCores
+                        model: page.topCores()
                         delegate: Label {
                             text: coreRow(modelData)
                             color: Theme.text
@@ -174,6 +187,17 @@ ScrollView {
                             elide: Text.ElideRight
                         }
                     }
+                }
+                Label {
+                    visible: center.cpuCores.length > 0
+                    text: page.showAllCores ? ("All " + center.cpuCores.length + " cores · hottest first") : "Top 4 hottest cores"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                }
+                ActionButton {
+                    visible: center.cpuCores.length > 4
+                    text: page.showAllCores ? "Show less" : ("Show all " + center.cpuCores.length + " cores")
+                    onClicked: page.showAllCores = !page.showAllCores
                 }
                 ColumnLayout {
                     visible: center.gpus.length > 0
@@ -235,35 +259,16 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                GridLayout {
+                Label {
+                    text: "Switches live on their own pages; the full report lives in Diagnostics."
+                    color: Theme.muted
+                    font.pixelSize: 12
                     Layout.fillWidth: true
-                    columns: page.availableWidth < 700 ? 1 : 2
-                    columnSpacing: 20
-                    rowSpacing: 12
-                    Repeater {
-                        model: [
-                            {label: "Cooler Boost", value: !center.coolerBoostValid ? "Unavailable" : (center.coolerBoostOn ? "On" : "Off")},
-                            {label: "Super Battery", value: !center.superBatteryValid ? "Unavailable" : (center.superBatteryOn ? "On" : "Off")},
-                            {label: "Webcam", value: center.webcamText},
-                            {label: "Fn / Win keys", value: center.fnWinText},
-                            {label: "RGB controller", value: center.rgbControllerText},
-                            {label: "Readable features", value: center.capsText}
-                        ]
-                        ColumnLayout {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            spacing: 4
-                            Label { text: modelData.label; color: Theme.muted; font.pixelSize: 12 }
-                            Label {
-                                text: modelData.value || "Unavailable"
-                                color: Theme.secondary
-                                font.pixelSize: 13
-                                Layout.fillWidth: true
-                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                            }
-                        }
-                    }
+                    wrapMode: Text.WordWrap
+                }
+                ActionButton {
+                    text: "View full report in Diagnostics"
+                    onClicked: ApplicationWindow.window.currentPage = 6
                 }
             }
         }
