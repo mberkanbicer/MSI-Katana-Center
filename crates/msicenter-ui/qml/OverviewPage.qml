@@ -9,6 +9,11 @@ ScrollView {
     contentWidth: availableWidth
     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
+    function fmtTemp(t) { return t === undefined ? "n/a" : t.toFixed(1) + "°C"; }
+    function fmtLoad(l) { return l === undefined ? "…" : Math.round(l) + "%"; }
+    function coreRow(c) { return c.id + "  " + fmtTemp(c.temp) + "  " + fmtLoad(c.load); }
+    function gpuRow(g) { return fmtTemp(g.temp) + "  " + fmtLoad(g.load); }
+
     Column {
         x: Math.max(28, (page.availableWidth - 1120) / 2)
         width: Math.min(1120, page.availableWidth - 56)
@@ -128,6 +133,75 @@ ScrollView {
                     font.pixelSize: 12
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        Panel {
+            width: parent.width
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 12
+                Label {
+                    text: "Core & GPU details"
+                    color: Theme.text
+                    font.pixelSize: 16
+                    font.weight: Font.DemiBold
+                    Layout.fillWidth: true
+                }
+                Label {
+                    visible: center.cpuCores.length === 0 && center.gpus.length === 0
+                    text: "Unavailable on this device"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                }
+                GridLayout {
+                    visible: center.cpuCores.length > 0
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: 24
+                    rowSpacing: 4
+                    Repeater {
+                        model: center.cpuCores
+                        delegate: Label {
+                            text: coreRow(modelData)
+                            color: Theme.text
+                            font.pixelSize: 13
+                            font.family: "monospace"
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+                ColumnLayout {
+                    visible: center.gpus.length > 0
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 4
+                    Repeater {
+                        model: center.gpus
+                        delegate: RowLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: 8
+                            Label {
+                                text: modelData.name
+                                color: Theme.muted
+                                font.pixelSize: 13
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                text: gpuRow(modelData)
+                                color: Theme.text
+                                font.pixelSize: 13
+                                font.family: "monospace"
+                            }
+                        }
+                    }
                 }
             }
         }

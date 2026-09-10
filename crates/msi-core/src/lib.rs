@@ -62,6 +62,28 @@ pub struct FanReading {
     pub source: String,
 }
 
+/// One CPU temperature sensor row (typically `coretemp` `Core N` or
+/// `Package id 0`). `core` is the parsed core number when the label
+/// carries one; load needs two samples, so it is `None` on first read.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CpuCoreReading {
+    pub id: String,
+    pub core: Option<u32>,
+    pub temp_c: Option<f32>,
+    pub load_percent: Option<f32>,
+}
+
+/// One DRM card with a backing device. Temp/load stay `None` when the
+/// kernel exposes no source (e.g. Intel i915 on this kernel, or a
+/// hung/absent `nvidia-smi`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuReading {
+    pub name: String,
+    pub vendor: String,
+    pub temp_c: Option<i32>,
+    pub load_percent: Option<f32>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BatteryStatus {
     pub name: Option<String>,
@@ -230,6 +252,8 @@ pub struct SystemStatus {
     pub fans: Vec<FanReading>,
     pub battery: BatteryStatus,
     pub rgb: RgbStatus,
+    pub cpu_cores: Vec<CpuCoreReading>,
+    pub gpus: Vec<GpuReading>,
 }
 
 #[cfg(test)]
@@ -273,5 +297,29 @@ mod tests {
             cap(true, true, true, SupportTier::Experimental).availability(),
             CapabilityAvailability::AvailableNow
         ));
+    }
+
+    #[test]
+    fn sensor_row_json_contract() {
+        // The Qt client reads these exact keys; renaming breaks the UI.
+        let core = CpuCoreReading {
+            id: "Core 0".into(),
+            core: Some(0),
+            temp_c: Some(59.0),
+            load_percent: None,
+        };
+        let value = serde_json::to_value(&core).unwrap();
+        assert_eq!(value["id"], "Core 0");
+        assert_eq!(value["temp_c"], 59.0);
+        assert!(value["load_percent"].is_null());
+        let gpu = GpuReading {
+            name: "Intel integrated graphics".into(),
+            vendor: "intel".into(),
+            temp_c: None,
+            load_percent: None,
+        };
+        let value = serde_json::to_value(&gpu).unwrap();
+        assert_eq!(value["vendor"], "intel");
+        assert!(value["temp_c"].is_null());
     }
 }

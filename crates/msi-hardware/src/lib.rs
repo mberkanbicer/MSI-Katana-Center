@@ -1,11 +1,14 @@
 use msi_core::{
-    BackendAvailability, BatteryStatus, CoolerBoostState, DeviceIdentity, EcStatus, FanModeState,
-    FanReading, FnWinState, SuperBatteryState, WebcamBlockState, WebcamState,
+    BackendAvailability, BatteryStatus, CoolerBoostState, CpuCoreReading, DeviceIdentity, EcStatus,
+    FanModeState, FanReading, FnWinState, GpuReading, SuperBatteryState, WebcamBlockState,
+    WebcamState,
 };
 use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 pub mod rgb;
 
@@ -311,20 +314,45 @@ pub fn validate_battery_thresholds(start: u8, end: u8) -> Result<(), BatteryThre
 #[derive(Debug, Clone)]
 pub struct HardwarePaths {
     root: PathBuf,
+    /// Previous /proc/stat counters for per-thread load. Interior mutability
+    /// keeps `collect_status_from(&hw)` snapshot-shaped; first read yields
+    /// `load_percent: None` until a second sample exists.
+    cpu_prev: Arc<Mutex<Option<CpuStatSnapshot>>>,
+    /// `nvidia-smi` is the only subprocess on the refresh path, so GPU rows
+    /// are cached for 2s (the UI polls at the same rate).
+    gpu_cache: Arc<Mutex<GpuCache>>,
 }
+
+/// Aggregate + per-thread (idle, total) jiffy counters from /proc/stat.
+#[derive(Debug, Clone)]
+struct CpuStatSnapshot {
+    aggregate: (u64, u64),
+    cores: Vec<(u32, u64, u64)>,
+}
+
+/// Cached GPU rows with their sample time (see `HardwarePaths::read_gpus`).
+type GpuCache = Option<(Instant, Vec<GpuReading>)>;
 
 impl Default for HardwarePaths {
     fn default() -> Self {
         let root = std::env::var_os("MSI_LINUX_CENTER_SYSROOT")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("/"));
-        Self { root }
+        Self {
+            root,
+            cpu_prev: Arc::new(Mutex::new(None)),
+            gpu_cache: Arc::new(Mutex::new(None)),
+        }
     }
 }
 
 impl HardwarePaths {
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+        Self {
+            root: root.into(),
+            cpu_prev: Arc::new(Mutex::new(None)),
+            gpu_cache: Arc::new(Mutex::new(None)),
+        }
     }
 
     pub fn sysroot(&self) -> &Path {
@@ -407,6 +435,200 @@ impl HardwarePaths {
             charge_end_percent: read_num_path(&path.join("charge_control_end_threshold"))
                 .or_else(|| read_num_path(&path.join("charge_stop_threshold"))),
         })
+    }
+
+    /// Per-core temperatures from `coretemp` hwmon joined with per-thread
+    /// load from /proc/stat deltas. Empty when no `coretemp` driver exists;
+    /// load is `None` until a second sample has been taken.
+    pub fn read_cpu_cores(&self) -> Vec<CpuCoreReading> {
+        let temps = self.coretemp_readings();
+        if temps.is_empty() {
+            return Vec::new();
+        }
+        let (loads, aggregate) = self.cpu_load_percent();
+        let mut cores: Vec<CpuCoreReading> = temps
+            .into_iter()
+            .map(|(id, core, temp_c)| {
+                let load_percent = match core {
+                    // The package row carries whole-CPU load.
+                    None if id.starts_with("Package") => aggregate,
+                    Some(n) => loads.get(&n).copied(),
+                    None => None,
+                };
+                CpuCoreReading {
+                    id,
+                    core,
+                    temp_c: Some(temp_c),
+                    load_percent,
+                }
+            })
+            .collect();
+        cores.sort_by_key(|core| core_sort_key(&core.id));
+        cores
+    }
+
+    /// One row per DRM card with a backing device (virtual outputs skipped).
+    /// NVIDIA temp/load come from `nvidia-smi`; Intel i915 exposes neither a
+    /// hwmon node nor engine busy counters on this kernel, so its row stays
+    /// `None`/`None` by design rather than via a second subprocess scraper.
+    pub fn read_gpus(&self) -> Vec<GpuReading> {
+        if let Ok(cache) = self.gpu_cache.lock() {
+            if let Some((at, gpus)) = cache.as_ref() {
+                if at.elapsed().as_secs() < 2 {
+                    return gpus.clone();
+                }
+            }
+        }
+        let gpus = self.probe_gpus();
+        if let Ok(mut cache) = self.gpu_cache.lock() {
+            *cache = Some((Instant::now(), gpus.clone()));
+        }
+        gpus
+    }
+
+    fn coretemp_readings(&self) -> Vec<(String, Option<u32>, f32)> {
+        let mut out = Vec::new();
+        let entries = match fs::read_dir(self.rooted("/sys/class/hwmon")) {
+            Ok(entries) => entries,
+            Err(_) => return out,
+        };
+        let mut hwmons: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
+        hwmons.sort();
+        for hwmon in hwmons {
+            if read_trimmed_path(&hwmon.join("name")).as_deref() != Some("coretemp") {
+                continue;
+            }
+            let mut inputs: Vec<_> = match fs::read_dir(&hwmon) {
+                Ok(entries) => entries
+                    .flatten()
+                    .map(|entry| entry.path())
+                    .filter(|path| {
+                        path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+                            n.starts_with("temp")
+                                && n.ends_with("_input")
+                                && n["temp".len()..n.len() - "_input".len()]
+                                    .chars()
+                                    .all(|c| c.is_ascii_digit())
+                        })
+                    })
+                    .collect(),
+                Err(_) => continue,
+            };
+            inputs.sort();
+            for input in inputs {
+                let stem = input
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .and_then(|name| name.strip_suffix("_input"))
+                    .unwrap_or("");
+                let label = read_trimmed_path(&hwmon.join(format!("{stem}_label")))
+                    .unwrap_or_else(|| stem.to_string());
+                if let Some(millidegrees) = read_num_path::<i64>(&input) {
+                    let core = label.strip_prefix("Core ").and_then(|n| n.parse().ok());
+                    out.push((label, core, millidegrees as f32 / 1000.0));
+                }
+            }
+        }
+        out
+    }
+
+    fn cpu_load_percent(&self) -> (std::collections::HashMap<u32, f32>, Option<f32>) {
+        use std::collections::HashMap;
+        let current = self.proc_stat_snapshot();
+        let mut loads = HashMap::new();
+        let mut aggregate = None;
+        if let (Some(curr), Ok(mut prev)) = (current, self.cpu_prev.lock()) {
+            if let Some(p) = prev.as_ref() {
+                aggregate = load_fraction(
+                    p.aggregate.0,
+                    p.aggregate.1,
+                    curr.aggregate.0,
+                    curr.aggregate.1,
+                );
+                for (thread, idle, total) in &curr.cores {
+                    if let Some((prev_idle, prev_total)) = p
+                        .cores
+                        .iter()
+                        .find(|(t, _, _)| t == thread)
+                        .map(|(_, i, t)| (*i, *t))
+                    {
+                        if let Some(pct) = load_fraction(prev_idle, prev_total, *idle, *total) {
+                            loads.insert(*thread, pct);
+                        }
+                    }
+                }
+            }
+            *prev = Some(curr);
+        }
+        (loads, aggregate)
+    }
+
+    fn proc_stat_snapshot(&self) -> Option<CpuStatSnapshot> {
+        fs::read_to_string(self.rooted("/proc/stat"))
+            .ok()
+            .map(|content| parse_proc_stat(&content))
+    }
+
+    fn probe_gpus(&self) -> Vec<GpuReading> {
+        let entries = match fs::read_dir(self.rooted("/sys/class/drm")) {
+            Ok(entries) => entries,
+            Err(_) => return Vec::new(),
+        };
+        let mut paths: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
+        paths.sort();
+        let mut vendors: Vec<String> = Vec::new();
+        for path in paths {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let Some(index) = name.strip_prefix("card") else {
+                continue;
+            };
+            if index.is_empty() || !index.chars().all(|c| c.is_ascii_digit()) {
+                continue;
+            }
+            // Cards without a device link are virtual outputs.
+            let Some(vendor) = read_trimmed_path(&path.join("device/vendor")) else {
+                continue;
+            };
+            vendors.push(vendor);
+        }
+        // Mirror the rgb_status hermeticity rule: no subprocesses under a
+        // fake sysroot, so tests never execute the real nvidia-smi.
+        let mut smi = if self.sysroot() == Path::new("/") {
+            query_nvidia_smi().into_iter()
+        } else {
+            Vec::new().into_iter()
+        };
+        vendors
+            .into_iter()
+            .map(|vendor| match vendor.as_str() {
+                "0x10de" => match smi.next() {
+                    Some((name, temp_c, load_percent)) => GpuReading {
+                        name,
+                        vendor: "nvidia".into(),
+                        temp_c: Some(temp_c),
+                        load_percent: Some(load_percent),
+                    },
+                    None => GpuReading {
+                        name: "NVIDIA discrete graphics".into(),
+                        vendor: "nvidia".into(),
+                        temp_c: None,
+                        load_percent: None,
+                    },
+                },
+                "0x8086" => GpuReading {
+                    name: "Intel integrated graphics".into(),
+                    vendor: "intel".into(),
+                    temp_c: None,
+                    load_percent: None,
+                },
+                other => GpuReading {
+                    name: format!("Unknown GPU ({other})"),
+                    vendor: "unknown".into(),
+                    temp_c: None,
+                    load_percent: None,
+                },
+            })
+            .collect()
     }
 
     pub fn set_battery_thresholds(
@@ -907,10 +1129,169 @@ fn super_battery_rollback_error(
     }
 }
 
+/// Sorts sensor rows package-first, then numerically: glob order would
+/// put `temp10` before `temp2`.
+fn core_sort_key(id: &str) -> (u8, u32) {
+    if id.starts_with("Package") {
+        (0, 0)
+    } else if let Some(number) = id.strip_prefix("Core ").and_then(|n| n.parse().ok()) {
+        (1, number)
+    } else {
+        (2, 0)
+    }
+}
+
+/// Parses aggregate + per-thread (idle, total) jiffy counters from
+/// /proc/stat text. idle = idle + iowait, total = all fields.
+fn parse_proc_stat(content: &str) -> CpuStatSnapshot {
+    let mut aggregate = (0u64, 0u64);
+    let mut cores = Vec::new();
+    for line in content.lines() {
+        let mut fields = line.split_whitespace();
+        let label = fields.next().unwrap_or("");
+        let numbers: Vec<u64> = fields.filter_map(|field| field.parse().ok()).collect();
+        if numbers.is_empty() {
+            continue;
+        }
+        let total: u64 = numbers.iter().sum();
+        let idle = numbers.get(3).copied().unwrap_or(0) + numbers.get(4).copied().unwrap_or(0);
+        if label == "cpu" {
+            aggregate = (idle, total);
+        } else if let Some(thread) = label
+            .strip_prefix("cpu")
+            .and_then(|n| n.parse::<u32>().ok())
+        {
+            cores.push((thread, idle, total));
+        }
+    }
+    CpuStatSnapshot { aggregate, cores }
+}
+
+/// Busy fraction between two counter samples as 0-100. `None` when the
+/// counters did not advance, so a stuck clock never reports a fake load.
+fn load_fraction(prev_idle: u64, prev_total: u64, idle: u64, total: u64) -> Option<f32> {
+    let delta_idle = idle.saturating_sub(prev_idle);
+    let delta_total = total.saturating_sub(prev_total);
+    if delta_total == 0 {
+        return None;
+    }
+    Some((delta_total - delta_idle) as f32 / delta_total as f32 * 100.0)
+}
+
+/// One nvidia-smi call with a hard 3s timeout. A hung driver must never
+/// hang the D-Bus refresh path, so every failure mode yields no rows.
+fn query_nvidia_smi() -> Vec<(String, i32, f32)> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let output = std::process::Command::new("nvidia-smi")
+            .args([
+                "--query-gpu=name,temperature.gpu,utilization.gpu",
+                "--format=csv,noheader,nounits",
+            ])
+            .output()
+            .ok();
+        let _ = tx.send(output);
+    });
+    let Ok(Some(output)) = rx.recv_timeout(std::time::Duration::from_secs(3)) else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            // "NVIDIA GeForce RTX 4070 Laptop GPU, 47, 0"
+            let (head, util) = line.trim_end().rsplit_once(',')?;
+            let (name, temp) = head.rsplit_once(',')?;
+            Some((
+                name.trim().to_string(),
+                temp.trim().parse().ok()?,
+                util.trim().parse().ok()?,
+            ))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn cpu_cores_join_temps_and_load() {
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-cpucores-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let hwmon = root.join("sys/class/hwmon/hwmon3");
+        fs::create_dir_all(&hwmon).unwrap();
+        fs::write(hwmon.join("name"), "coretemp\n").unwrap();
+        fs::write(hwmon.join("temp1_label"), "Package id 0\n").unwrap();
+        fs::write(hwmon.join("temp1_input"), "65000\n").unwrap();
+        fs::write(hwmon.join("temp2_label"), "Core 0\n").unwrap();
+        fs::write(hwmon.join("temp2_input"), "59000\n").unwrap();
+        // A decoy driver must not leak into the rows.
+        let other = root.join("sys/class/hwmon/hwmon4");
+        fs::create_dir_all(&other).unwrap();
+        fs::write(other.join("name"), "acpitz\n").unwrap();
+        fs::write(other.join("temp1_label"), "acpitz\n").unwrap();
+        fs::write(other.join("temp1_input"), "27000\n").unwrap();
+        let proc = root.join("proc");
+        fs::create_dir_all(&proc).unwrap();
+        fs::write(
+            proc.join("stat"),
+            "cpu  100 0 100 800 0 0 0 0 0 0\ncpu0 50 0 50 400 0 0 0 0 0 0\n",
+        )
+        .unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        let first = hardware.read_cpu_cores();
+        assert_eq!(first.len(), 2);
+        assert!(first.iter().all(|core| core.load_percent.is_none()));
+
+        fs::write(
+            proc.join("stat"),
+            "cpu  110 0 110 830 0 0 0 0 0 0\ncpu0 55 0 55 410 0 0 0 0 0 0\n",
+        )
+        .unwrap();
+        let second = hardware.read_cpu_cores();
+        assert_eq!(second[0].id, "Package id 0");
+        // Aggregate: total 1000->1050, idle 800->830: busy 20/50 = 40%.
+        assert!((second[0].load_percent.unwrap() - 40.0).abs() < 0.01);
+        assert_eq!(second[1].id, "Core 0");
+        assert!((second[1].temp_c.unwrap() - 59.0).abs() < 0.01);
+        // cpu0: total 500->520, idle 400->410: busy 10/20 = 50%.
+        assert!((second[1].load_percent.unwrap() - 50.0).abs() < 0.01);
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn cpu_cores_and_gpus_degrade_gracefully() {
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-cpucores-bad-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let proc = root.join("proc");
+        fs::create_dir_all(&proc).unwrap();
+        fs::write(proc.join("stat"), "not a stat file\n").unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        assert!(hardware.read_cpu_cores().is_empty());
+        // Fake sysroot: no DRM tree, and nvidia-smi is never executed.
+        assert!(hardware.read_gpus().is_empty());
+
+        fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn writes_and_validates_battery_thresholds() {

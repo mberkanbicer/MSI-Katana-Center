@@ -95,6 +95,8 @@ void CenterClient::fetchAll() {
     fetchProperty(kSensorsIface, "EcState", generation);
     fetchProperty(kSensorsIface, "FanRpm", generation);
     fetchProperty(kSensorsIface, "Battery", generation);
+    fetchProperty(kSensorsIface, "CpuDetails", generation);
+    fetchProperty(kSensorsIface, "GpuDetails", generation);
 }
 
 void CenterClient::fetchProperty(const QString &iface, const QString &property,
@@ -157,6 +159,12 @@ void CenterClient::handleJson(const QString &property, const QString &json,
         } else if (property == "FanRpm") {
             if (doc.isArray())
                 parseFans(doc.array());
+        } else if (property == "CpuDetails") {
+            if (doc.isArray())
+                parseCpuCores(doc.array());
+        } else if (property == "GpuDetails") {
+            if (doc.isArray())
+                parseGpus(doc.array());
         } else if (property == "Battery") {
             if (doc.isObject())
                 parseBattery(doc.object());
@@ -1738,6 +1746,36 @@ void CenterClient::parseFans(const QJsonArray &fans) {
         rpmMax = qMax(rpmMax, rpm.toInt());
     m_fanRpmMax = rpmMax;
     maybeRecordHistory();
+}
+
+void CenterClient::parseCpuCores(const QJsonArray &cores) {
+    QVariantList out;
+    for (const QJsonValue &value : cores) {
+        const QJsonObject core = value.toObject();
+        QVariantMap row;
+        row[QStringLiteral("id")] = core.value("id").toString();
+        if (!core.value("temp_c").isNull())
+            row[QStringLiteral("temp")] = core.value("temp_c").toDouble();
+        if (!core.value("load_percent").isNull())
+            row[QStringLiteral("load")] = core.value("load_percent").toDouble();
+        out << row;
+    }
+    m_cpuCores = out;
+}
+
+void CenterClient::parseGpus(const QJsonArray &gpus) {
+    QVariantList out;
+    for (const QJsonValue &value : gpus) {
+        const QJsonObject gpu = value.toObject();
+        QVariantMap row;
+        row[QStringLiteral("name")] = gpu.value("name").toString();
+        if (!gpu.value("temp_c").isNull())
+            row[QStringLiteral("temp")] = gpu.value("temp_c").toDouble();
+        if (!gpu.value("load_percent").isNull())
+            row[QStringLiteral("load")] = gpu.value("load_percent").toDouble();
+        out << row;
+    }
+    m_gpus = out;
 }
 
 void CenterClient::parseBattery(const QJsonObject &battery) {

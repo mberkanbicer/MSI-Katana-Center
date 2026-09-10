@@ -251,6 +251,8 @@ fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError>
         }
     }
     let rgb = rgb_status(hw, &matched_profile);
+    let cpu_cores = hw.read_cpu_cores();
+    let gpus = hw.read_gpus();
     let runtime_capabilities =
         runtime_capabilities(matched_profile.as_ref(), &backends, &ec, &fans, &battery);
 
@@ -263,6 +265,8 @@ fn collect_status_from(hw: &HardwarePaths) -> Result<SystemStatus, ServiceError>
         fans,
         battery,
         rgb,
+        cpu_cores,
+        gpus,
     })
 }
 
@@ -896,6 +900,16 @@ impl SensorsInterface {
     #[zbus(property, name = "Battery")]
     fn battery(&self) -> zbus::fdo::Result<String> {
         to_json(&snapshot(&self.status)?.battery)
+    }
+
+    #[zbus(property, name = "CpuDetails")]
+    fn cpu_details(&self) -> zbus::fdo::Result<String> {
+        to_json(&snapshot(&self.status)?.cpu_cores)
+    }
+
+    #[zbus(property, name = "GpuDetails")]
+    fn gpu_details(&self) -> zbus::fdo::Result<String> {
+        to_json(&snapshot(&self.status)?.gpus)
     }
 }
 

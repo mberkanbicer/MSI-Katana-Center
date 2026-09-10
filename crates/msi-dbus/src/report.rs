@@ -100,6 +100,8 @@ mod tests {
                 controller_name: Some("MysticLight MS-1565".into()),
                 controller_serial: Some("4062C8A28000".into()),
             },
+            cpu_cores: vec![],
+            gpus: vec![],
         };
         let value = device_json(&status);
         assert_eq!(value["rgb"]["controller_name"], "MysticLight MS-1565");

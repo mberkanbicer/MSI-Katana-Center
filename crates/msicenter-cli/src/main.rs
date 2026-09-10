@@ -355,6 +355,18 @@ fn print_help() {
     println!("  MSI_LINUX_CENTER_SYSROOT=/path/to/fixture msicenter status");
 }
 
+fn show_celsius(temp: Option<f32>) -> String {
+    temp.map(|t| format!("{t:.1} °C"))
+        .unwrap_or_else(|| "n/a".into())
+}
+
+fn show_load(load: Option<f32>) -> String {
+    // CLI collects once, so load is always n/a here; the UI converges
+    // after its second 2s refresh tick.
+    load.map(|l| format!("{l:.0}%"))
+        .unwrap_or_else(|| "n/a".into())
+}
+
 fn print_status(status: &SystemStatus) {
     let identity = &status.identity;
     let profile = status.matched_profile.as_ref();
@@ -405,6 +417,36 @@ fn print_status(status: &SystemStatus) {
     } else {
         for fan in &status.fans {
             println!("  {:<10}: {} RPM ({})", fan.channel, fan.rpm, fan.source);
+        }
+    }
+
+    println!();
+    println!("CPU cores (temp/load)");
+    if status.cpu_cores.is_empty() {
+        println!("  unavailable");
+    } else {
+        for core in &status.cpu_cores {
+            println!(
+                "  {:<12}: {} / {}",
+                core.id,
+                show_celsius(core.temp_c),
+                show_load(core.load_percent)
+            );
+        }
+    }
+
+    println!();
+    println!("GPUs (temp/load)");
+    if status.gpus.is_empty() {
+        println!("  unavailable");
+    } else {
+        for gpu in &status.gpus {
+            println!(
+                "  {}: {} / {}",
+                gpu.name,
+                show_celsius(gpu.temp_c.map(|t| t as f32)),
+                show_load(gpu.load_percent)
+            );
         }
     }
 
