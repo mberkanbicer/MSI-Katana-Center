@@ -21,6 +21,9 @@ ApplicationWindow {
     Material.background: Theme.surface
     Material.foreground: Theme.text
     property int currentPage: 0
+    // {text, detail, enabled, handler} claimed by the active control page;
+    // null hides StickyActionBar (Status/Support have no primary action).
+    property var stickyAction: null
     readonly property var pages: [
         {title: "Overview", icon: "overview"},
         {title: "Power & Fans", icon: "power"},
@@ -176,21 +179,52 @@ ApplicationWindow {
                     Label { text: root.pages[root.currentPage].title; color: Theme.secondary; font.pixelSize: 12 }
                     Item { Layout.fillWidth: true }
                     Rectangle {
-                        width: 7; height: 7; radius: 4
-                        color: center.lastError ? Theme.danger : center.profileText ? Theme.success : Theme.muted
-                    }
-                    Label {
-                        text: center.lastError ? "Connection issue" : center.profileText ? "Device connected" : "Connecting"
-                        color: Theme.secondary
-                        font.pixelSize: 11
+                        radius: 14
+                        implicitHeight: 28
+                        implicitWidth: pillRow.implicitWidth + 24
+                        color: Theme.surface
+                        border.color: Theme.border
+                        Accessible.name: pillLabel.text
+                        Accessible.role: Accessible.StatusIndicator
+                        RowLayout {
+                            id: pillRow
+                            anchors.centerIn: parent
+                            spacing: 8
+                            Rectangle {
+                                width: 7; height: 7; radius: 4
+                                color: center.lastError ? Theme.danger : center.profileText ? Theme.success : Theme.muted
+                            }
+                            Label {
+                                id: pillLabel
+                                text: center.lastError ? "Connection issue" : center.profileText ? "Device connected" : "Connecting"
+                                color: Theme.secondary
+                                font.pixelSize: 11
+                            }
+                        }
                     }
                     ToolButton {
-                        implicitWidth: 36; implicitHeight: 36
+                        implicitWidth: 48; implicitHeight: 48
                         Accessible.name: "Refresh device"
                         ToolTip.visible: hovered
                         ToolTip.text: "Refresh device"
                         contentItem: LineIcon { name: "refresh"; tint: Theme.secondary }
                         onClicked: center.refreshNow()
+                    }
+                    ToolButton {
+                        id: panicButton
+                        implicitWidth: 48; implicitHeight: 48
+                        Accessible.name: "More actions"
+                        ToolTip.visible: hovered
+                        ToolTip.text: "More actions"
+                        contentItem: LineIcon { name: "more"; tint: Theme.secondary }
+                        onClicked: panicMenu.open()
+                        Menu {
+                            id: panicMenu
+                            MenuItem {
+                                text: "Panic reset…"
+                                onTriggered: panicDialog.open()
+                            }
+                        }
                     }
                 }
             }
@@ -225,9 +259,39 @@ ApplicationWindow {
                 ScenesPage {}
                 DiagnosticsPage {}
             }
+            StickyActionBar {
+                actionText: root.stickyAction ? root.stickyAction.text : ""
+                actionDetail: root.stickyAction ? (root.stickyAction.detail || "") : ""
+                actionEnabled: root.stickyAction ? root.stickyAction.enabled !== false : false
+                onTriggered: { if (root.stickyAction && root.stickyAction.handler) root.stickyAction.handler(); }
+            }
         }
     }
     OSD { id: osd }
+    Dialog {
+        id: panicDialog
+        title: "Panic reset"
+        modal: true
+        anchors.centerIn: parent
+        implicitWidth: 440
+        standardButtons: Dialog.Cancel
+        contentItem: Label {
+            text: "Cooler Boost off, Super Battery off, fan auto. Shift/performance mode is untouched. Polkit authorization may prompt."
+            color: Theme.secondary
+            font.pixelSize: 13
+            wrapMode: Text.WordWrap
+        }
+        footer: DialogButtonBox {
+            alignment: Qt.AlignRight
+            ActionButton {
+                text: "Reset now"
+                destructive: true
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                onClicked: panicDialog.accept()
+            }
+        }
+        onAccepted: center.panicReset()
+    }
     Connections {
         target: center
         function onActionDone(ok, title, detail) { osd.showMessage(title, detail, !ok) }

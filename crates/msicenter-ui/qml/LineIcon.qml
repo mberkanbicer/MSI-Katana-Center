@@ -47,6 +47,9 @@ Canvas {
             c.strokeRect(6, 4, 12, 17)
             line([[9,4],[9,2],[15,2],[15,4]])
             line([[8.5,13],[11,15.5],[15.5,9.5]])
+        } else if (name === "more") {
+            c.fillStyle = tint
+            for (const x of [5, 12, 19]) { c.beginPath(); c.arc(x, 12, 1.6, 0, 6.2832); c.fill() }
         } else {
             line([[2,12],[7,12],[10,5],[14,19],[17,12],[22,12]])
         }
