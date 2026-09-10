@@ -11,6 +11,32 @@ ScrollView {
 
     property int selectedScene: -1
 
+    function refreshSticky() {
+        const w = ApplicationWindow.window;
+        if (!w)
+            return;
+        if (page.visible) {
+            const name = page.selectedScene >= 0 ? center.sceneNames[page.selectedScene] : "";
+            w.stickyAction = {
+                owner: page,
+                text: "Apply selected scene",
+                detail: name !== "" ? name : "No scene selected",
+                enabled: page.selectedScene >= 0 && !center.sceneApplying,
+                handler: () => center.applyScene(center.sceneNames[page.selectedScene])
+            };
+        } else if (w.stickyAction && w.stickyAction.owner === page) {
+            w.stickyAction = null;
+        }
+    }
+    onVisibleChanged: refreshSticky()
+    onSelectedSceneChanged: refreshSticky()
+    Component.onCompleted: refreshSticky()
+
+    Connections {
+        target: center
+        function onChanged() { page.refreshSticky(); }
+    }
+
     Column {
         x: Math.max(28, (page.availableWidth - 1120) / 2)
         width: Math.min(1120, page.availableWidth - 56)
@@ -80,12 +106,6 @@ ScrollView {
         Flow {
             width: parent.width
             spacing: 10
-            ActionButton {
-                text: "Apply selected scene"
-                primary: true
-                enabled: page.selectedScene >= 0 && !center.sceneApplying
-                onClicked: center.applyScene(center.sceneNames[page.selectedScene])
-            }
             ActionButton {
                 text: "Reload"
                 onClicked: center.reloadScenes()

@@ -31,6 +31,34 @@ ScrollView {
     function applyColor(color) {
         page.colorHex = color
     }
+    function effectLabel() {
+        return ["", "Steady", "Breathing", "Cycle", "Wave"][page.modeIndex] || "";
+    }
+    function refreshSticky() {
+        const w = ApplicationWindow.window;
+        if (!w)
+            return;
+        if (page.visible) {
+            w.stickyAction = {
+                owner: page,
+                text: "Apply effect",
+                detail: effectLabel() + " \u00b7 #" + page.colorHex,
+                enabled: true,
+                handler: () => center.setRgbEffectPreset(page.rgbZones, page.modeIndex,
+                                                         page.speedSeconds, page.colorHex,
+                                                         page.waveDirection)
+            };
+        } else if (w.stickyAction && w.stickyAction.owner === page) {
+            w.stickyAction = null;
+        }
+    }
+    onVisibleChanged: refreshSticky()
+    onRgbZonesChanged: refreshSticky()
+    onColorHexChanged: refreshSticky()
+    onModeIndexChanged: refreshSticky()
+    onSpeedSecondsChanged: refreshSticky()
+    onWaveDirectionChanged: refreshSticky()
+    Component.onCompleted: refreshSticky()
 
     Column {
         x: Math.max(28, (page.availableWidth - 1120) / 2)
@@ -243,13 +271,6 @@ ScrollView {
                 Row {
                     spacing: 10
                     ActionButton {
-                        text: "Apply effect"
-                        primary: true
-                        onClicked: center.setRgbEffectPreset(page.rgbZones, page.modeIndex,
-                                                             page.speedSeconds, page.colorHex,
-                                                             page.waveDirection)
-                    }
-                    ActionButton {
                         text: "Turn off"
                         onClicked: center.setRgbColorFromHex(page.rgbZones, "000000")
                     }
@@ -309,7 +330,7 @@ ScrollView {
                             }
                         }
                         Label {
-                            text: "Enter or 'Use this color', then Apply effect above"
+                            text: "Enter or 'Use this color', then Apply effect below"
                             color: Theme.muted
                             font.pixelSize: 12
                         }

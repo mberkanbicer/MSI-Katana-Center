@@ -9,6 +9,25 @@ ScrollView {
     contentWidth: availableWidth
     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
+    function refreshSticky() {
+        const w = ApplicationWindow.window;
+        if (!w)
+            return;
+        if (page.visible) {
+            w.stickyAction = {
+                owner: page,
+                text: "Apply limits",
+                detail: startBox.value + "% \u2013 " + endBox.value + "%",
+                enabled: true,
+                handler: () => center.setBatteryThresholds(startBox.value, endBox.value)
+            };
+        } else if (w.stickyAction && w.stickyAction.owner === page) {
+            w.stickyAction = null;
+        }
+    }
+    onVisibleChanged: refreshSticky()
+    Component.onCompleted: refreshSticky()
+
     Column {
         x: Math.max(28, (page.availableWidth - 1120) / 2)
         width: Math.min(1120, page.availableWidth - 56)
@@ -64,6 +83,7 @@ ScrollView {
                         to: endBox.value - 1
                         value: center.chargeStartPercent >= 0 ? center.chargeStartPercent : 80
                         editable: true
+                        onValueModified: refreshSticky()
                     }
                     Label { text: "to"; color: Theme.muted }
                     SpinBox {
@@ -73,11 +93,7 @@ ScrollView {
                         to: 100
                         value: center.chargeEndPercent >= 0 ? center.chargeEndPercent : 90
                         editable: true
-                    }
-                    ActionButton {
-                        text: "Apply limits"
-                        primary: true
-                        onClicked: center.setBatteryThresholds(startBox.value, endBox.value)
+                        onValueModified: refreshSticky()
                     }
                 }
                 Label {
