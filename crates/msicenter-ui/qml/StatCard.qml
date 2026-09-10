@@ -35,9 +35,9 @@ Panel {
         Rectangle {
             visible: card.progress >= 0
             Layout.fillWidth: true
-            height: 3
+            height: 4
             radius: 2
-            color: Theme.border
+            color: Theme.chartGrid
             Rectangle {
                 width: parent.width * Math.max(0, Math.min(1, card.progress))
                 height: parent.height

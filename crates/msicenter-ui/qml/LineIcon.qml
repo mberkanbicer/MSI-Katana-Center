@@ -43,6 +43,10 @@ Canvas {
         } else if (name === "refresh") {
             c.beginPath(); c.arc(12,12,8,0.3,5.4); c.stroke()
             line([[18,3],[18,8],[13,8]])
+        } else if (name === "diagnostics") {
+            c.strokeRect(6, 4, 12, 17)
+            line([[9,4],[9,2],[15,2],[15,4]])
+            line([[8.5,13],[11,15.5],[15.5,9.5]])
         } else {
             line([[2,12],[7,12],[10,5],[14,19],[17,12],[22,12]])
         }

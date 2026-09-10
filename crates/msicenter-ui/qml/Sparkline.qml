@@ -16,7 +16,7 @@ Canvas {
     onPaint: {
         const ctx = getContext("2d")
         ctx.reset()
-        ctx.strokeStyle = Theme.border
+        ctx.strokeStyle = Theme.chartGrid
         ctx.lineWidth = 1
         for (let line = 0; line < 3; line++) {
             const y = 2 + (height - 4) * line / 2
@@ -44,5 +44,19 @@ Canvas {
                 ctx.lineTo(x, y)
         }
         ctx.stroke()
+        ctx.lineTo(pad + (width - pad * 2), height - pad)
+        ctx.lineTo(pad, height - pad)
+        ctx.closePath()
+        ctx.globalAlpha = 0.14
+        ctx.fillStyle = stroke
+        ctx.fill()
+        ctx.globalAlpha = 1.0
+        const lx = pad + (width - pad * 2)
+        const ly = height - pad - (height - pad * 2)
+                  * Math.max(0, Math.min(1, Number(pts[pts.length - 1]) / maxY))
+        ctx.fillStyle = stroke
+        ctx.beginPath()
+        ctx.arc(lx - 1, ly, 3, 0, Math.PI * 2) // -1 keeps the dot inside the canvas edge
+        ctx.fill()
     }
 }

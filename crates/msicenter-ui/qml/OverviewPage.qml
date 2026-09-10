@@ -23,7 +23,7 @@ ScrollView {
 
         GridLayout {
             width: parent.width
-            columns: 2
+            columns: page.availableWidth < 700 ? 1 : 2
             columnSpacing: 16
             rowSpacing: 16
             StatCard {
@@ -162,7 +162,7 @@ ScrollView {
                 }
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: 2
+                    columns: page.availableWidth < 700 ? 1 : 2
                     columnSpacing: 20
                     rowSpacing: 12
                     Repeater {

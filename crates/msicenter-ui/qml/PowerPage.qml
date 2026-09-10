@@ -60,6 +60,7 @@ ScrollView {
                 anchors.margins: 20
                 spacing: 6
 
+                Label { text: "Cooling"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
                 Switch {
                     text: "Cooler Boost"
                     checked: center.coolerBoostOn
@@ -124,6 +125,7 @@ ScrollView {
                     color: Theme.accent
                     font.pixelSize: 12
                 }
+                Label { text: "Battery & privacy"; color: Theme.muted; font.pixelSize: 12; font.bold: true; Layout.topMargin: 8 }
                 Switch {
                     text: "Super Battery"
                     checked: center.superBatteryOn

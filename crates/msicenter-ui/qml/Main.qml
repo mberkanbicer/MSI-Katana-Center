@@ -57,6 +57,12 @@ ApplicationWindow {
         enabled: !trayAvailable
         onActivated: center.panicReset()
     }
+    Shortcut { sequence: "Ctrl+1"; onActivated: root.currentPage = 0 }
+    Shortcut { sequence: "Ctrl+2"; onActivated: root.currentPage = 1 }
+    Shortcut { sequence: "Ctrl+3"; onActivated: root.currentPage = 2 }
+    Shortcut { sequence: "Ctrl+4"; onActivated: root.currentPage = 3 }
+    Shortcut { sequence: "Ctrl+5"; onActivated: root.currentPage = 4 }
+    Shortcut { sequence: "Ctrl+6"; onActivated: root.currentPage = 5 }
 
     RowLayout {
         anchors.fill: parent
@@ -192,6 +198,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 implicitHeight: visible ? bannerText.implicitHeight + 24 : 0
                 visible: center.actionMessage !== ""
+                Behavior on implicitHeight { NumberAnimation { duration: 140 } }
                 color: center.actionError ? Theme.dangerSoft : Theme.successSoft
                 Label {
                     id: bannerText
