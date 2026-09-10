@@ -24,7 +24,11 @@ qt_add_resources(msicenter-ui "qml"
         qml/ActionButton.qml
         qml/LineIcon.qml
         qml/StatCard.qml
+        qml/ThermalHeroCard.qml
+        qml/StickyActionBar.qml
+        qml/AutomationAccordion.qml
         qml/OverviewPage.qml
+        qml/CoolingPage.qml
         qml/PowerPage.qml
         qml/BatteryPage.qml
         qml/RgbPage.qml
