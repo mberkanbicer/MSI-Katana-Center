@@ -198,49 +198,49 @@ ScrollView {
                         return
                     center.setPowerSceneSwitch(checked)
                 }
-                }
+            }
+            Label {
+                text: center.powerSourceText
+                color: Theme.secondary
+                font.pixelSize: 12
+            }
+            RowLayout {
+                spacing: 10
                 Label {
-                    text: center.powerSourceText
-                    color: Theme.secondary
-                    font.pixelSize: 12
-                }
-                RowLayout {
-                    spacing: 10
-                    Label {
-                        text: "On AC"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                    }
-                    ComboBox {
-                        enabled: center.powerSceneSwitch
-                        Layout.preferredWidth: 220
-                        model: center.sceneChoicesWithNone
-                        currentIndex: center.acSceneChoiceIndex
-                        onActivated: (index) => center.setAcSceneChoiceIndex(index)
-                    }
-                }
-                RowLayout {
-                    spacing: 10
-                    Label {
-                        text: "On battery"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                    }
-                    ComboBox {
-                        enabled: center.powerSceneSwitch
-                        Layout.preferredWidth: 220
-                        model: center.sceneChoicesWithNone
-                        currentIndex: center.batterySceneChoiceIndex
-                        onActivated: (index) => center.setBatterySceneChoiceIndex(index)
-                    }
-                }
-                Label {
-                    text: "Edge-triggered: applies only when you plug or unplug, not on first read and not after a manual scene. Charging / Full / Not charging count as AC; Discharging as battery. (none) skips that side."
+                    text: "On AC"
                     color: Theme.muted
                     font.pixelSize: 12
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    Layout.fillWidth: true
                 }
+                ComboBox {
+                    enabled: center.powerSceneSwitch
+                    Layout.preferredWidth: 220
+                    model: center.sceneChoicesWithNone
+                    currentIndex: center.acSceneChoiceIndex
+                    onActivated: (index) => center.setAcSceneChoiceIndex(index)
+                }
+            }
+            RowLayout {
+                spacing: 10
+                Label {
+                    text: "On battery"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                }
+                ComboBox {
+                    enabled: center.powerSceneSwitch
+                    Layout.preferredWidth: 220
+                    model: center.sceneChoicesWithNone
+                    currentIndex: center.batterySceneChoiceIndex
+                    onActivated: (index) => center.setBatterySceneChoiceIndex(index)
+                }
+            }
+            Label {
+                text: "Edge-triggered: applies only when you plug or unplug, not on first read and not after a manual scene. Charging / Full / Not charging count as AC; Discharging as battery. (none) skips that side."
+                color: Theme.muted
+                font.pixelSize: 12
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                Layout.fillWidth: true
+            }
         }
 
         AutomationAccordion {
@@ -256,68 +256,68 @@ ScrollView {
                         return
                     center.setBatteryLevelRules(checked)
                 }
-                }
-                RowLayout {
-                    spacing: 10
-                    Label {
-                        text: "Below"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                    }
-                    SpinBox {
-                        from: 5
-                        to: 95
-                        value: center.batteryLowPercent
-                        enabled: center.batteryLevelRules
-                        onValueModified: center.setBatteryLowPercent(value)
-                    }
-                    Label {
-                        text: "% discharging →"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                    }
-                    ComboBox {
-                        enabled: center.batteryLevelRules
-                        Layout.preferredWidth: 200
-                        model: center.sceneChoicesWithNone
-                        currentIndex: center.batteryLowSceneChoiceIndex
-                        onActivated: (index) => center.setBatteryLowSceneChoiceIndex(index)
-                    }
-                }
-                RowLayout {
-                    spacing: 10
-                    Label {
-                        text: "Above"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                    }
-                    SpinBox {
-                        from: 10
-                        to: 100
-                        value: center.batteryHighPercent
-                        enabled: center.batteryLevelRules
-                        onValueModified: center.setBatteryHighPercent(value)
-                    }
-                    Label {
-                        text: "% charging →"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                    }
-                    ComboBox {
-                        enabled: center.batteryLevelRules
-                        Layout.preferredWidth: 200
-                        model: center.sceneChoicesWithNone
-                        currentIndex: center.batteryHighSceneChoiceIndex
-                        onActivated: (index) => center.setBatteryHighSceneChoiceIndex(index)
-                    }
-                }
+            }
+            RowLayout {
+                spacing: 10
                 Label {
-                    text: "Once per crossing. Low fires only while discharging, high only while charging. First reading is ignored. (none) skips that side."
+                    text: "Below"
                     color: Theme.muted
                     font.pixelSize: 12
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    Layout.fillWidth: true
                 }
+                SpinBox {
+                    from: 5
+                    to: 95
+                    value: center.batteryLowPercent
+                    enabled: center.batteryLevelRules
+                    onValueModified: center.setBatteryLowPercent(value)
+                }
+                Label {
+                    text: "% discharging →"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                }
+                ComboBox {
+                    enabled: center.batteryLevelRules
+                    Layout.preferredWidth: 200
+                    model: center.sceneChoicesWithNone
+                    currentIndex: center.batteryLowSceneChoiceIndex
+                    onActivated: (index) => center.setBatteryLowSceneChoiceIndex(index)
+                }
+            }
+            RowLayout {
+                spacing: 10
+                Label {
+                    text: "Above"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                }
+                SpinBox {
+                    from: 10
+                    to: 100
+                    value: center.batteryHighPercent
+                    enabled: center.batteryLevelRules
+                    onValueModified: center.setBatteryHighPercent(value)
+                }
+                Label {
+                    text: "% charging →"
+                    color: Theme.muted
+                    font.pixelSize: 12
+                }
+                ComboBox {
+                    enabled: center.batteryLevelRules
+                    Layout.preferredWidth: 200
+                    model: center.sceneChoicesWithNone
+                    currentIndex: center.batteryHighSceneChoiceIndex
+                    onActivated: (index) => center.setBatteryHighSceneChoiceIndex(index)
+                }
+            }
+            Label {
+                text: "Once per crossing. Low fires only while discharging, high only while charging. First reading is ignored. (none) skips that side."
+                color: Theme.muted
+                font.pixelSize: 12
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                Layout.fillWidth: true
+            }
         }
 
         AutomationAccordion {
@@ -333,101 +333,100 @@ ScrollView {
                         return
                     center.setSceneSchedule(checked)
                 }
-                }
-                Repeater {
-                    model: center.scheduleRules
-                    ColumnLayout {
-                        id: ruleRow
-                        required property var modelData
-                        required property int index
-                        spacing: 6
-                        Row {
-                            spacing: 4
-                            Repeater {
-                                model: ["M", "T", "W", "T", "F", "S", "S"]
-                                ActionButton {
-                                    required property string modelData
-                                    required property int index
-                                    text: modelData
-                                    Accessible.name: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][index]
-                                    checkable: true
-                                    width: 48
-                                    checked: (Number(ruleRow.modelData.days) & (1 << index)) !== 0
-                                    enabled: center.sceneSchedule
-                                    onClicked: center.toggleScheduleDay(ruleRow.index, index)
-                                }
-                            }
-                        }
-                        RowLayout {
-                            spacing: 6
-                            Label { text: "Start"; color: Theme.muted; font.pixelSize: 12 }
-                            SpinBox {
-                                from: 0; to: 23
-                                value: modelData.startHour
-                                enabled: center.sceneSchedule
-                                onValueModified: center.setScheduleRuleStart(index, value, modelData.startMinute)
-                            }
-                            SpinBox {
-                                from: 0; to: 59
-                                value: modelData.startMinute
-                                enabled: center.sceneSchedule
-                                onValueModified: center.setScheduleRuleStart(index, modelData.startHour, value)
-                            }
-                        }
-                        RowLayout {
-                            spacing: 6
-                            Label { text: "End"; color: Theme.muted; font.pixelSize: 12 }
-                            SpinBox {
-                                from: 0; to: 23
-                                value: modelData.endHour
-                                enabled: center.sceneSchedule
-                                onValueModified: center.setScheduleRuleEnd(index, value, modelData.endMinute)
-                            }
-                            SpinBox {
-                                from: 0; to: 59
-                                value: modelData.endMinute
-                                enabled: center.sceneSchedule
-                                onValueModified: center.setScheduleRuleEnd(index, modelData.endHour, value)
-                            }
-                        }
-                        RowLayout {
-                            spacing: 6
-                            ComboBox {
-                                enabled: center.sceneSchedule
-                                Layout.preferredWidth: 160
-                                model: center.sceneChoicesWithNone
-                                currentIndex: {
-                                    const name = modelData.scene
-                                    if (!name)
-                                        return 0
-                                    const i = center.sceneNames.indexOf(name)
-                                    return i < 0 ? 0 : i + 1
-                                }
-                                onActivated: (i) => center.setScheduleRuleScene(index, i)
-                            }
+            }
+            Repeater {
+                model: center.scheduleRules
+                ColumnLayout {
+                    id: ruleRow
+                    required property var modelData
+                    required property int index
+                    spacing: 6
+                    Row {
+                        spacing: 4
+                        Repeater {
+                            model: ["M", "T", "W", "T", "F", "S", "S"]
                             ActionButton {
-                                text: "Remove"
-                                destructive: true
+                                required property string modelData
+                                required property int index
+                                text: modelData
+                                Accessible.name: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][index]
+                                checkable: true
+                                width: 48
+                                checked: (Number(ruleRow.modelData.days) & (1 << index)) !== 0
                                 enabled: center.sceneSchedule
-                                onClicked: center.removeScheduleRule(index)
+                                onClicked: center.toggleScheduleDay(ruleRow.index, index)
                             }
                         }
                     }
+                    RowLayout {
+                        spacing: 6
+                        Label { text: "Start"; color: Theme.muted; font.pixelSize: 12 }
+                        SpinBox {
+                            from: 0; to: 23
+                            value: modelData.startHour
+                            enabled: center.sceneSchedule
+                            onValueModified: center.setScheduleRuleStart(index, value, modelData.startMinute)
+                        }
+                        SpinBox {
+                            from: 0; to: 59
+                            value: modelData.startMinute
+                            enabled: center.sceneSchedule
+                            onValueModified: center.setScheduleRuleStart(index, modelData.startHour, value)
+                        }
+                    }
+                    RowLayout {
+                        spacing: 6
+                        Label { text: "End"; color: Theme.muted; font.pixelSize: 12 }
+                        SpinBox {
+                            from: 0; to: 23
+                            value: modelData.endHour
+                            enabled: center.sceneSchedule
+                            onValueModified: center.setScheduleRuleEnd(index, value, modelData.endMinute)
+                        }
+                        SpinBox {
+                            from: 0; to: 59
+                            value: modelData.endMinute
+                            enabled: center.sceneSchedule
+                            onValueModified: center.setScheduleRuleEnd(index, modelData.endHour, value)
+                        }
+                    }
+                    RowLayout {
+                        spacing: 6
+                        ComboBox {
+                            enabled: center.sceneSchedule
+                            Layout.preferredWidth: 160
+                            model: center.sceneChoicesWithNone
+                            currentIndex: {
+                                const name = modelData.scene
+                                if (!name)
+                                    return 0
+                                const i = center.sceneNames.indexOf(name)
+                                return i < 0 ? 0 : i + 1
+                            }
+                            onActivated: (i) => center.setScheduleRuleScene(index, i)
+                        }
+                        ActionButton {
+                            text: "Remove"
+                            destructive: true
+                            enabled: center.sceneSchedule
+                            onClicked: center.removeScheduleRule(index)
+                        }
+                    }
                 }
-                ActionButton {
-                    text: "Add rule"
-                    enabled: center.sceneSchedule && center.scheduleRules.length < 8
-                    onClicked: center.addScheduleRule()
-                }
-                Label {
-                    text: "First matching rule wins. Applies when a window starts, and at app start if you are already inside one. Overnight ranges (22:00–07:00) are fine. Manual scenes inside a window stick until the next window. Needs this app running (autostart); no systemd timer, so Polkit is not popped at 07:00 by a background unit."
-                    color: Theme.muted
-                    font.pixelSize: 12
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    Layout.fillWidth: true
-                }
+            }
+            ActionButton {
+                text: "Add rule"
+                enabled: center.sceneSchedule && center.scheduleRules.length < 8
+                onClicked: center.addScheduleRule()
+            }
+            Label {
+                text: "First matching rule wins. Applies when a window starts, and at app start if you are already inside one. Overnight ranges (22:00–07:00) are fine. Manual scenes inside a window stick until the next window. Needs this app running (autostart); no systemd timer, so Polkit is not popped at 07:00 by a background unit."
+                color: Theme.muted
+                font.pixelSize: 12
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                Layout.fillWidth: true
+            }
         }
-
 
         Label {
             text: "Quiet: fan silent, Cooler Boost off, Super Battery off. "

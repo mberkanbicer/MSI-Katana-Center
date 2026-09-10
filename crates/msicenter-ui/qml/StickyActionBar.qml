@@ -5,8 +5,7 @@ import "Theme.js" as Theme
 
 // Bottom-docked primary call-to-action for control pages.
 // Hidden until Main.stickyAction is assigned ({text, detail, enabled,
-// handler}); Status/Support leave it null so the bar never appears there.
-// Pages claim it in later slices; this file is shell only.
+// handler}); pages without a primary action leave it null.
 Rectangle {
     id: bar
     property string actionText: ""

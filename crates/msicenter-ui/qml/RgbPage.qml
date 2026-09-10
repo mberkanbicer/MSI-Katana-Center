@@ -159,52 +159,52 @@ ScrollView {
 
                 Label { text: "Color & effect (non-persistent)"; color: Theme.muted; font.pixelSize: 12; font.bold: true }
 
-                    Flow {
-                        width: parent.width
-                        spacing: 8
-                        Repeater {
-                            model: [{ name: "Red", hex: "ff0000" },
-                                    { name: "Green", hex: "00ff00" },
-                                    { name: "Blue", hex: "0000ff" },
-                                    { name: "Yellow", hex: "ffff00" },
-                                    { name: "Cyan", hex: "00ffff" },
-                                    { name: "White", hex: "ffffff" }]
-                            AbstractButton {
-                                id: swatch
-                                required property var modelData
-                                width: 84
-                                height: 48
-                                text: modelData.name
-                                Accessible.name: modelData.name + " color"
-                                checked: page.colorHex === modelData.hex
-                                hoverEnabled: true
-                                onClicked: page.colorHex = modelData.hex
-                                contentItem: Row {
-                                    spacing: 7
-                                    leftPadding: 8
-                                    Rectangle {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: 12; height: 12; radius: 6
-                                        color: "#" + swatch.modelData.hex
-                                        border.color: Qt.lighter(color, 1.5)
-                                    }
-                                    Label {
-                                        height: parent.height
-                                        verticalAlignment: Text.AlignVCenter
-                                        text: swatch.text
-                                        color: Theme.text
-                                        font.pixelSize: 12
-                                    }
+                Flow {
+                    width: parent.width
+                    spacing: 8
+                    Repeater {
+                        model: [{ name: "Red", hex: "ff0000" },
+                                { name: "Green", hex: "00ff00" },
+                                { name: "Blue", hex: "0000ff" },
+                                { name: "Yellow", hex: "ffff00" },
+                                { name: "Cyan", hex: "00ffff" },
+                                { name: "White", hex: "ffffff" }]
+                        AbstractButton {
+                            id: swatch
+                            required property var modelData
+                            width: 84
+                            height: 48
+                            text: modelData.name
+                            Accessible.name: modelData.name + " color"
+                            checked: page.colorHex === modelData.hex
+                            hoverEnabled: true
+                            onClicked: page.colorHex = modelData.hex
+                            contentItem: Row {
+                                spacing: 7
+                                leftPadding: 8
+                                Rectangle {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 12; height: 12; radius: 6
+                                    color: "#" + swatch.modelData.hex
+                                    border.color: Qt.lighter(color, 1.5)
                                 }
-                                background: Rectangle {
-                                    radius: 9
-                                    color: swatch.checked ? Theme.accentSoft : swatch.hovered ? Theme.elevated : Theme.surface
-                                    border.color: swatch.checked || swatch.visualFocus ? Theme.accent : Theme.border
-                                    border.width: swatch.visualFocus ? 2 : 1
+                                Label {
+                                    height: parent.height
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: swatch.text
+                                    color: Theme.text
+                                    font.pixelSize: 12
                                 }
+                            }
+                            background: Rectangle {
+                                radius: 9
+                                color: swatch.checked ? Theme.accentSoft : swatch.hovered ? Theme.elevated : Theme.surface
+                                border.color: swatch.checked || swatch.visualFocus ? Theme.accent : Theme.border
+                                border.width: swatch.visualFocus ? 2 : 1
                             }
                         }
                     }
+                }
                 Row {
                     spacing: 10
                     Label { text: "Effect"; color: Theme.muted; font.pixelSize: 12; font.bold: true
