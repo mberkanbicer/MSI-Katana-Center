@@ -22,7 +22,7 @@ for the rules.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/ui-pages.gif" width="49%" alt="Page tour of Power, Battery, Keyboard RGB, Scenes, and Diagnostics">
+  <img src="docs/screenshots/ui-pages.gif" width="49%" alt="Page tour of Cooling, Power, Battery, Keyboard RGB, Scenes, and Diagnostics">
   <img src="docs/screenshots/ui-telemetry.gif" width="49%" alt="Keyboard RGB page with MysticLight MS-1565 zone preview">
 </p>
 
@@ -39,9 +39,10 @@ webcam/Fn keys, and MysticLight RGB.
 
 ## Features
 
-- **Read-only telemetry** — EC shift/fan modes, CPU/GPU temperatures, fan
-  levels and real RPM, battery status and charge thresholds, runtime
-  capability reporting
+- **Read-only telemetry** — EC shift/fan modes, CPU/GPU temperatures,
+  per-core temperature/load, per-GPU temperature/load, fan levels and
+  real RPM, battery status and charge thresholds, runtime capability
+  reporting
 - **Gated, verified writes** — battery charge thresholds, fan mode,
   Cooler Boost, Super Battery, webcam/webcam-block, Fn/Win key swap
 - **Keyboard RGB** — MysticLight MS-1565 steady color and effects
@@ -53,6 +54,10 @@ webcam/Fn keys, and MysticLight RGB.
   automation (all opt-in, all UI-owned)
 - **System tray** — live temps/RPM tooltip, quick actions, keyboard
   shortcuts (Ctrl+Shift+C/B/L/P)
+- **Desktop UI** — seven pages (Overview, Cooling, Power, Battery,
+  Keyboard RGB, Scenes, Diagnostics) with a thermal hero card, sticky
+  primary actions, a scene-automation accordion, connection/stale
+  status, and a queued action banner
 - **Community diagnostics** — `msicenter report` with no serial numbers
   for upstream support requests
 - **Fake-sysroot fixture** — hardware-free development and testing via

@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "msi-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -493,14 +493,14 @@ dependencies = [
 
 [[package]]
 name = "msi-daemon"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "msi-dbus",
 ]
 
 [[package]]
 name = "msi-dbus"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "msi-core",
  "msi-device-db",
@@ -512,7 +512,7 @@ dependencies = [
 
 [[package]]
 name = "msi-device-db"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "msi-core",
  "serde_json",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "msi-hardware"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hidapi",
  "msi-core",
@@ -528,7 +528,7 @@ dependencies = [
 
 [[package]]
 name = "msicenter-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "msi-core",
  "msi-dbus",
