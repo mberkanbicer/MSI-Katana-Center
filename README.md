@@ -6,6 +6,9 @@
 
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 [![CI](https://github.com/mberkanbicer/MSI-Katana-Center/actions/workflows/ci.yml/badge.svg)](https://github.com/mberkanbicer/MSI-Katana-Center/actions/workflows/ci.yml)
+[![Rust ≥ 1.75](https://img.shields.io/badge/rust-%E2%89%A5%201.75-orange.svg)](Cargo.toml)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-informational.svg)](#dependencies)
+[![Wiki](https://img.shields.io/badge/docs-wiki-8957e5.svg)](https://github.com/mberkanbicer/MSI-Katana-Center/wiki)
 
 Linux-native, open-source hardware management for MSI laptops. Developed
 against the **MSI Katana 17 B13VGK** (board MS-17L5, EC `17L5EMS1.115`) as
@@ -112,72 +115,6 @@ cargo build --release
 cd crates/msicenter-ui && cmake -S . -B build && cmake --build build -j
 ```
 
-## Dependencies
-
-### Supported OSes
-
-Linux only. Developed and tested on Arch Linux and Ubuntu (CI runs on
-`ubuntu-latest`); any distro with `systemd`, `Polkit`, D-Bus, Qt 6, and a
-recent Rust toolchain should work. The `msi-ec` and `msi_wmi_platform`
-kernel modules are required for real-hardware telemetry/writes, but the
-project builds and runs read-only (via the fixture) without them.
-
-### Must-have system packages
-
-| Package | Purpose |
-|---|---|
-| Rust toolchain ≥ 1.75 (`cargo`) | build all Rust crates |
-| Qt 6 ≥ 6.4 (Core, Gui, Qml, Quick, DBus, QuickControls2, Widgets) | desktop UI |
-| CMake ≥ 3.21 | Qt UI build |
-| `pkg-config` | locates `libusb-1.0` at build time |
-| `libusb-1.0-0-dev` (dev headers) | RGB HID backend, statically linked at build time |
-| `libudev-dev` | hardware/device enumeration |
-| `systemd`, `polkit`, `dbus` (runtime) | daemon service, privilege gating, IPC |
-| `libusb-1.0-0` (runtime) | RGB HID backend runtime dependency |
-
-Debian/Ubuntu example (matches CI):
-
-```bash
-sudo apt-get install -y pkg-config libusb-1.0-0-dev libudev-dev
-```
-
-Arch example:
-
-```bash
-sudo pacman -S base-devel cmake qt6-base qt6-declarative libusb systemd polkit
-```
-
-### Key Rust crates
-
-`zbus` (D-Bus), `serde`/`serde_json` (data + device profiles), `hidapi`
-(statically-linked `linux-static-libusb` backend for MysticLight RGB —
-see [FAQ](https://github.com/mberkanbicer/MSI-Katana-Center/wiki/FAQ-and-Troubleshooting#the-daemon-wont-start--build-fails-on-hidapi)).
-Full dependency graph: `Cargo.lock` / each crate's `Cargo.toml`.
-
-### Kernel modules used (read/write backends)
-
-- [`msi-ec`](https://github.com/BeardOverflow/msi-ec) — EC semantic
-  state, fan modes, Cooler Boost, Super Battery, webcam/Fn key
-- `msi_wmi_platform` / hwmon — real fan RPM
-- Linux `power_supply` — battery status and charge thresholds
-
-### Projects referenced during development
-
-This project does not vendor or link against these projects' code; they
-were used as research/reference material for MSI hardware behavior,
-verified independently before any write path was implemented (see
-[Safety Model](https://github.com/mberkanbicer/MSI-Katana-Center/wiki/Safety-Model)
-and [Contributing](https://github.com/mberkanbicer/MSI-Katana-Center/wiki/Contributing)).
-
-| Project | Used for |
-|---|---|
-| [GhostDeck](https://github.com/wygodad/ghostdeck) | MSI model/firmware knowledge, EC/register research, fan curves, verification methodology |
-| [msi-ec](https://github.com/BeardOverflow/msi-ec) | Linux MSI EC/sysfs semantics, modes, Cooler Boost, temperatures, fan levels and supported models |
-| [MControlCenter](https://github.com/dmitry-s93/MControlCenter) | Comparative Linux MSI feature/UX behavior |
-| [OpenFreezeCenter](https://github.com/YoCodingMonster/OpenFreezeCenter) | privilege separation, Polkit concepts, fan control, simulation and recovery |
-| [msi-katana-rgb](https://github.com/sarpowsky/msi-katana-rgb) | Katana Mystic Light USB/HID protocol and 4-zone RGB research |
-| [Linux kernel](https://github.com/torvalds/linux) | highest-priority implementation reference for hwmon, power_supply, WMI, ACPI, HID, DRM and platform drivers |
-
 ## Run
 
 Against the included fixture (no hardware needed):
@@ -275,6 +212,63 @@ exact support scope, gates, and physical verification records live in
 - [`docs/phase7-rgb-protocol.md`](docs/phase7-rgb-protocol.md) — MysticLight wire protocol
 - [`docs/reverse-engineering-inventory.md`](docs/reverse-engineering-inventory.md) — RE inventory
 - [`MSI-Linux-Center-AGENTS.md`](MSI-Linux-Center-AGENTS.md) — safety rules for contributors and agents
+- [Project wiki](https://github.com/mberkanbicer/MSI-Katana-Center/wiki) — installation, safety model, D-Bus API, and FAQ in browsable form
+
+## Dependencies
+
+**Supported OSes** — Linux only. Developed and tested on Arch Linux and
+Ubuntu (CI runs on `ubuntu-latest`); any distro with `systemd`, Polkit,
+D-Bus, Qt 6, and a recent Rust toolchain should work. The `msi-ec` and
+`msi_wmi_platform` kernel modules are required for real-hardware
+telemetry/writes — the project still builds and runs read-only through
+the fixture without them.
+
+**Must-have system packages**
+
+| Package | Purpose |
+|---|---|
+| Rust toolchain ≥ 1.75 (`cargo`) | build all Rust crates |
+| Qt 6 ≥ 6.4 (Core, Gui, Qml, Quick, DBus, QuickControls2, Widgets) | desktop UI |
+| CMake ≥ 3.21 | Qt UI build |
+| `pkg-config` | locates `libusb-1.0` at build time |
+| `libusb-1.0-0-dev` (dev headers) | RGB HID backend, statically linked at build time |
+| `libudev-dev` | hardware/device enumeration |
+| `systemd`, `polkit`, `dbus` (runtime) | daemon service, privilege gating, IPC |
+| `libusb-1.0-0` (runtime) | RGB HID backend runtime dependency |
+
+```bash
+# Debian/Ubuntu (matches CI)
+sudo apt-get install -y pkg-config libusb-1.0-0-dev libudev-dev
+
+# Arch
+sudo pacman -S base-devel cmake qt6-base qt6-declarative libusb systemd polkit
+```
+
+**Key Rust crates** — `zbus` (D-Bus), `serde`/`serde_json` (data +
+device profiles), `hidapi` (statically-linked `linux-static-libusb`
+backend for MysticLight RGB — see the
+[FAQ](https://github.com/mberkanbicer/MSI-Katana-Center/wiki/FAQ-and-Troubleshooting#the-daemon-wont-start--build-fails-on-hidapi)
+if a distro `hidapi` package ever causes link errors). Full graph in
+`Cargo.lock` / each crate's `Cargo.toml`.
+
+**Kernel modules used** — [`msi-ec`](https://github.com/BeardOverflow/msi-ec)
+(EC semantic state, fan modes, Cooler Boost, Super Battery, webcam/Fn
+key), `msi_wmi_platform`/hwmon (real fan RPM), Linux `power_supply`
+(battery status and charge thresholds).
+
+**Projects referenced during development** — research/reference
+material only; nothing here is vendored or linked, and every write path
+was independently verified before shipping (see
+[Safety Model](https://github.com/mberkanbicer/MSI-Katana-Center/wiki/Safety-Model)):
+
+| Project | Used for |
+|---|---|
+| [GhostDeck](https://github.com/wygodad/ghostdeck) | MSI model/firmware knowledge, EC/register research, fan curves, verification methodology |
+| [msi-ec](https://github.com/BeardOverflow/msi-ec) | Linux MSI EC/sysfs semantics, modes, Cooler Boost, temperatures, fan levels and supported models |
+| [MControlCenter](https://github.com/dmitry-s93/MControlCenter) | Comparative Linux MSI feature/UX behavior |
+| [OpenFreezeCenter](https://github.com/YoCodingMonster/OpenFreezeCenter) | privilege separation, Polkit concepts, fan control, simulation and recovery |
+| [msi-katana-rgb](https://github.com/sarpowsky/msi-katana-rgb) | Katana Mystic Light USB/HID protocol and 4-zone RGB research |
+| [Linux kernel](https://github.com/torvalds/linux) | highest-priority implementation reference for hwmon, power_supply, WMI, ACPI, HID, DRM and platform drivers |
 
 ## Disclaimer — use at your own risk
 
