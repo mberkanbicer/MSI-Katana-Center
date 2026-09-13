@@ -1430,6 +1430,54 @@ mod tests {
     }
 
     #[test]
+    fn rolls_back_cooler_boost_on_write_failure() {
+        // Safety-model guarantee: a failed write must attempt to restore the
+        // previous value rather than leaving state unknown. Force the write
+        // to fail with a read-only file; since the restore targets the same
+        // file, both the write and the rollback attempt fail, and the daemon
+        // must surface the combined Rollback error rather than panicking or
+        // silently swallowing the failure.
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = std::env::temp_dir().join(format!(
+            "msi-linux-center-coolerboost-rollback-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let msi_ec = root.join("sys/devices/platform/msi-ec");
+        fs::create_dir_all(&msi_ec).unwrap();
+        let boost_path = msi_ec.join("cooler_boost");
+        fs::write(&boost_path, "off\n").unwrap();
+        fs::set_permissions(&boost_path, fs::Permissions::from_mode(0o444)).unwrap();
+
+        let hardware = HardwarePaths::new(&root);
+        let result = hardware.set_cooler_boost(true);
+
+        // Root bypasses Unix permission bits, so re-enable writes and skip
+        // the failure assertion when running as root (e.g. some CI images).
+        fs::set_permissions(&boost_path, fs::Permissions::from_mode(0o644)).unwrap();
+        if result.is_ok() {
+            fs::remove_dir_all(root).unwrap();
+            return;
+        }
+        assert!(
+            matches!(result, Err(CoolerBoostError::Rollback { .. })),
+            "expected a Rollback error, got {result:?}"
+        );
+        // State on disk is unchanged since neither the write nor the
+        // rollback-restore of the same value succeeded.
+        assert_eq!(
+            fs::read_to_string(&boost_path).unwrap().trim(),
+            "off"
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn writes_and_validates_webcam_and_fn_key() {
         let root = std::env::temp_dir().join(format!(
             "msi-linux-center-periph-{}-{}",

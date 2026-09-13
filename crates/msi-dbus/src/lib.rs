@@ -1225,9 +1225,9 @@ async fn authorize(
     if authorized {
         Ok(())
     } else {
-        Err(zbus::fdo::Error::AccessDenied(
-            "battery threshold change not authorized".into(),
-        ))
+        Err(zbus::fdo::Error::AccessDenied(format!(
+            "{action} not authorized"
+        )))
     }
 }
 
