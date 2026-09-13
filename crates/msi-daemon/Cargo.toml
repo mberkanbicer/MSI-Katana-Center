@@ -9,7 +9,7 @@ description = "MSI Katana Center system daemon (D-Bus, gated EC/hardware writes)
 [package.metadata.deb]
 maintainer = "MSI Katana Center contributors"
 copyright = "2026, MSI Katana Center contributors"
-depends = "libusb-1.0-0, libhidapi-libusb0"
+depends = "libusb-1.0-0"
 section = "admin"
 priority = "optional"
 assets = [

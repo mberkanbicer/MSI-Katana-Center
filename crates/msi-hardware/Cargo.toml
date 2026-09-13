@@ -8,4 +8,8 @@ rust-version.workspace = true
 [dependencies]
 msi-core = { path = "../msi-core" }
 # libusb backend: usbfs access from the root daemon; no hidraw on this kernel.
-hidapi = { version = "2", default-features = false, features = ["linux-shared-libusb"] }
+# Static build: vendors hidapi's own libusb-backend C source instead of
+# linking the distro's libhidapi-libusb.so, whose symbol set varies across
+# distro package versions (e.g. hid_send_output_report is not always
+# exported) and would otherwise fail to link on some systems/CI images.
+hidapi = { version = "2", default-features = false, features = ["linux-static-libusb"] }

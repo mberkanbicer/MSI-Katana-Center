@@ -19,7 +19,7 @@ serde_json.workspace = true
 [package.metadata.deb]
 maintainer = "MSI Katana Center contributors"
 copyright = "2026, MSI Katana Center contributors"
-depends = "libusb-1.0-0, libhidapi-libusb0"
+depends = "libusb-1.0-0"
 section = "admin"
 priority = "optional"
 assets = [
