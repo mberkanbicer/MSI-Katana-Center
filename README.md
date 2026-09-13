@@ -5,6 +5,7 @@
 # MSI Katana Center
 
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
+[![CI](https://github.com/mberkanbicer/MSI-Katana-Center/actions/workflows/ci.yml/badge.svg)](https://github.com/mberkanbicer/MSI-Katana-Center/actions/workflows/ci.yml)
 
 Linux-native, open-source hardware management for MSI laptops. Developed
 against the **MSI Katana 17 B13VGK** (board MS-17L5, EC `17L5EMS1.115`) as
@@ -67,7 +68,13 @@ webcam/Fn keys, and MysticLight RGB.
 
 Builds the release daemon, CLI, and Qt UI, then installs systemd,
 Polkit, D-Bus policy, desktop file, and (by default) session autostart.
-Write opt-ins stay off.
+The shipped systemd unit enables the battery, fan-mode, cooler-boost,
+RGB, webcam, webcam-block, and fn-key write opt-ins by default; Super
+Battery and RGB flash-save stay off. Every write remains Polkit-gated,
+exact-firmware-matched, and read-back/rollback verified in the daemon
+regardless of these defaults — edit
+[`data/systemd/system/msi-linux-center.service`](data/systemd/system/msi-linux-center.service)
+before installing if you want a fully read-only default.
 
 ```bash
 ./scripts/setup.sh install
@@ -145,8 +152,10 @@ exact support scope, gates, and physical verification records live in
 
 1. **Firmware gate** — writes only run when the device's EC firmware
    exactly matches a physically verified firmware string
-2. **Opt-in gate** — every write family is disabled by default behind a
-   per-feature daemon environment variable
+2. **Opt-in gate** — every write family is behind its own per-feature
+   daemon environment variable; the shipped systemd unit enables
+   battery, fan-mode, cooler-boost, RGB, webcam, webcam-block, and
+   fn-key by default (Super Battery and RGB flash-save stay off)
 3. **Polkit gate** — every D-Bus write method maps to a Polkit action
 4. **Read-back verification** — EC and battery writes are read back and
    verified; failed writes roll back
@@ -206,8 +215,11 @@ Polkit authorization, read-back verification, physical verification on
 the reference device) reduce risk but do not eliminate it. They are
 best-effort engineering measures, not guarantees.
 
-- Hardware write features are **disabled by default**; only enable them
-  if you understand what they do
+- Battery thresholds, fan mode, Cooler Boost, RGB, webcam,
+  webcam-block, and Fn key writes are **enabled by default** in the
+  installed systemd unit (Super Battery and RGB flash-save stay off);
+  only install them if you understand what they do, and edit the unit
+  file before installing if you want a fully read-only default
 - Behavior is physically verified on the **MSI Katana 17 B13VGK**
   (EC `17L5EMS1.115`) only; other models are gated but unverified
 - Do not use this software on a laptop you cannot afford to damage, and

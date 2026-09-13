@@ -121,7 +121,9 @@ install_files() {
     echo "==> systemd"
     as_root systemctl daemon-reload
     as_root systemctl enable --now msi-linux-center.service
-    echo "installed. writes remain disabled (opt-ins = 0)."
+    echo "installed."
+    echo "write opt-ins (edit $(unit_path), then 'systemctl daemon-reload && systemctl restart msi-linux-center.service' to change):"
+    as_root grep '^Environment=MSI_LINUX_CENTER_ENABLE_' "$(unit_path)" | sed 's/^/  /'
     echo "check: systemctl is-active msi-linux-center.service && msicenter status"
 }
 
